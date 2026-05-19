@@ -53,7 +53,6 @@
             flex-direction: column;
             justify-content: space-between;
         }
-        /* Dynamic Flash Feedback Classes */
         .dice-btn button.success-flash {
             background-color: #a6e3a1 !important;
             color: #11111b !important;
@@ -78,7 +77,6 @@
             font-family: monospace;
             resize: vertical;
         }
-        /* New Live Feed Result Panel Styling */
         .result-panel {
             background-color: #11111b;
             border: 2px solid #89b4fa;
@@ -88,9 +86,12 @@
             margin-top: 10px;
         }
         .result-title {
-            font-size: 18px;
+            font-size: 16px;
             color: #f9e2af;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .result-raw {
             font-family: 'Courier New', Courier, monospace;
@@ -98,8 +99,8 @@
             color: #a6adc8;
             white-space: pre-wrap;
             word-break: break-all;
+            line-height: 1.5;
         }
-        /* Layout formatting blocks */
         .creator-container {
             display: flex;
             gap: 20px;
@@ -130,6 +131,14 @@
             font-family: monospace;
             color: #f9e2af;
         }
+        .timer-badge {
+            font-size: 12px;
+            background-color: #313244;
+            color: #a6e3a1;
+            padding: 3px 8px;
+            border-radius: 12px;
+            border: 1px solid #45475a;
+        }
     </style>
 </head>
 <body>
@@ -156,11 +165,14 @@
         </div>
     </div>
 
-    <!-- NEW: LIVE RESULT FEEDBACK PANEL -->
+    <!-- LIVE RESULT FEEDBACK PANEL (WITH ROLLING BUFFER) -->
     <div class="section">
-        <h3>📋 Latest Copied Clipboard Result</h3>
+        <h3>📋 Clipboard Result Feed</h3>
         <div class="result-panel">
-            <div id="resTitle" class="result-title">No dice rolled yet...</div>
+            <div class="result-title">
+                <span id="resTitle">No dice rolled yet...</span>
+                <span id="bufferTimer" class="timer-badge" style="display: none;">Combo Window Active</span>
+            </div>
             <div id="resRaw" class="result-raw">Click a custom action button above to calculate a formula string.</div>
         </div>
     </div>
@@ -205,15 +217,20 @@
     <script>
         // Core state architecture
         let database = JSON.parse(localStorage.getItem('dice_profiles')) || {
-            "Example Hero": [
-                { label: "Savage Attacker 2d6", formula: "2*(2d6)kh1+4", note: "Savage Attacker Greatsword" },
-                { label: "Advantage Attack", formula: "2d20kh1+7", note: "to hit" },
-                { label: "Fireball", formula: "8d6", note: "DC 15 Dex Half" }
+            "Example Paladin": [
+                { label: "Longsword (Advantage)", formula: "2d20kh1+7", note: "To Hit" },
+                { label: "Longsword Damage", formula: "1d8+4", note: "Slashing" },
+                { label: "Divine Smite (2nd Level)", formula: "3d8", note: "Radiant Damage" }
             ]
         };
         
-        let currentCharacter = localStorage.getItem('current_dice_char') || Object.keys(database)[0] || "Example Hero";
+        let currentCharacter = localStorage.getItem('current_dice_char') || Object.keys(database)[0] || "Example Paladin";
         if (!database[currentCharacter]) database[currentCharacter] = [];
+
+        // Rolling Buffer State Variables
+        let rollBuffer = [];
+        let lastRollTime = 0;
+        const COMBO_TIMEOUT_MS = 10000; // 10 seconds tracking limit
 
         // --- CORE DICE ROLL SIMULATOR ---
         function rollBasicDice(countStr, sidesStr) {
@@ -315,39 +332,75 @@
         }
 
         function executeRoll(label, formula, note, buttonElement) {
+            const currentTime = Date.now();
             const rollData = parseAndRoll(formula);
+            
             if (!rollData || isNaN(rollData.total)) {
                 showStatus("Error evaluating math or dice formula! Check syntax.", true);
                 return;
             }
 
-            let output = `*rolls ${label} (${formula}):* **${rollData.total}**`;
-            if (rollData.breakdown) output += ` [Details: ${rollData.breakdown}]`;
-            if (note) output += ` *(${note})*`;
+            // Construct standard line format
+            let singleLineOutput = `*rolls ${label} (${formula}):* **${rollData.total}**`;
+            if (rollData.breakdown) singleLineOutput += ` [Details: ${rollData.breakdown}]`;
+            if (note) singleLineOutput += ` *(${note})*`;
 
-            // Copy to structural Clipboard
-            navigator.clipboard.writeText(output).then(() => {
-                showStatus(`Copied roll for ${label}!`);
+            // Evaluate Timestamp Sequence: Clear rolling buffer if window threshold has expired
+            if (currentTime - lastRollTime > COMBO_TIMEOUT_MS) {
+                rollBuffer = [];
+            }
+            
+            // Append line item to sequence state
+            rollBuffer.push(singleLineOutput);
+            lastRollTime = currentTime;
+
+            // Flatten combined lines into single multiline block text string
+            const combinedOutputText = rollBuffer.join('\n');
+
+            // Copy flattened rolling stack to system clipboard
+            navigator.clipboard.writeText(combinedOutputText).then(() => {
+                showStatus(rollBuffer.length > 1 ? `Combined sequence copy active (${rollBuffer.length} rolls)!` : `Copied roll for ${label}!`);
                 
-                // Update the visible feedback logs panel
-                document.getElementById('resTitle').innerHTML = `Total: <strong>${rollData.total}</strong> <span style="font-size:13px; color:#a6e3a1;">(Copied to Clipboard!)</span>`;
-                document.getElementById('resRaw').innerText = output;
+                // Update text container view blocks
+                document.getElementById('resTitle').innerHTML = `Active Stack: <strong>${rollBuffer.length} Roll(s)</strong>`;
+                document.getElementById('resRaw').innerText = combinedOutputText;
 
-                // Handle Button Visual Pulse/Animation Feedback
+                // Show visually running countdown badge status
+                const timerBadge = document.getElementById('bufferTimer');
+                timerBadge.style.display = 'inline-block';
+                timerBadge.innerText = `Combo active: +10s added`;
+
+                // Handle interactive animation pulsing feedback
                 if(buttonElement) {
                     const originalText = buttonElement.innerText;
-                    buttonElement.innerText = "✓ Copied!";
+                    buttonElement.innerText = "✓ Added!";
                     buttonElement.classList.add('success-flash');
                     
                     setTimeout(() => {
                         buttonElement.innerText = originalText;
                         buttonElement.classList.remove('success-flash');
-                    }, 800);
+                    }, 600);
                 }
             }).catch(err => {
-                showStatus("Clipboard error!", true);
+                showStatus("Clipboard execution error!", true);
             });
         }
+
+        // Auto-cleanup timer element loop updating every half second
+        setInterval(() => {
+            if (rollBuffer.length > 0) {
+                const timePassed = Date.now() - lastRollTime;
+                const timerBadge = document.getElementById('bufferTimer');
+                
+                if (timePassed > COMBO_TIMEOUT_MS) {
+                    timerBadge.style.display = 'none';
+                    document.getElementById('resTitle').innerHTML = `Stack Expired <span style="font-size:12px; font-weight:normal; color:#a6adc8;">(Next click resets)</span>`;
+                } else {
+                    const remainingSeconds = ((COMBO_TIMEOUT_MS - timePassed) / 1000).toFixed(1);
+                    timerBadge.innerText = `Combo Window: ${remainingSeconds}s`;
+                }
+            }
+        }, 200);
 
         // --- UI & STATE MANAGEMENT ---
         function saveToStorage() {
@@ -395,9 +448,10 @@
             currentCharacter = document.getElementById('charSelect').value;
             saveToStorage();
             renderUI();
-            // Clear result box on profile swap to prevent confusion
+            rollBuffer = [];
             document.getElementById('resTitle').innerText = "No dice rolled yet...";
             document.getElementById('resRaw').innerText = "Click a custom action button above to calculate a formula string.";
+            document.getElementById('bufferTimer').style.display = 'none';
         }
 
         function createCharacter() {
@@ -414,7 +468,7 @@
             if (confirm(`Are you sure you want to delete all profiles/buttons for ${currentCharacter}?`)) {
                 delete database[currentCharacter];
                 const remaining = Object.keys(database);
-                currentCharacter = remaining.length ? remaining[0] : "Example Hero";
+                currentCharacter = remaining.length ? remaining[0] : "Example Paladin";
                 if (!database[currentCharacter]) database[currentCharacter] = [];
                 saveToStorage();
                 renderUI();
