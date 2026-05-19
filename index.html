@@ -506,7 +506,7 @@
                 delLink.setAttribute('draggable', false);
                 delLink.onclick = (e) => { 
                     e.stopPropagation(); 
-                    removeButton(index); 
+					removeButton(index, btn.label);
                 };
 
                 wrapper.appendChild(rollBtn);
@@ -565,10 +565,13 @@
             document.getElementById('btnNote').value = '';
         }
 
-        function removeButton(index) {
-            database[currentCharacter].splice(index, 1);
-            saveToStorage();
-            renderUI();
+        function removeButton(index, label) {
+            if (confirm(`Delete the "${label}" macro button?`)) {
+                database[currentCharacter].splice(index, 1);
+                saveToStorage();
+                renderUI();
+                showStatus(`Deleted "${label}" macro.`);
+            }
         }
 
         function exportCharacter() {
