@@ -411,6 +411,9 @@
             localStorage.setItem('current_dice_char', currentCharacter);
         }
 
+        // State variables to track dragging
+        let draggedIndex = null;
+
         function renderUI() {
             const select = document.getElementById('charSelect');
             select.innerHTML = '';
@@ -430,16 +433,81 @@
                 const wrapper = document.createElement('div');
                 wrapper.className = 'dice-btn';
                 
+                // Make the wrapper draggable
+                wrapper.setAttribute('draggable', true);
+                wrapper.style.cursor = 'grab';
+                
+                // DRAG AND DROP EVENTS (FIXED FOR CHILD ELEMENTS)
+                wrapper.ondragstart = function(e) {
+                    draggedIndex = index;
+                    this.style.opacity = '0.4';
+                    e.dataTransfer.effectAllowed = 'move';
+                };
+
+                wrapper.ondragend = function() {
+                    this.style.opacity = '1';
+                    draggedIndex = null;
+                    document.querySelectorAll('.dice-btn').forEach(el => {
+                        el.style.border = 'none';
+                    });
+                };
+
+                wrapper.ondragover = function(e) {
+                    e.preventDefault(); // Crucial to allow a drop event to trigger
+                    return false;
+                };
+
+                wrapper.ondragenter = function(e) {
+                    // Find the actual .dice-btn container even if hovering over a child element
+                    const targetCard = e.target.closest('.dice-btn');
+                    if (targetCard && index !== draggedIndex) {
+                        targetCard.style.border = '1px dashed #89b4fa';
+                    }
+                };
+
+                wrapper.ondragleave = function(e) {
+                    // Only remove the border if the mouse is genuinely leaving the container, 
+                    // not just entering an inner button/label element
+                    const relatedTargetCard = e.relatedTarget ? e.relatedTarget.closest('.dice-btn') : null;
+                    if (relatedTargetCard !== this) {
+                        this.style.border = 'none';
+                    }
+                };
+
+                wrapper.ondrop = function(e) {
+                    e.preventDefault();
+                    this.style.border = 'none';
+                    
+                    if (draggedIndex !== null && draggedIndex !== index) {
+                        // Move the item in the array
+                        const movedItem = database[currentCharacter].splice(draggedIndex, 1)[0];
+                        database[currentCharacter].splice(index, 0, movedItem);
+                        
+                        // Commit to local storage and re-render
+                        saveToStorage();
+                        renderUI();
+                    }
+                };
+                
+                // INTERNAL BUTTON ACTIONS
                 const rollBtn = document.createElement('button');
                 rollBtn.style.width = '100%';
                 rollBtn.style.whiteSpace = 'pre-line';
+                rollBtn.style.cursor = 'pointer';
                 rollBtn.innerText = `${btn.label}\n(${btn.formula})`;
                 rollBtn.onclick = function() { executeRoll(btn.label, btn.formula, btn.note, this); };
                 
+                // Disable drag targeting on child text nodes so it doesn't fight the wrapper
+                rollBtn.setAttribute('draggable', false);
+
                 const delLink = document.createElement('div');
                 delLink.style.cssText = 'font-size:11px; color:#f38ba8; margin-top:8px; cursor:pointer; text-align:right;';
                 delLink.innerText = '✕ Delete';
-                delLink.onclick = (e) => { e.stopPropagation(); removeButton(index); };
+                delLink.setAttribute('draggable', false);
+                delLink.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    removeButton(index); 
+                };
 
                 wrapper.appendChild(rollBtn);
                 wrapper.appendChild(delLink);
@@ -539,3 +607,10 @@
     </script>
 </body>
 </html>
+
+
+*rolls Divine Smite (2nd Level) (3d8):* **12** [Details: 3d8 (1+6+5)] *(Radiant Damage)*
+*rolls Longsword (Advantage) (2d20kh1+7):* **27** [Details: 2d20kh1 (~~1~~+20)] *(To Hit)*
+*rolls Longsword Damage (1d8+4):* **10** [Details: 1d8 (6)] *(Slashing)*
+*rolls Divine Smite (2nd Level) (3d8):* **13** [Details: 3d8 (3+6+4)] *(Radiant Damage)*
+*rolls bigger test (3d20kh2):* **14** [Details: 3d20kh2 (~~1~~+10+4)] *(test)*
