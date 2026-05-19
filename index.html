@@ -247,34 +247,37 @@
         }
 
         function evaluateSimpleExpression(expr, detailedRolls) {
-            const diceRegex = /(\d*)d(\d+)(kh|kl)?(\d*)/g;
-            
-            return expr.replace(diceRegex, (match, countStr, sidesStr, mod, keepStr) => {
-                const count = countStr ? parseInt(countStr) : 1;
-                const sides = parseInt(sidesStr);
-                const roll = rollBasicDice(count, sides);
+			const diceRegex = /(\d*)d(\d+)(kh|kl)?(\d*)/g;
+			
+			return expr.replace(diceRegex, (match, countStr, sidesStr, mod, keepStr) => {
+				const count = countStr ? parseInt(countStr) : 1;
+				const sides = parseInt(sidesStr);
+				const roll = rollBasicDice(count, sides);
 
-                if (mod) {
-                    const keepCount = keepStr ? parseInt(keepStr) : 1;
-                    let indexed = roll.breakdown.map((val, idx) => ({ val, idx }));
-                    
-                    if (mod === "kh") indexed.sort((a, b) => b.val - a.val);
-                    else indexed.sort((a, b) => a.val - b.val);
+				if (mod) {
+					const keepCount = keepStr ? parseInt(keepStr) : 1;
+					let indexed = roll.breakdown.map((val, idx) => ({ val, idx }));
+					
+					if (mod === "kh") indexed.sort((a, b) => b.val - a.val);
+					else indexed.sort((a, b) => a.val - b.val);
 
-                    let keptIndices = indexed.slice(0, keepCount).map(item => item.idx);
-                    let stringBreakdown = roll.breakdown.map((val, idx) => {
-                        return keptIndices.includes(idx) ? `${val}` : `~~${val}~~`;
-                    }).join('+');
+					let keptIndices = indexed.slice(0, keepCount).map(item => item.idx);
+					
+					// Fix: Create a visual breakdown with tildes for the user...
+					let stringBreakdown = roll.breakdown.map((val, idx) => {
+						return keptIndices.includes(idx) ? `${val}` : `~~${val}~~`;
+					}).join('+');
+					detailedRolls.push(`${count}d${sides}${mod}${keepCount} (${stringBreakdown})`);
 
-                    let keptSum = indexed.slice(0, keepCount).reduce((sum, item) => sum + item.val, 0);
-                    detailedRolls.push(`${count}d${sides}${mod}${keepCount} (${stringBreakdown})`);
-                    return `(${keptSum})`;
-                } else {
-                    detailedRolls.push(`${count}d${sides} (${roll.breakdown.join('+')})`);
-                    return `(${roll.total})`;
-                }
-            });
-        }
+					// ...BUT only return the mathematical sum of the kept items to the engine!
+					let keptSum = indexed.slice(0, keepCount).reduce((sum, item) => sum + item.val, 0);
+					return `(${keptSum})`;
+				} else {
+					detailedRolls.push(`${count}d${sides} (${roll.breakdown.join('+')})`);
+					return `(${roll.total})`;
+				}
+			});
+		}
 
         // --- COMPREHENSIVE ADVANCED PARSING ENGINE ---
         function parseAndRoll(formula) {
