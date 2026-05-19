@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SillyTavern Advanced Dice Roller</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e2e;
+            color: #cdd6f4;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .section {
+            background-color: #252538;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #45475a;
+        }
+        h3 { margin-top: 0; color: #89b4fa; }
+        select, input, button {
+            background-color: #313244;
+            color: #cdd6f4;
+            border: 1px solid #45475a;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #89b4fa;
+            color: #11111b;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        button:hover { background-color: #b4befe; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .dice-btn {
+            background-color: #45475a;
+            color: #cdd6f4;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        /* Dynamic Flash Feedback Classes */
+        .dice-btn button.success-flash {
+            background-color: #a6e3a1 !important;
+            color: #11111b !important;
+            transform: scale(0.98);
+        }
+        .danger { background-color: #f38ba8; color: #11111b; }
+        .danger:hover { background-color: #f9e2af; }
+        
+        #status {
+            color: #a6e3a1;
+            font-weight: bold;
+            height: 20px;
+            margin-top: 10px;
+        }
+        textarea {
+            width: 100%;
+            background-color: #313244;
+            color: #cdd6f4;
+            border: 1px solid #45475a;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        /* New Live Feed Result Panel Styling */
+        .result-panel {
+            background-color: #11111b;
+            border: 2px solid #89b4fa;
+            padding: 15px;
+            border-radius: 6px;
+            min-height: 60px;
+            margin-top: 10px;
+        }
+        .result-title {
+            font-size: 18px;
+            color: #f9e2af;
+            margin-bottom: 5px;
+        }
+        .result-raw {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            color: #a6adc8;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        /* Layout formatting blocks */
+        .creator-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .creator-form {
+            flex: 1;
+            min-width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .guide-box {
+            flex: 1;
+            min-width: 280px;
+            background-color: #181825;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px dashed #45475a;
+            font-size: 13px;
+        }
+        .guide-box ul { margin: 5px 0 0 0; padding-left: 20px; }
+        .guide-box li { margin-bottom: 6px; }
+        .code-inline {
+            background-color: #313244;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #f9e2af;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>🎲 SillyTavern Advanced Dice Deck</h2>
+    <div id="status"></div>
+
+    <!-- CHARACTER SELECTION & MANAGEMENT -->
+    <div class="section">
+        <h3>Character Profiles</h3>
+        <select id="charSelect" onchange="switchCharacter()">
+            <!-- Dynamic -->
+        </select>
+        <input type="text" id="newCharName" placeholder="New Character Name">
+        <button onclick="createCharacter()">Create</button>
+        <button class="danger" onclick="deleteCharacter()">Delete Current</button>
+    </div>
+
+    <!-- DICE ACTIONS GRID -->
+    <div class="section">
+        <h3>Roll Actions</h3>
+        <div class="grid" id="diceGrid">
+            <!-- Dynamic buttons go here -->
+        </div>
+    </div>
+
+    <!-- NEW: LIVE RESULT FEEDBACK PANEL -->
+    <div class="section">
+        <h3>📋 Latest Copied Clipboard Result</h3>
+        <div class="result-panel">
+            <div id="resTitle" class="result-title">No dice rolled yet...</div>
+            <div id="resRaw" class="result-raw">Click a custom action button above to calculate a formula string.</div>
+        </div>
+    </div>
+
+    <!-- MACRO CREATOR WITH PERMANENT GUIDE -->
+    <div class="section">
+        <h3>Add New Roll Button</h3>
+        <div class="creator-container">
+            <div class="creator-form">
+                <input type="text" id="btnLabel" placeholder="Button Label (e.g., Greatsword)">
+                <input type="text" id="btnFormula" placeholder="Formula (e.g., 2d6+4)">
+                <input type="text" id="btnNote" placeholder="Note/Description (e.g., Slashing)">
+                <button onclick="addButton()" style="margin-top: 5px;">Add Button to Deck</button>
+            </div>
+
+            <div class="guide-box">
+                <strong style="color: #a6e3a1;">Formulas & Syntax Guide:</strong>
+                <ul>
+                    <li><strong>Standard Roll:</strong> <span class="code-inline">1d20+7</span> or <span class="code-inline">8d6</span></li>
+                    <li><strong>Advantage:</strong> <span class="code-inline">2d20kh1+5</span> <em>(Keep Highest 1)</em></li>
+                    <li><strong>Disadvantage:</strong> <span class="code-inline">2d20kl1+2</span> <em>(Keep Lowest 1)</em></li>
+                    <li><strong>Savage Attacker (Set Match):</strong> 
+                        <br>Use <span class="code-inline">2*(WeaponDice)kh1+Mod</span> 
+                        <br>• Greatsword: <span class="code-inline">2*(2d6)kh1+4</span>
+                        <br>• Greataxe: <span class="code-inline">2*(1d12)kh1+5</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- IMPORT / EXPORT -->
+    <div class="section">
+        <h3>Import / Export Profile Data</h3>
+        <p style="font-size: 12px; color: #a6adc8;">Copy this JSON text to back up this character, or paste a saved character JSON string below and click Import.</p>
+        <textarea id="ioJson" rows="4"></textarea>
+        <br><br>
+        <button onclick="exportCharacter()">Generate Export Code</button>
+        <button onclick="importCharacter()">Import from Code</button>
+    </div>
+
+    <script>
+        // Core state architecture
+        let database = JSON.parse(localStorage.getItem('dice_profiles')) || {
+            "Example Hero": [
+                { label: "Savage Attacker 2d6", formula: "2*(2d6)kh1+4", note: "Savage Attacker Greatsword" },
+                { label: "Advantage Attack", formula: "2d20kh1+7", note: "to hit" },
+                { label: "Fireball", formula: "8d6", note: "DC 15 Dex Half" }
+            ]
+        };
+        
+        let currentCharacter = localStorage.getItem('current_dice_char') || Object.keys(database)[0] || "Example Hero";
+        if (!database[currentCharacter]) database[currentCharacter] = [];
+
+        // --- CORE DICE ROLL SIMULATOR ---
+        function rollBasicDice(countStr, sidesStr) {
+            const count = countStr ? parseInt(countStr) : 1;
+            const sides = parseInt(sidesStr);
+            let rolls = [];
+            for (let i = 0; i < count; i++) {
+                rolls.push(Math.floor(Math.random() * sides) + 1);
+            }
+            return {
+                total: rolls.reduce((a, b) => a + b, 0),
+                breakdown: rolls
+            };
+        }
+
+        function evaluateSimpleExpression(expr, detailedRolls) {
+            const diceRegex = /(\d*)d(\d+)(kh|kl)?(\d*)/g;
+            
+            return expr.replace(diceRegex, (match, countStr, sidesStr, mod, keepStr) => {
+                const count = countStr ? parseInt(countStr) : 1;
+                const sides = parseInt(sidesStr);
+                const roll = rollBasicDice(count, sides);
+
+                if (mod) {
+                    const keepCount = keepStr ? parseInt(keepStr) : 1;
+                    let indexed = roll.breakdown.map((val, idx) => ({ val, idx }));
+                    
+                    if (mod === "kh") indexed.sort((a, b) => b.val - a.val);
+                    else indexed.sort((a, b) => a.val - b.val);
+
+                    let keptIndices = indexed.slice(0, keepCount).map(item => item.idx);
+                    let stringBreakdown = roll.breakdown.map((val, idx) => {
+                        return keptIndices.includes(idx) ? `${val}` : `~~${val}~~`;
+                    }).join('+');
+
+                    let keptSum = indexed.slice(0, keepCount).reduce((sum, item) => sum + item.val, 0);
+                    detailedRolls.push(`${count}d${sides}${mod}${keepCount} (${stringBreakdown})`);
+                    return `(${keptSum})`;
+                } else {
+                    detailedRolls.push(`${count}d${sides} (${roll.breakdown.join('+')})`);
+                    return `(${roll.total})`;
+                }
+            });
+        }
+
+        // --- COMPREHENSIVE ADVANCED PARSING ENGINE ---
+        function parseAndRoll(formula) {
+            let cleanFormula = formula.replace(/\s+/g, '').toLowerCase();
+            let detailedRolls = [];
+
+            const groupRegex = /(\d+)\*\(([^)]+)\)(kh|kl)(\d+)/g;
+
+            cleanFormula = cleanFormula.replace(groupRegex, (match, setsStr, innerExpr, mod, keepStr) => {
+                const totalSets = parseInt(setsStr);
+                const keepCount = parseInt(keepStr);
+                let simulatedSets = [];
+
+                for (let i = 0; i < totalSets; i++) {
+                    let setRollLogs = [];
+                    let substitutedExpr = evaluateSimpleExpression(innerExpr, setRollLogs);
+                    
+                    let setTotal;
+                    try {
+                        setTotal = Function(`"use strict"; return (${substitutedExpr})`)();
+                    } catch (e) {
+                        setTotal = 0;
+                    }
+
+                    simulatedSets.push({ total: setTotal, log: setRollLogs.join(', ') });
+                }
+
+                let indexedSets = simulatedSets.map((set, idx) => ({ set, idx }));
+                if (mod === "kh") {
+                    indexedSets.sort((a, b) => b.set.total - a.set.total);
+                } else {
+                    indexedSets.sort((a, b) => a.set.total - b.set.total);
+                }
+
+                let keptIndices = indexedSets.slice(0, keepCount).map(item => item.idx);
+                let breakdownStrings = simulatedSets.map((set, idx) => {
+                    return keptIndices.includes(idx) ? `[${set.log} = ${set.total}]` : `~~[${set.log} = ${set.total}]~~`;
+                });
+
+                detailedRolls.push(`${totalSets}*(${innerExpr})${mod}${keepCount} (${breakdownStrings.join(' vs ')})`);
+                let finalGroupSum = indexedSets.slice(0, keepCount).reduce((sum, item) => sum + item.set.total, 0);
+                return `(${finalGroupSum})`;
+            });
+
+            cleanFormula = evaluateSimpleExpression(cleanFormula, detailedRolls);
+
+            let finalResult;
+            try {
+                finalResult = Function(`"use strict"; return (${cleanFormula})`)();
+            } catch (e) {
+                return null;
+            }
+
+            return { total: finalResult, breakdown: detailedRolls.join(', ') };
+        }
+
+        function executeRoll(label, formula, note, buttonElement) {
+            const rollData = parseAndRoll(formula);
+            if (!rollData || isNaN(rollData.total)) {
+                showStatus("Error evaluating math or dice formula! Check syntax.", true);
+                return;
+            }
+
+            let output = `*rolls ${label} (${formula}):* **${rollData.total}**`;
+            if (rollData.breakdown) output += ` [Details: ${rollData.breakdown}]`;
+            if (note) output += ` *(${note})*`;
+
+            // Copy to structural Clipboard
+            navigator.clipboard.writeText(output).then(() => {
+                showStatus(`Copied roll for ${label}!`);
+                
+                // Update the visible feedback logs panel
+                document.getElementById('resTitle').innerHTML = `Total: <strong>${rollData.total}</strong> <span style="font-size:13px; color:#a6e3a1;">(Copied to Clipboard!)</span>`;
+                document.getElementById('resRaw').innerText = output;
+
+                // Handle Button Visual Pulse/Animation Feedback
+                if(buttonElement) {
+                    const originalText = buttonElement.innerText;
+                    buttonElement.innerText = "✓ Copied!";
+                    buttonElement.classList.add('success-flash');
+                    
+                    setTimeout(() => {
+                        buttonElement.innerText = originalText;
+                        buttonElement.classList.remove('success-flash');
+                    }, 800);
+                }
+            }).catch(err => {
+                showStatus("Clipboard error!", true);
+            });
+        }
+
+        // --- UI & STATE MANAGEMENT ---
+        function saveToStorage() {
+            localStorage.setItem('dice_profiles', JSON.stringify(database));
+            localStorage.setItem('current_dice_char', currentCharacter);
+        }
+
+        function renderUI() {
+            const select = document.getElementById('charSelect');
+            select.innerHTML = '';
+            Object.keys(database).forEach(char => {
+                const opt = document.createElement('option');
+                opt.value = char;
+                opt.innerText = char;
+                if (char === currentCharacter) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            const grid = document.getElementById('diceGrid');
+            grid.innerHTML = '';
+            const buttons = database[currentCharacter] || [];
+            
+            buttons.forEach((btn, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'dice-btn';
+                
+                const rollBtn = document.createElement('button');
+                rollBtn.style.width = '100%';
+                rollBtn.style.whiteSpace = 'pre-line';
+                rollBtn.innerText = `${btn.label}\n(${btn.formula})`;
+                rollBtn.onclick = function() { executeRoll(btn.label, btn.formula, btn.note, this); };
+                
+                const delLink = document.createElement('div');
+                delLink.style.cssText = 'font-size:11px; color:#f38ba8; margin-top:8px; cursor:pointer; text-align:right;';
+                delLink.innerText = '✕ Delete';
+                delLink.onclick = (e) => { e.stopPropagation(); removeButton(index); };
+
+                wrapper.appendChild(rollBtn);
+                wrapper.appendChild(delLink);
+                grid.appendChild(wrapper);
+            });
+        }
+
+        function switchCharacter() {
+            currentCharacter = document.getElementById('charSelect').value;
+            saveToStorage();
+            renderUI();
+            // Clear result box on profile swap to prevent confusion
+            document.getElementById('resTitle').innerText = "No dice rolled yet...";
+            document.getElementById('resRaw').innerText = "Click a custom action button above to calculate a formula string.";
+        }
+
+        function createCharacter() {
+            const name = document.getElementById('newCharName').value.trim();
+            if (!name) return;
+            if (!database[name]) database[name] = [];
+            currentCharacter = name;
+            document.getElementById('newCharName').value = '';
+            saveToStorage();
+            renderUI();
+        }
+
+        function deleteCharacter() {
+            if (confirm(`Are you sure you want to delete all profiles/buttons for ${currentCharacter}?`)) {
+                delete database[currentCharacter];
+                const remaining = Object.keys(database);
+                currentCharacter = remaining.length ? remaining[0] : "Example Hero";
+                if (!database[currentCharacter]) database[currentCharacter] = [];
+                saveToStorage();
+                renderUI();
+            }
+        }
+
+        function addButton() {
+            const label = document.getElementById('btnLabel').value.trim();
+            const formula = document.getElementById('btnFormula').value.trim();
+            const note = document.getElementById('btnNote').value.trim();
+
+            if (!label || !formula) {
+                showStatus("Label and Formula are required!", true);
+                return;
+            }
+
+            database[currentCharacter].push({ label, formula, note });
+            saveToStorage();
+            renderUI();
+
+            document.getElementById('btnLabel').value = '';
+            document.getElementById('btnFormula').value = '';
+            document.getElementById('btnNote').value = '';
+        }
+
+        function removeButton(index) {
+            database[currentCharacter].splice(index, 1);
+            saveToStorage();
+            renderUI();
+        }
+
+        function exportCharacter() {
+            const exportPack = { characterName: currentCharacter, buttons: database[currentCharacter] };
+            document.getElementById('ioJson').value = JSON.stringify(exportPack);
+            showStatus("JSON generated! Copy it from the field below.");
+        }
+
+        function importCharacter() {
+            const rawJson = document.getElementById('ioJson').value.trim();
+            try {
+                const parsed = JSON.parse(rawJson);
+                if (parsed.characterName && Array.isArray(parsed.buttons)) {
+                    database[parsed.characterName] = parsed.buttons;
+                    currentCharacter = parsed.characterName;
+                    saveToStorage();
+                    renderUI();
+                    showStatus(`Successfully imported ${parsed.characterName}!`);
+                    document.getElementById('ioJson').value = '';
+                } else {
+                    showStatus("Invalid JSON structure format.", true);
+                }
+            } catch (e) {
+                showStatus("Failed to parse JSON. Check your copy-paste data.", true);
+            }
+        }
+
+        function showStatus(msg, isError = false) {
+            const el = document.getElementById('status');
+            el.style.color = isError ? '#f38ba8' : '#a6e3a1';
+            el.innerText = msg;
+            setTimeout(() => { el.innerText = ''; }, 4000);
+        }
+
+        renderUI();
+    </script>
+</body>
+</html>
