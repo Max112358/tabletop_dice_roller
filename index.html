@@ -305,10 +305,22 @@
 
 					let keptIndices = indexed.slice(0, keepCount).map(item => item.idx);
 					
-					// Fix: Create a visual breakdown with tildes for the user...
-					let stringBreakdown = roll.breakdown.map((val, idx) => {
-						return keptIndices.includes(idx) ? `${val}` : `~~${val}~~`;
-					}).join('+');
+					// New version using explicit OR formatting:
+					let keptRolls = [];
+					let droppedRolls = [];
+
+					roll.breakdown.forEach((val, idx) => {
+						if (keptIndices.includes(idx)) {
+							keptRolls.push(val);
+						} else {
+							droppedRolls.push(val);
+						}
+					});
+
+					// Joins ALL rolls with " OR ", then highlights the kept value
+					let allRollsStr = roll.breakdown.join(' OR ');
+					let stringBreakdown = `${allRollsStr} -> Kept: ${keptRolls.join(', ')}`;
+
 					detailedRolls.push(`${count}d${sides}${mod}${keepCount} (${stringBreakdown})`);
 
 					// ...BUT only return the mathematical sum of the kept items to the engine!
