@@ -58,6 +58,47 @@
             color: #11111b !important;
             transform: scale(0.98);
         }
+		
+		
+		/* Anchor frame for absolute child positioning */
+		.dice-btn {
+			position: relative;
+		}
+
+		/* Sharp, dedicated absolute delete corner button */
+		.delete-corner-btn {
+			position: absolute;
+			top: -6px;
+			right: -6px;
+			width: 20px;
+			height: 20px;
+			background-color: #f38ba8;
+			color: #11111b;
+			border-radius: 4px;
+			font-size: 11px;
+			font-weight: bold;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			opacity: 0;
+			transition: opacity 0.15s ease, transform 0.15s ease;
+			box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+			border: none;
+			padding: 0;
+			z-index: 5;
+		}
+
+		.delete-corner-btn:hover {
+			background-color: #f9e2af;
+			transform: scale(1.1);
+		}
+
+		/* Make the target appear cleanly when interacting with the macro card */
+		.dice-btn:hover .delete-corner-btn {
+			opacity: 1;
+		}
+		
         .danger { background-color: #f38ba8; color: #11111b; }
         .danger:hover { background-color: #f9e2af; }
         
@@ -500,17 +541,19 @@
                 // Disable drag targeting on child text nodes so it doesn't fight the wrapper
                 rollBtn.setAttribute('draggable', false);
 
-                const delLink = document.createElement('div');
-                delLink.style.cssText = 'font-size:11px; color:#f38ba8; margin-top:8px; cursor:pointer; text-align:right;';
-                delLink.innerText = '✕ Delete';
-                delLink.setAttribute('draggable', false);
-                delLink.onclick = (e) => { 
-                    e.stopPropagation(); 
+                // Dedicated absolute delete corner button
+				const delBtn = document.createElement('button');
+				delBtn.className = 'delete-corner-btn';
+				delBtn.innerText = '✕';
+				delBtn.title = `Delete ${btn.label}`;
+				delBtn.setAttribute('draggable', false);
+				delBtn.onclick = (e) => { 
+					e.stopPropagation(); // Stop click context cascading to the card container
 					removeButton(index, btn.label);
-                };
+				};
 
                 wrapper.appendChild(rollBtn);
-                wrapper.appendChild(delLink);
+                wrapper.appendChild(delBtn);
                 grid.appendChild(wrapper);
             });
         }
