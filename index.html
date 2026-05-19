@@ -296,6 +296,14 @@
 				const sides = parseInt(sidesStr);
 				const roll = rollBasicDice(count, sides);
 
+				// Helper function to add "Natural" formatting specifically for d20s
+				const formatRoll = (val) => {
+					if (sides === 20 && (val === 1 || val === 20)) {
+						return `Natural ${val}`;
+					}
+					return val;
+				};
+
 				if (mod) {
 					const keepCount = keepStr ? parseInt(keepStr) : 1;
 					let indexed = roll.breakdown.map((val, idx) => ({ val, idx }));
@@ -305,20 +313,21 @@
 
 					let keptIndices = indexed.slice(0, keepCount).map(item => item.idx);
 					
-					// New version using explicit OR formatting:
 					let keptRolls = [];
 					let droppedRolls = [];
 
 					roll.breakdown.forEach((val, idx) => {
+						// Apply the "Natural" check to the breakdown string elements
+						let formattedVal = formatRoll(val);
 						if (keptIndices.includes(idx)) {
-							keptRolls.push(val);
+							keptRolls.push(formattedVal);
 						} else {
-							droppedRolls.push(val);
+							droppedRolls.push(formattedVal);
 						}
 					});
 
-					// Joins ALL rolls with " OR ", then highlights the kept value
-					let allRollsStr = roll.breakdown.join(' OR ');
+					// Joins ALL rolls with " OR ", including any "Natural 1/20" descriptors
+					let allRollsStr = roll.breakdown.map(formatRoll).join(' OR ');
 					let stringBreakdown = `${allRollsStr} -> Kept: ${keptRolls.join(', ')}`;
 
 					detailedRolls.push(`${count}d${sides}${mod}${keepCount} (${stringBreakdown})`);
@@ -327,7 +336,9 @@
 					let keptSum = indexed.slice(0, keepCount).reduce((sum, item) => sum + item.val, 0);
 					return `(${keptSum})`;
 				} else {
-					detailedRolls.push(`${count}d${sides} (${roll.breakdown.join('+')})`);
+					// Apply the "Natural" check to standard, non-advantage/disadvantage rolls
+					let formattedBreakdown = roll.breakdown.map(formatRoll).join('+');
+					detailedRolls.push(`${count}d${sides} (${formattedBreakdown})`);
 					return `(${roll.total})`;
 				}
 			});
