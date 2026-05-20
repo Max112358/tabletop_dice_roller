@@ -281,7 +281,7 @@ function renderUI() {
         select.appendChild(opt);
     });
 
-    // 2. Render Variables Dashboard
+    // 2. Render Variables Dashboard (UPDATED FOR CORNER DELETES)
     const varContainer = document.getElementById('varContainer');
     varContainer.innerHTML = '';
     const variables = database[currentCharacter].variables || {};
@@ -312,7 +312,7 @@ function renderUI() {
         
         badge.appendChild(label);
         badge.appendChild(input);
-        badge.appendChild(delBtn);
+        badge.appendChild(delBtn); // Appended seamlessly into the absolute tracking badge
         varContainer.appendChild(badge);
     });
 
@@ -327,7 +327,7 @@ function renderUI() {
         wrapper.setAttribute('draggable', true);
         wrapper.style.cursor = 'grab';
         
-        // --- LIVE EXTRACTION ERROR VALIDATION INTERCEPTOR ---
+        // Extra validation step
         const missingVars = getMissingVariables(btn.formula);
         if (missingVars.length > 0) {
             wrapper.classList.add('broken');
@@ -373,7 +373,7 @@ function renderUI() {
         rollBtn.onclick = function() { executeRoll(btn.label, btn.formula, btn.note, this); };
         rollBtn.setAttribute('draggable', false);
 
-        // Sub-tier text error string badge element for missing elements 
+        // Error message elements
         const errorBadge = document.createElement('div');
         errorBadge.className = 'error-badge';
         errorBadge.innerText = `⚠️ Missing: ${missingVars.join(', ')}`;

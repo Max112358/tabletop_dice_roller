@@ -230,3 +230,42 @@ textarea {
 .dice-btn.broken .error-badge {
     display: block;
 }
+
+/* Hover state for variable delete buttons */
+.var-badge {
+    position: relative; /* Anchor frame for the absolute child positioning */
+    padding: 6px 14px 6px 10px !important; /* Make room for the corner X */
+}
+
+.var-badge .var-del-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    background-color: #f38ba8;
+    color: #11111b;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    padding: 0;
+    margin: 0;
+}
+
+.var-badge .var-del-btn:hover {
+    background-color: #f9e2af;
+    color: #11111b;
+    transform: scale(1.1);
+}
+
+/* Make the X appear cleanly when hovering over the variable item */
+.var-badge:hover .var-del-btn {
+    opacity: 1;
+}
