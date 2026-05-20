@@ -35,7 +35,8 @@ function ensureCharacterStructure(charName) {
 let rollBuffer = [];
 let lastRollTime = 0;
 const COMBO_TIMEOUT_MS = 10000; // 10 seconds tracking limit
-let draggedIndex = null; // Drag and drop helper tracking state
+let draggedIndex = null; // Drag and drop helper tracking state for buttons
+let draggedVarName = null; // Drag and drop helper tracking state for variables
 
 // --- NEW: FORMULA VARIABLE VALIDATION CHECKER ---
 function getMissingVariables(formula) {
@@ -281,7 +282,7 @@ function renderUI() {
         select.appendChild(opt);
     });
 
-    // 2. Render Variables Dashboard (UPDATED FOR CORNER DELETES)
+    // 2. Render Variables Dashboard (UPDATED FOR DRAG & DROP REORDERING)
     const varContainer = document.getElementById('varContainer');
     varContainer.innerHTML = '';
     const variables = database[currentCharacter].variables || {};
@@ -289,7 +290,54 @@ function renderUI() {
     Object.keys(variables).forEach(varName => {
         const badge = document.createElement('div');
         badge.className = 'var-badge';
+        badge.setAttribute('draggable', true);
+        badge.style.cursor = 'grab';
         
+        // Drag events for variables
+        badge.ondragstart = function(e) {
+            draggedVarName = varName;
+            this.style.opacity = '0.4';
+            e.dataTransfer.effectAllowed = 'move';
+        };
+        badge.ondragend = function() {
+            this.style.opacity = '1';
+            draggedVarName = null;
+            document.querySelectorAll('.var-badge').forEach(el => el.style.border = '1px solid #45475a');
+        };
+        badge.ondragover = function(e) { e.preventDefault(); return false; };
+        badge.ondragenter = function(e) {
+            const targetBadge = e.target.closest('.var-badge');
+            if (targetBadge && varName !== draggedVarName) targetBadge.style.border = '1px dashed #89b4fa';
+        };
+        badge.ondragleave = function(e) {
+            const relatedTargetBadge = e.relatedTarget ? e.relatedTarget.closest('.var-badge') : null;
+            if (relatedTargetBadge !== this) this.style.border = '1px solid #45475a';
+        };
+        badge.ondrop = function(e) {
+            e.preventDefault();
+            this.style.border = '1px solid #45475a';
+            if (draggedVarName !== null && draggedVarName !== varName) {
+                const varKeys = Object.keys(variables);
+                const sourceIndex = varKeys.indexOf(draggedVarName);
+                const targetIndex = varKeys.indexOf(varName);
+
+                if (sourceIndex !== -1 && targetIndex !== -1) {
+                    varKeys.splice(sourceIndex, 1);
+                    varKeys.splice(targetIndex, 0, draggedVarName);
+
+                    // Rebuild variables schema configuration state order maps
+                    const newVariables = {};
+                    varKeys.forEach(k => {
+                        newVariables[k] = variables[k];
+                    });
+
+                    database[currentCharacter].variables = newVariables;
+                    saveToStorage();
+                    renderUI();
+                }
+            }
+        };
+
         const label = document.createElement('span');
         label.className = 'var-name';
         label.innerText = varName;
@@ -298,6 +346,7 @@ function renderUI() {
         input.type = 'number';
         input.className = 'var-val-input';
         input.value = variables[varName];
+        input.setAttribute('draggable', false);
         input.onchange = function() {
             updateVariableValue(varName, this.value);
         };
@@ -306,7 +355,9 @@ function renderUI() {
         delBtn.className = 'var-del-btn';
         delBtn.innerHTML = '✕';
         delBtn.title = `Delete variable ${varName}`;
-        delBtn.onclick = function() {
+        delBtn.setAttribute('draggable', false);
+        delBtn.onclick = function(e) {
+            e.stopPropagation();
             removeVariable(varName);
         };
         
