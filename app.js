@@ -4,7 +4,8 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
         buttons: [
             { label: "Longsword (Advantage)", formula: "2d20kh1+STR+PROF", note: "To Hit" },
             { label: "Longsword Damage", formula: "1d8+STR", note: "Slashing" },
-            { label: "Divine Smite (2nd Level)", formula: "3d8", note: "Radiant Damage" }
+            { label: "Divine Smite (2nd Level)", formula: "3d8", note: "Radiant Damage" },
+            { label: "Daggerheart Action", formula: "2d12daggerheart+STR", note: "Hope vs Fear" }
         ],
         variables: { "STR": 4, "PROF": 3 }
     }
@@ -38,13 +39,16 @@ const COMBO_TIMEOUT_MS = 10000; // 10 seconds tracking limit
 let draggedIndex = null; // Drag and drop helper tracking state for buttons
 let draggedVarName = null; // Drag and drop helper tracking state for variables
 
-// --- NEW: FORMULA VARIABLE VALIDATION CHECKER ---
+// --- FORMULA VARIABLE VALIDATION CHECKER ---
 function getMissingVariables(formula) {
     let cleanFormula = formula.replace(/\s+/g, '').toLowerCase();
-    const activeVars = database[currentCharacter].variables || {};
     
-    // Find all word patterns that could be text-based variables
-    // This looks for word boundaries that are not dice commands (d, kh, kl) and contain letters
+    // Strip the special custom keyword prefix out so it does not trigger a false-missing alert
+    if (cleanFormula.startsWith('2d12daggerheart')) {
+        cleanFormula = cleanFormula.substring(15);
+    }
+
+    const activeVars = database[currentCharacter].variables || {};
     const wordMatches = cleanFormula.match(/\b[a-z_][a-z0-9_]*\b/g) || [];
     const missing = [];
 
@@ -52,10 +56,10 @@ function getMissingVariables(formula) {
 
     for (let word of wordMatches) {
         if (reservedKeywords.includes(word)) continue;
-        // If it's a pure number inside a match boundary, skip it
+		// If it's a pure number inside a match boundary, skip it
         if (!isNaN(word)) continue; 
 
-        // Check if our uppercase variable bank contains this word
+		// Check if our uppercase variable bank contains this word
         const matchedVar = Object.keys(activeVars).find(v => v.toLowerCase() === word);
         if (!matchedVar && !missing.includes(word.toUpperCase())) {
             missing.push(word.toUpperCase());
@@ -142,6 +146,42 @@ function parseAndRoll(formula) {
         cleanFormula = cleanFormula.replace(varRegex, `(${value})`);
     }
 
+    // --- SPECIAL CASE INTERCEPTOR: DAGGERHEART DUAL D12 ---
+    if (cleanFormula.startsWith('2d12daggerheart')) {
+        let modifierExpr = cleanFormula.substring(15); // Extract remaining math string after the keyword
+        if (modifierExpr.startsWith('+')) modifierExpr = modifierExpr.substring(1);
+        if (!modifierExpr) modifierExpr = "0";
+
+        // Safely resolve any character stat variable math modifiers 
+        let evaluatedMod = 0;
+        try {
+            evaluatedMod = Function(`"use strict"; return (${modifierExpr})`)();
+        } catch(e) { evaluatedMod = 0; }
+
+        // Execute discrete Daggerheart rules
+        const hopeDie = Math.floor(Math.random() * 12) + 1;
+        const fearDie = Math.floor(Math.random() * 12) + 1;
+        const diceTotal = hopeDie + fearDie;
+        const finalTotal = diceTotal + evaluatedMod;
+
+        let outcomeType = "";
+        if (hopeDie === fearDie) {
+            outcomeType = "CRITICAL SUCCESS (Doubles! ✨)";
+        } else if (hopeDie > fearDie) {
+            outcomeType = "Success with HOPE ☀️";
+        } else {
+            outcomeType = "Success with FEAR 🌙";
+        }
+
+        const modifierLabel = evaluatedMod !== 0 ? (evaluatedMod > 0 ? ` + ${evaluatedMod}` : ` - ${Math.abs(evaluatedMod)}`) : "";
+        const detailedMessage = `[Hope: ${hopeDie} | Fear: ${fearDie}${modifierLabel}] -> ${outcomeType}`;
+
+        return {
+            total: finalTotal,
+            breakdown: detailedMessage
+        };
+    }
+
     let detailedRolls = [];
     const groupRegex = /(\d+)\*\(([^)]+)\)(kh|kl)(\d+)/g;
 
@@ -193,7 +233,7 @@ function parseAndRoll(formula) {
 }
 
 function executeRoll(label, formula, note, buttonElement) {
-    // Alert stop blocker if execution is attempted on an invalid config card setup
+	// Alert stop blocker if execution is attempted on an invalid config card setup
     const missing = getMissingVariables(formula);
     if (missing.length > 0) {
         showStatus(`Cannot roll! Missing variables: ${missing.join(', ')}`, true);
@@ -282,7 +322,7 @@ function renderUI() {
         select.appendChild(opt);
     });
 
-    // 2. Render Variables Dashboard (UPDATED FOR DRAG & DROP REORDERING)
+    // 2. Render Variables Dashboard
     const varContainer = document.getElementById('varContainer');
     varContainer.innerHTML = '';
     const variables = database[currentCharacter].variables || {};
@@ -293,7 +333,7 @@ function renderUI() {
         badge.setAttribute('draggable', true);
         badge.style.cursor = 'grab';
         
-        // Drag events for variables
+		// Drag events for variables
         badge.ondragstart = function(e) {
             draggedVarName = varName;
             this.style.opacity = '0.4';
@@ -325,7 +365,8 @@ function renderUI() {
                     varKeys.splice(sourceIndex, 1);
                     varKeys.splice(targetIndex, 0, draggedVarName);
 
-                    // Rebuild variables schema configuration state order maps
+
+					// Rebuild variables schema configuration state order maps
                     const newVariables = {};
                     varKeys.forEach(k => {
                         newVariables[k] = variables[k];
@@ -363,7 +404,7 @@ function renderUI() {
         
         badge.appendChild(label);
         badge.appendChild(input);
-        badge.appendChild(delBtn); // Appended seamlessly into the absolute tracking badge
+        badge.appendChild(delBtn);
         varContainer.appendChild(badge);
     });
 
@@ -378,13 +419,11 @@ function renderUI() {
         wrapper.setAttribute('draggable', true);
         wrapper.style.cursor = 'grab';
         
-        // Extra validation step
         const missingVars = getMissingVariables(btn.formula);
         if (missingVars.length > 0) {
             wrapper.classList.add('broken');
         }
 
-        // Drag events
         wrapper.ondragstart = function(e) {
             draggedIndex = index;
             this.style.opacity = '0.4';
@@ -415,7 +454,6 @@ function renderUI() {
             }
         };
         
-        // Roll button click event
         const rollBtn = document.createElement('button');
         rollBtn.style.width = '100%';
         rollBtn.style.whiteSpace = 'pre-line';
@@ -424,12 +462,10 @@ function renderUI() {
         rollBtn.onclick = function() { executeRoll(btn.label, btn.formula, btn.note, this); };
         rollBtn.setAttribute('draggable', false);
 
-        // Error message elements
         const errorBadge = document.createElement('div');
         errorBadge.className = 'error-badge';
         errorBadge.innerText = `⚠️ Missing: ${missingVars.join(', ')}`;
 
-        // Delete macro button
         const delBtn = document.createElement('button');
         delBtn.className = 'delete-corner-btn';
         delBtn.innerText = '✕';
@@ -482,7 +518,7 @@ function updateVariableValue(name, val) {
     const cleanVal = parseInt(val);
     database[currentCharacter].variables[name] = isNaN(cleanVal) ? 0 : cleanVal;
     saveToStorage();
-    renderUI(); // Forces full re-render check to ensure correctness
+    renderUI();
     showStatus(`Updated variable "${name}" to ${database[currentCharacter].variables[name]}`);
 }
 
@@ -490,7 +526,7 @@ function removeVariable(name) {
     if (confirm(`Delete character variable "${name}"?`)) {
         delete database[currentCharacter].variables[name];
         saveToStorage();
-        renderUI(); // Live invalidates button layouts turning bad items red
+        renderUI();
         showStatus(`Deleted variable "${name}".`);
     }
 }
