@@ -147,41 +147,48 @@ function parseAndRoll(formula) {
     }
 
     // --- SPECIAL CASE INTERCEPTOR: DAGGERHEART DUAL D12 ---
-	if (cleanFormula.startsWith('2d12daggerheart')) {
-		let modifierExpr = cleanFormula.substring(15); 
-		if (modifierExpr.startsWith('+')) modifierExpr = modifierExpr.substring(1);
-		if (!modifierExpr) modifierExpr = "0";
+    if (cleanFormula.includes('2d12daggerheart')) {
+        // 1. Roll the core Daggerheart dice
+        const hopeDie = Math.floor(Math.random() * 12) + 1;
+        const fearDie = Math.floor(Math.random() * 12) + 1;
+        const diceTotal = hopeDie + fearDie;
 
-		// Safely resolve any character stat variable math modifiers 
-		let evaluatedMod = 0;
-		try {
-			evaluatedMod = Function(`"use strict"; return (${modifierExpr})`)();
-		} catch(e) { evaluatedMod = 0; }
+        // 2. Determine the narrative/resource outcome rule
+        let outcomeType = "";
+        if (hopeDie === fearDie) {
+            outcomeType = "CRITICAL SUCCESS! ✨";
+        } else if (hopeDie > fearDie) {
+            outcomeType = "Roll with HOPE ☀️";
+        } else {
+            outcomeType = "Roll with FEAR 🌙";
+        }
 
-		// Execute discrete Daggerheart rules
-		const hopeDie = Math.floor(Math.random() * 12) + 1;
-		const fearDie = Math.floor(Math.random() * 12) + 1;
-		const diceTotal = hopeDie + fearDie;
-		const finalTotal = diceTotal + evaluatedMod;
+        // 3. Swap out "2d12daggerheart" keyword for the numerical sum of the two dice
+        // This preserves any trailing '+1d6' or '+STR' so the rest of the engine can evaluate it!
+        let mathFormula = cleanFormula.replace('2d12daggerheart', `(${diceTotal})`);
 
-		// Terminology fixed here to reflect resource outcomes rather than a blind DC success
-		let outcomeType = "";
-		if (hopeDie === fearDie) {
-			outcomeType = "CRITICAL SUCCESS! ✨";
-		} else if (hopeDie > fearDie) {
-			outcomeType = "Roll with HOPE ☀️";
-		} else {
-			outcomeType = "Roll with FEAR 🌙";
-		}
+        // 4. Run the newly modified formula through the main evaluation engine to capture extra dice/modifiers
+        let extraDiceLogs = [];
+        mathFormula = evaluateSimpleExpression(mathFormula, extraDiceLogs);
 
-		const modifierLabel = evaluatedMod !== 0 ? (evaluatedMod > 0 ? ` + ${evaluatedMod}` : ` - ${Math.abs(evaluatedMod)}`) : "";
-		const detailedMessage = `[Hope: ${hopeDie} | Fear: ${fearDie}${modifierLabel}] -> ${outcomeType}`;
+        let finalTotal;
+        try {
+            finalTotal = Function(`"use strict"; return (${mathFormula})`)();
+        } catch (e) {
+            return null;
+        }
 
-		return {
-			total: finalTotal,
-			breakdown: detailedMessage
-		};
-	}
+        // 5. Build a clear breakdown that shows the Daggerheart core AND any extra additions
+        let detailedMessage = `[Hope: ${hopeDie} | Fear: ${fearDie}] -> ${outcomeType}`;
+        if (extraDiceLogs.length > 0) {
+            detailedMessage += ` (Modifiers: ${extraDiceLogs.join(', ')})`;
+        }
+
+        return {
+            total: finalTotal,
+            breakdown: detailedMessage
+        };
+    }
 
     let detailedRolls = [];
     const groupRegex = /(\d+)\*\(([^)]+)\)(kh|kl)(\d+)/g;
