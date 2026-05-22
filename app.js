@@ -147,40 +147,41 @@ function parseAndRoll(formula) {
     }
 
     // --- SPECIAL CASE INTERCEPTOR: DAGGERHEART DUAL D12 ---
-    if (cleanFormula.startsWith('2d12daggerheart')) {
-        let modifierExpr = cleanFormula.substring(15); // Extract remaining math string after the keyword
-        if (modifierExpr.startsWith('+')) modifierExpr = modifierExpr.substring(1);
-        if (!modifierExpr) modifierExpr = "0";
+	if (cleanFormula.startsWith('2d12daggerheart')) {
+		let modifierExpr = cleanFormula.substring(15); 
+		if (modifierExpr.startsWith('+')) modifierExpr = modifierExpr.substring(1);
+		if (!modifierExpr) modifierExpr = "0";
 
-        // Safely resolve any character stat variable math modifiers 
-        let evaluatedMod = 0;
-        try {
-            evaluatedMod = Function(`"use strict"; return (${modifierExpr})`)();
-        } catch(e) { evaluatedMod = 0; }
+		// Safely resolve any character stat variable math modifiers 
+		let evaluatedMod = 0;
+		try {
+			evaluatedMod = Function(`"use strict"; return (${modifierExpr})`)();
+		} catch(e) { evaluatedMod = 0; }
 
-        // Execute discrete Daggerheart rules
-        const hopeDie = Math.floor(Math.random() * 12) + 1;
-        const fearDie = Math.floor(Math.random() * 12) + 1;
-        const diceTotal = hopeDie + fearDie;
-        const finalTotal = diceTotal + evaluatedMod;
+		// Execute discrete Daggerheart rules
+		const hopeDie = Math.floor(Math.random() * 12) + 1;
+		const fearDie = Math.floor(Math.random() * 12) + 1;
+		const diceTotal = hopeDie + fearDie;
+		const finalTotal = diceTotal + evaluatedMod;
 
-        let outcomeType = "";
-        if (hopeDie === fearDie) {
-            outcomeType = "CRITICAL SUCCESS (Doubles! ✨)";
-        } else if (hopeDie > fearDie) {
-            outcomeType = "Success with HOPE ☀️";
-        } else {
-            outcomeType = "Success with FEAR 🌙";
-        }
+		// Terminology fixed here to reflect resource outcomes rather than a blind DC success
+		let outcomeType = "";
+		if (hopeDie === fearDie) {
+			outcomeType = "CRITICAL SUCCESS! ✨";
+		} else if (hopeDie > fearDie) {
+			outcomeType = "Roll with HOPE ☀️";
+		} else {
+			outcomeType = "Roll with FEAR 🌙";
+		}
 
-        const modifierLabel = evaluatedMod !== 0 ? (evaluatedMod > 0 ? ` + ${evaluatedMod}` : ` - ${Math.abs(evaluatedMod)}`) : "";
-        const detailedMessage = `[Hope: ${hopeDie} | Fear: ${fearDie}${modifierLabel}] -> ${outcomeType}`;
+		const modifierLabel = evaluatedMod !== 0 ? (evaluatedMod > 0 ? ` + ${evaluatedMod}` : ` - ${Math.abs(evaluatedMod)}`) : "";
+		const detailedMessage = `[Hope: ${hopeDie} | Fear: ${fearDie}${modifierLabel}] -> ${outcomeType}`;
 
-        return {
-            total: finalTotal,
-            breakdown: detailedMessage
-        };
-    }
+		return {
+			total: finalTotal,
+			breakdown: detailedMessage
+		};
+	}
 
     let detailedRolls = [];
     const groupRegex = /(\d+)\*\(([^)]+)\)(kh|kl)(\d+)/g;
