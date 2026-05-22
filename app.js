@@ -146,14 +146,21 @@ function parseAndRoll(formula) {
         cleanFormula = cleanFormula.replace(varRegex, `(${value})`);
     }
 
-    // --- SPECIAL CASE INTERCEPTOR: DAGGERHEART DUAL D12 ---
+	// --- SPECIAL CASE INTERCEPTOR: DAGGERHEART DUAL D12 ---
     if (cleanFormula.includes('2d12daggerheart')) {
-        // 1. Roll the core Daggerheart dice
+        // 1. Sniff out what modifiers were originally written after the keyword (e.g., "+1d6+HOPE")
+        let originalModifiersText = formula.replace(/\s+/g, '');
+        const keywordIndex = originalModifiersText.toLowerCase().indexOf('2d12daggerheart');
+        if (keywordIndex !== -1) {
+            originalModifiersText = originalModifiersText.substring(keywordIndex + 15);
+        }
+
+        // 2. Roll the core Daggerheart dice
         const hopeDie = Math.floor(Math.random() * 12) + 1;
         const fearDie = Math.floor(Math.random() * 12) + 1;
         const diceTotal = hopeDie + fearDie;
 
-        // 2. Determine the narrative/resource outcome rule
+        // 3. Determine the narrative/resource outcome rule
         let outcomeType = "";
         if (hopeDie === fearDie) {
             outcomeType = "CRITICAL SUCCESS! ✨";
@@ -163,11 +170,10 @@ function parseAndRoll(formula) {
             outcomeType = "Roll with FEAR 🌙";
         }
 
-        // 3. Swap out "2d12daggerheart" keyword for the numerical sum of the two dice
-        // This preserves any trailing '+1d6' or '+STR' so the rest of the engine can evaluate it!
+        // 4. Swap out the keyword for the numerical sum of the two dice
         let mathFormula = cleanFormula.replace('2d12daggerheart', `(${diceTotal})`);
 
-        // 4. Run the newly modified formula through the main evaluation engine to capture extra dice/modifiers
+        // 5. Run the newly modified formula through the dice evaluation engine
         let extraDiceLogs = [];
         mathFormula = evaluateSimpleExpression(mathFormula, extraDiceLogs);
 
@@ -178,10 +184,24 @@ function parseAndRoll(formula) {
             return null;
         }
 
-        // 5. Build a clear breakdown that shows the Daggerheart core AND any extra additions
+        // 6. Assemble an all-inclusive breakdown showing dice details AND variable text
         let detailedMessage = `[Hope: ${hopeDie} | Fear: ${fearDie}] -> ${outcomeType}`;
-        if (extraDiceLogs.length > 0) {
-            detailedMessage += ` (Modifiers: ${extraDiceLogs.join(', ')})`;
+        
+        if (originalModifiersText) {
+            // Clean up look (ensure it starts nicely with a plus sign if needed)
+            if (!originalModifiersText.startsWith('+') && !originalModifiersText.startsWith('-')) {
+                originalModifiersText = '+' + originalModifiersText;
+            }
+            
+            // Build visual text displaying the evaluated dice logs alongside stat variables
+            let displayMods = originalModifiersText;
+            extraDiceLogs.forEach(log => {
+                // Extracts the "1d6" chunk from "1d6 (4)" to align match strings
+                let matchDiceStr = log.split(' ')[0]; 
+                displayMods = displayMods.replace(matchDiceStr, log);
+            });
+            
+            detailedMessage += ` (Modifiers: ${displayMods})`;
         }
 
         return {
