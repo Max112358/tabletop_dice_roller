@@ -22,10 +22,13 @@
     </div>
 
     <div class="section">
-        <h3>Character Variables (Stats/Modifiers)</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+			<h3>Character Variables (Stats/Modifiers)</h3>
+			<button onclick="openModal('variable-guide-modal')" style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af;">💡 Variable Guide</button>
+		</div>
         <div class="var-creator">
             <input type="text" id="newVarName" placeholder="Variable Name (e.g., STR)" style="width: 180px;">
-            <input type="text" id="newVarValue" placeholder="Value (e.g., 3)" style="width: 90px;">
+            <input type="number" id="newVarValue" placeholder="Value (e.g., 3)" style="width: 90px;">
             <button onclick="addVariable()">Add Variable</button>
         </div>
         <div class="var-container" id="varContainer">
@@ -50,30 +53,16 @@
     </div>
 
     <div class="section">
-        <h3>Add New Roll Button</h3>
+		<div style="display: flex; justify-content: space-between; align-items: center;">
+			<h3>Add New Roll Button</h3>
+			<button onclick="openModal('button-guide-modal')" style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af;">💡 Button Guide</button>
+		</div>
         <div class="creator-container">
             <div class="creator-form">
                 <input type="text" id="btnLabel" placeholder="Button Label (e.g., Greatsword)">
                 <input type="text" id="btnFormula" placeholder="Formula (e.g., 2d6+STR)">
                 <input type="text" id="btnNote" placeholder="Note/Description (e.g., Slashing)">
                 <button onclick="addButton()" style="margin-top: 5px;">Add Button to Deck</button>
-            </div>
-
-            <div class="guide-box">
-                <strong style="color: #a6e3a1;">Formulas & Syntax Guide:</strong>
-                <ul>
-                    <ul>
-						<li><strong>Simple Dice Roll:</strong> <span class="code-inline">1d20+7</span> or <span class="code-inline">8d6</span></li>
-						<li><strong>With Variables:</strong> <span class="code-inline">1d12+[STR]</span> or <span class="code-inline">1d20+[PROF]+[DEX]</span></li>
-						<li><strong>Complex Multiplication:</strong> <span class="code-inline">[PROF]*(1d10)</span> or <span class="code-inline">([STR]*2)+1d4</span></li>
-						<li><strong>Variable Dice:</strong> <span class="code-inline">[PROF]d10</span></li>
-						<li><strong>Randomized Dice Pools:</strong> <span class="code-inline">1d10d10</span></li>
-						<li><strong>Advantage:</strong> <span class="code-inline">2d20kh1+[STR]</span> <em>(Keep Highest 1)</em></li>
-						<li><strong>Disadvantage:</strong> <span class="code-inline">2d20kl1+[STR]</span> <em>(Keep Lowest 1)</em></li>
-						<li><strong>Savage Attacker:</strong> <span class="code-inline">2d12p2kh1+[STR]</span> <em>(Pool 2 times, Keep Highest 1 total)</em></li>
-						<li><strong>Daggerheart Check:</strong> <span class="code-inline">2d12daggerheart+2</span></li>
-					</ul>
-                </ul>
             </div>
         </div>
     </div>
@@ -86,6 +75,38 @@
         <button onclick="exportCharacter()">Generate Export Code</button>
         <button onclick="importCharacter()">Import from Code</button>
     </div>
+	
+	<div id="variable-guide-modal" class="modal-overlay modal-hidden" onclick="closeModal('variable-guide-modal')">
+		<div class="modal-content" onclick="event.stopPropagation()">
+			<span class="modal-close" onclick="closeModal('variable-guide-modal')">&times;</span>
+			<h3>Variable Syntax Guide</h3>
+			<div class="guide-box">
+				<strong style="color: #fab387;">Advanced Variable Features:</strong>
+				<ul style="margin-top: 10px; line-height: 1.6; text-align: left;">
+					<li><strong>Recursive Scaling:</strong> You can embed variables inside variables. Example: Define <span class="code-inline">TOTAL_MOD</span> as <span class="code-inline">[STR]+[PROF]</span>. Then, simply use <span class="code-inline">1d20+[TOTAL_MOD]</span> in your roll buttons.</li>
+					<li><strong>Order of Operations:</strong> The engine resolves variables first, then calculates the math string. Keep formulas clean by nesting simple variables into complex ones.</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+
+	<div id="button-guide-modal" class="modal-overlay modal-hidden" onclick="closeModal('button-guide-modal')">
+		<div class="modal-content" onclick="event.stopPropagation()">
+			<span class="modal-close" onclick="closeModal('button-guide-modal')">&times;</span>
+			<h3>Button Formula Syntax Guide</h3>
+			<div class="guide-box">
+				<ul style="margin-top: 10px; line-height: 1.6; text-align: left;">
+					<li><strong>Standard Syntax:</strong> <span class="code-inline">1d20+4</span> or <span class="code-inline">1d20+[PROF]+[DEX]</span></li>
+					<li><strong>Complex Multiplication:</strong> <span class="code-inline">[PROF]*(1d10)</span> or <span class="code-inline">([STR]*2)+1d4</span></li>
+					<li><strong>Variable Dice:</strong> <span class="code-inline">[PROF]d10</span></li>
+					<li><strong>Advantage:</strong> <span class="code-inline">2d20kh1+[STR]</span> <em>(Keep Highest 1)</em></li>
+					<li><strong>Disadvantage:</strong> <span class="code-inline">2d20kl1+[STR]</span> <em>(Keep Lowest 1)</em></li>
+					<li><strong>Savage Attacker:</strong> <span class="code-inline">2d12p2kh1+[STR]</span> <em>(Pool 2 times, Keep Highest 1 total)</em></li>
+					<li><strong>Daggerheart Check:</strong> <span class="code-inline">2d12daggerheart+2</span></li>
+				</ul>
+			</div>
+		</div>
+	</div>
 
     <script src="app.js"></script>
 </body>

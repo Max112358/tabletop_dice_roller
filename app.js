@@ -391,6 +391,30 @@ function saveToStorage() {
     localStorage.setItem('current_dice_char', currentCharacter);
 }
 
+// Modal Display Control Functions
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('modal-hidden');
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('modal-hidden');
+    }
+}
+
+// Optional: Close modals automatically if the user presses the 'Escape' key
+window.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.classList.add('modal-hidden');
+        });
+    }
+});
+
 function renderUI() {
     ensureCharacterStructure(currentCharacter);
 

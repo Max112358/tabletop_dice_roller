@@ -276,3 +276,63 @@ textarea {
 .var-badge:hover .var-del-btn {
     opacity: 1;
 }
+
+/* Modal Overlay Styling */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(17, 17, 27, 0.8); /* Semi-transparent background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-hidden {
+    display: none !important;
+}
+
+.modal-content {
+    background-color: #252538;
+    border: 1px solid #45475a;
+    padding: 25px;
+    border-radius: 8px;
+    max-width: 550px;
+    width: 90%;
+    position: relative;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    color: #cdd6f4;
+}
+
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #a6adc8;
+    transition: color 0.15s ease;
+}
+
+.modal-close:hover {
+    color: #f38ba8;
+}
+
+.guide-box {
+    background-color: #1e1e2e;
+    border: 1px solid #45475a;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.code-inline {
+    font-family: monospace;
+    background-color: #313244;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #a6e3a1;
+}
