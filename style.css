@@ -183,7 +183,7 @@ textarea {
     margin-right: 8px;
 }
 .var-val-input {
-    width: 45px;
+    width: 55px; /* Bumped slightly from 45px to comfortably fit the arrows */
     background-color: #1e1e2e;
     border: 1px solid #45475a;
     color: #cdd6f4;
@@ -191,6 +191,13 @@ textarea {
     border-radius: 4px;
     text-align: center;
     font-weight: bold;
+    transition: width 0.15s ease;
+}
+/* Optional helper: expands the field if a user types a longer text formula string */
+.var-val-input[type="text"] {
+    width: 110px;
+    text-align: left;
+    padding-left: 6px;
 }
 .var-del-btn {
     background: none;

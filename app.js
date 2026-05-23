@@ -2,13 +2,14 @@
 let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
     "Example Paladin": {
         buttons: [
-            { label: "Longsword (Advantage)", formula: "2d20kh1+[STR]+[PROF]", note: "To Hit" },
-            { label: "Longsword Damage", formula: "1d8+[STR]", note: "Slashing" },
-            { label: "Variable Swarm", formula: "[STR]d[PROF]", note: "Dynamic Engine Test!" },
-            { label: "Divine Smite (2nd Level)", formula: "3d8", note: "Radiant Damage" },
-            { label: "Daggerheart Action", formula: "2d12daggerheart+[STR]", note: "Hope vs Fear" }
+			{ label: "Longsword (Standard)", formula: "1d20+[STR]+[PROF]", note: "To Hit" },
+			{ label: "Longsword (Advantage)", formula: "2d20kh1+[STR]+[PROF]", note: "To Hit" },
+            { label: "Longsword (Disadvantage)", formula: "2d20kl1+[STR]+[PROF]", note: "To Hit" },
+            { label: "Longsword Savage Attacker Damage", formula: "[CRITMULTIPLIER]d8p2kh1+[STR]", note: "Slashing" },
+			{ label: "Divine Smite", formula: "[SMITEDICE]d8", note: "Radiant Damage" },
+            { label: "Daggerheart Action with Hope", formula: "2d12daggerheart+[HOPE]", note: "Hope vs Fear" }
         ],
-        variables: { "STR": 4, "PROF": 3 }
+        variables: { "STR": 4, "PROF": 3, "HOPE": 2, "HITPOINTS": 20, "AC": 18, "CRITMULTIPLIER": 1, "SMITEDICEBASE": 2, "SMITEDICE": "[SMITEDICEBASE] * [CRITMULTIPLIER]" }
     }
 };
 
@@ -41,28 +42,43 @@ let draggedIndex = null; // Drag and drop helper tracking state for buttons
 let draggedVarName = null; // Drag and drop helper tracking state for variables
 
 // --- FORMULA VARIABLE VALIDATION CHECKER ---
-function getMissingVariables(formula) {
+function getMissingVariables(formula, checkedVars = new Set()) {
     ensureCharacterStructure(currentCharacter);
     const activeVars = database[currentCharacter].variables || {};
-    // Keep keys exactly as they are defined for accurate mapping
-    const lowerVars = Object.keys(activeVars).map(v => v.toLowerCase());
+    
+    // Build a lowercase map for case-insensitive checking
+    const lowerVars = {};
+    Object.keys(activeVars).forEach(k => {
+        lowerVars[k.toLowerCase()] = activeVars[k];
+    });
     
     let missing = [];
-    // Extract everything enclosed cleanly in square brackets
     const bracketRegex = /\[([^\]]+)\]/g;
     let match;
+    let workingFormula = String(formula);
 
-    while ((match = bracketRegex.exec(formula)) !== null) {
+    while ((match = bracketRegex.exec(workingFormula)) !== null) {
         let varName = match[1].trim().toLowerCase();
-        if (!lowerVars.includes(varName)) {
+        
+        if (!lowerVars.hasOwnProperty(varName)) {
             missing.push(match[1].trim());
+        } else {
+            // Dive into the nested variable to validate its formula too
+            if (!checkedVars.has(varName)) {
+                checkedVars.add(varName);
+                let subFormula = String(lowerVars[varName]);
+                let subMissing = getMissingVariables(subFormula, checkedVars);
+                missing = missing.concat(subMissing);
+            }
         }
     }
-    return missing;
+    
+    // Return a unique array of missing variables
+    return [...new Set(missing)];
 }
 
 // =========================================================================
-// REFACTORED DICE PIPELINE ENGINE (FIXED)
+// REFACTORED DICE PIPELINE ENGINE (RECURSIVE RESOLUTION)
 // =========================================================================
 
 function parseAndRoll(label, formula) {
@@ -70,145 +86,143 @@ function parseAndRoll(label, formula) {
         ensureCharacterStructure(currentCharacter);
         let activeVars = database[currentCharacter].variables || {};
         
-        let workingFormula = formula.trim().toLowerCase();
-        const displayFormula = formula;
-
         let breakdownLogs = [];
         let daggerheartContext = null;
 
-        // -----------------------------------------------------------------
-        // STEP 1: VARIABLE SUBSTITUTION (Square Brackets)
-        // -----------------------------------------------------------------
-        const bracketRegex = /\[([^\]]+)\]/g;
-        let hasMissingVar = false;
-        let missingVarName = "";
+        // The core 3-step pipeline wrapped as a recursive executor
+        function evaluateMathAndDice(expr, depth = 0) {
+            // Circuit breaker to prevent infinite loops (e.g., A -> B -> A)
+            if (depth > 50) throw new Error("Infinite loop detected in variable resolution!");
 
-        workingFormula = workingFormula.replace(bracketRegex, (fullMatch, varName) => {
-            let foundKey = Object.keys(activeVars).find(k => k.toLowerCase() === varName.trim());
-            
-            if (foundKey !== undefined) {
-                return activeVars[foundKey];
-            } else {
-                hasMissingVar = true;
-                missingVarName = varName.toUpperCase();
-                return fullMatch;
-            }
-        });
+            let workingExpr = String(expr).trim().toLowerCase();
 
-        if (hasMissingVar) {
-            throw new Error(`Missing variable reference: [${missingVarName}]`);
-        }
+            // -----------------------------------------------------------------
+            // STEP 1: RECURSIVE VARIABLE SUBSTITUTION
+            // -----------------------------------------------------------------
+            const bracketRegex = /\[([^\]]+)\]/g;
+            let hasMissingVar = false;
+            let missingVarName = "";
 
-        // -----------------------------------------------------------------
-        // STEP 2: LEFT-TO-RIGHT DICE EVALUATION LOOP
-        // -----------------------------------------------------------------
-        // Updated regex supports: 
-        // Normal (2d12), standard keep (4d12kh2), daggerheart, 
-        // AND Pool Matching notation: 2d12p2kh1 (Pool 2 times, keep highest 1)
-        const diceRegex = /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart)?/;
-
-        while (diceRegex.test(workingFormula)) {
-            let matchInstance = workingFormula.match(diceRegex);
-            let fullDiceExpression = matchInstance[0];
-            let count = parseInt(matchInstance[1], 10);
-            let sides = parseInt(matchInstance[2], 10);
-            let modifier = matchInstance[3] || "";
-
-            let evaluatedNumericValue = 0;
-            let logString = "";
-
-            // 1. Daggerheart Interceptor
-            if (modifier === "daggerheart") {
-                let hopeRoll = Math.floor(Math.random() * sides) + 1;
-                let fearRoll = Math.floor(Math.random() * sides) + 1;
-                evaluatedNumericValue = hopeRoll + fearRoll;
+            workingExpr = workingExpr.replace(bracketRegex, (fullMatch, varName) => {
+                let foundKey = Object.keys(activeVars).find(k => k.toLowerCase() === varName.trim());
                 
-                let outcome = hopeRoll === fearRoll ? "CRITICAL SUCCESS! ✨" : 
-                              (hopeRoll > fearRoll ? "Roll with HOPE ☀️" : "Roll with FEAR 🌙");
-                
-                daggerheartContext = `[Hope: ${hopeRoll} | Fear: ${fearRoll}] -> ${outcome}`;
-                logString = `${fullDiceExpression} (${hopeRoll} hope, ${fearRoll} fear)`;
-            } 
-            // 2. Pool Matching Syntax (e.g., 2d12p2kh1 -> Pool 2 times, keep highest 1)
-            else if (modifier.startsWith("p") && (modifier.includes("kh") || modifier.includes("kl"))) {
-                let isHighest = modifier.includes("kh");
-                
-                // Parse out the pool iterations and keep count using regex groups
-                // modifier looks like: p2kh1 or p3kl1
-                let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
-                let poolIterations = parseInt(poolMatch[1], 10);
-                let keepCount = parseInt(poolMatch[3], 10);
-
-                let poolTotals = [];
-                let poolDetails = [];
-
-                // Execute the full pool roll iterations separately
-                for (let i = 0; i < poolIterations; i++) {
-                    let currentIterationRolls = [];
-                    for (let j = 0; j < count; j++) {
-                        currentIterationRolls.push(Math.floor(Math.random() * sides) + 1);
-                    }
-                    let currentIterationTotal = currentIterationRolls.reduce((sum, val) => sum + val, 0);
-                    poolTotals.push(currentIterationTotal);
-                    poolDetails.push(`[${currentIterationRolls.join('+')} = ${currentIterationTotal}]`);
-                }
-
-                // Sort the totals to keep the highest or lowest pools
-                let keptPools = [];
-                if (isHighest) {
-                    // Sort descending for keep highest
-                    keptPools = [...poolTotals].sort((a, b) => b - a).slice(0, keepCount);
-                    logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(' vs ')} } -> Kept Highest ${keepCount}: (${keptPools.join('+')})`;
+                if (foundKey !== undefined) {
+                    // Dive deep: run the sub-variable through this exact pipeline to get a hard number
+                    return evaluateMathAndDice(activeVars[foundKey], depth + 1);
                 } else {
-                    // Sort ascending for keep lowest
-                    keptPools = [...poolTotals].sort((a, b) => a - b).slice(0, keepCount);
-                    logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(' vs ')} } -> Kept Lowest ${keepCount}: (${keptPools.join('+')})`;
+                    hasMissingVar = true;
+                    missingVarName = varName.toUpperCase();
+                    return fullMatch;
+                }
+            });
+
+            if (hasMissingVar) {
+                throw new Error(`Missing variable reference: [${missingVarName}]`);
+            }
+
+            // -----------------------------------------------------------------
+            // STEP 2: LEFT-TO-RIGHT DICE EVALUATION LOOP
+            // -----------------------------------------------------------------
+            const diceRegex = /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart)?/;
+
+            while (diceRegex.test(workingExpr)) {
+                let matchInstance = workingExpr.match(diceRegex);
+                let fullDiceExpression = matchInstance[0];
+                let count = parseInt(matchInstance[1], 10);
+                let sides = parseInt(matchInstance[2], 10);
+                let modifier = matchInstance[3] || "";
+
+                let evaluatedNumericValue = 0;
+                let logString = "";
+
+                // 1. Daggerheart Interceptor
+                if (modifier === "daggerheart") {
+                    let hopeRoll = Math.floor(Math.random() * sides) + 1;
+                    let fearRoll = Math.floor(Math.random() * sides) + 1;
+                    evaluatedNumericValue = hopeRoll + fearRoll;
+                    
+                    let outcome = hopeRoll === fearRoll ? "CRITICAL SUCCESS! ✨" : 
+                                  (hopeRoll > fearRoll ? "Roll with HOPE ☀️" : "Roll with FEAR 🌙");
+                    
+                    daggerheartContext = `[Hope: ${hopeRoll} | Fear: ${fearRoll}] -> ${outcome}`;
+                    logString = `${fullDiceExpression} (${hopeRoll} hope, ${fearRoll} fear)`;
+                } 
+                // 2. Pool Matching Syntax
+                else if (modifier.startsWith("p") && (modifier.includes("kh") || modifier.includes("kl"))) {
+                    let isHighest = modifier.includes("kh");
+                    let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
+                    let poolIterations = parseInt(poolMatch[1], 10);
+                    let keepCount = parseInt(poolMatch[3], 10);
+
+                    let poolTotals = [];
+                    let poolDetails = [];
+
+                    for (let i = 0; i < poolIterations; i++) {
+                        let currentIterationRolls = [];
+                        for (let j = 0; j < count; j++) {
+                            currentIterationRolls.push(Math.floor(Math.random() * sides) + 1);
+                        }
+                        let currentIterationTotal = currentIterationRolls.reduce((sum, val) => sum + val, 0);
+                        poolTotals.push(currentIterationTotal);
+                        poolDetails.push(`[${currentIterationRolls.join('+')} = ${currentIterationTotal}]`);
+                    }
+
+                    let keptPools = [];
+                    if (isHighest) {
+                        keptPools = [...poolTotals].sort((a, b) => b - a).slice(0, keepCount);
+                        logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(' vs ')} } -> Kept Highest ${keepCount}: (${keptPools.join('+')})`;
+                    } else {
+                        keptPools = [...poolTotals].sort((a, b) => a - b).slice(0, keepCount);
+                        logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(' vs ')} } -> Kept Lowest ${keepCount}: (${keptPools.join('+')})`;
+                    }
+
+                    evaluatedNumericValue = keptPools.reduce((sum, val) => sum + val, 0);
+                }
+                // 3. Standard Keep Highest
+                else if (modifier.startsWith("kh")) {
+                    let keepCount = parseInt(modifier.replace("kh", ""), 10);
+                    let rolls = [];
+                    for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
+                    let kept = [...rolls].sort((a, b) => b - a).slice(0, keepCount);
+                    evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
+                    logString = `${fullDiceExpression} [Rolls: ${rolls.join(', ')}] Kept: (${kept.join('+')})`;
+                } 
+                // 4. Standard Keep Lowest
+                else if (modifier.startsWith("kl")) {
+                    let keepCount = parseInt(modifier.replace("kl", ""), 10);
+                    let rolls = [];
+                    for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
+                    let kept = [...rolls].sort((a, b) => a - b).slice(0, keepCount);
+                    evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
+                    logString = `${fullDiceExpression} [Rolls: ${rolls.join(', ')}] Kept: (${kept.join('+')})`;
+                } 
+                // 5. Plain Vanilla
+                else {
+                    let rolls = [];
+                    for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
+                    evaluatedNumericValue = rolls.reduce((sum, val) => sum + val, 0);
+                    logString = `${fullDiceExpression} (${rolls.join('+')}=${evaluatedNumericValue})`;
                 }
 
-                evaluatedNumericValue = keptPools.reduce((sum, val) => sum + val, 0);
-            }
-            // 3. Standard Keep Highest Modifiers (e.g., 4d12kh2)
-            else if (modifier.startsWith("kh")) {
-                let keepCount = parseInt(modifier.replace("kh", ""), 10);
-                let rolls = [];
-                for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
-                let kept = [...rolls].sort((a, b) => b - a).slice(0, keepCount);
-                evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
-                logString = `${fullDiceExpression} [Rolls: ${rolls.join(', ')}] Kept: (${kept.join('+')})`;
-            } 
-            // 4. Standard Keep Lowest Modifiers (e.g., 4d12kl2)
-            else if (modifier.startsWith("kl")) {
-                let keepCount = parseInt(modifier.replace("kl", ""), 10);
-                let rolls = [];
-                for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
-                let kept = [...rolls].sort((a, b) => a - b).slice(0, keepCount);
-                evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
-                logString = `${fullDiceExpression} [Rolls: ${rolls.join(', ')}] Kept: (${kept.join('+')})`;
-            } 
-            // 5. Plain Vanilla Dice Roll
-            else {
-                let rolls = [];
-                for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
-                evaluatedNumericValue = rolls.reduce((sum, val) => sum + val, 0);
-                logString = `${fullDiceExpression} (${rolls.join('+')}=${evaluatedNumericValue})`;
+                breakdownLogs.push(logString);
+                workingExpr = workingExpr.replace(fullDiceExpression, evaluatedNumericValue);
             }
 
-            breakdownLogs.push(logString);
-            workingFormula = workingFormula.replace(fullDiceExpression, evaluatedNumericValue);
+            // -----------------------------------------------------------------
+            // STEP 3: STANDARD PEMDAS MATHEMATICS EVALUATION
+            // -----------------------------------------------------------------
+            workingExpr = workingExpr.replace(/\s+/g, '');
+
+            if (/[^0-9\+\-\*\/\(\)\.]/.test(workingExpr)) {
+                throw new Error(`Syntax Error: Unexpected math operator configuration remaining in "${workingExpr}"`);
+            }
+
+            return Function(`"use strict"; return (${workingExpr})`)();
         }
 
-        // -----------------------------------------------------------------
-        // STEP 3: STANDARD PEMDAS MATHEMATICS EVALUATION
-        // -----------------------------------------------------------------
-        workingFormula = workingFormula.replace(/\s+/g, '');
+        // Kick off the whole chain starting with the top-level button formula
+        let finalResultTotal = evaluateMathAndDice(formula);
 
-        if (/[^0-9\+\-\*\/\(\)\.]/.test(workingFormula)) {
-            throw new Error("Syntax Error: Unexpected math operator configuration remaining.");
-        }
-
-        let finalResultTotal = Function(`"use strict"; return (${workingFormula})`)();
-
-        // Return data payload structured back to execution buffer coordinator
         return {
             total: finalResultTotal,
             breakdown: breakdownLogs.length > 0 ? breakdownLogs.join(' -> ') : null,
@@ -441,13 +455,19 @@ function renderUI() {
         label.innerText = varName;
         
         const input = document.createElement('input');
-        input.type = 'number';
-        input.className = 'var-val-input';
-        input.value = variables[varName];
+        // Check if the stored value is purely a number or a numeric string
+		const isNumeric = !isNaN(parseFloat(variables[varName])) && isFinite(variables[varName]);
+		input.type = isNumeric ? 'number' : 'text';
+
+		input.className = 'var-val-input';
+		input.value = variables[varName];
         input.setAttribute('draggable', false);
         input.onchange = function() {
-            updateVariableValue(varName, this.value);
-        };
+			updateVariableValue(varName, this.value);
+			// Dynamically adjust type post-edit so arrows appear/disappear immediately
+			const isNumericNow = !isNaN(parseFloat(this.value)) && isFinite(this.value);
+			this.type = isNumericNow ? 'number' : 'text';
+		};
         
         const delBtn = document.createElement('button');
         delBtn.className = 'var-del-btn';
@@ -543,26 +563,25 @@ function renderUI() {
 // --- VARIABLE MANAGEMENT SUB-ROUTINES ---
 function addVariable() {
     const nameInput = document.getElementById('newVarName');
-    const valInput = document.getElementById('newVarValue');
+    const valInput = document.getElementById('newVarValue'); // Ensure this is also type="text" in your HTML!
     
     const rawName = nameInput.value.trim().toUpperCase();
     const cleanName = rawName.replace(/[^A-Z]/g, '');
-    const value = parseInt(valInput.value);
+    const valueStr = valInput.value.trim();
 
     if (!cleanName) {
         showStatus("Variable label must contain uppercase alphabetic characters!", true);
         return;
     }
-    if (isNaN(value)) {
-        showStatus("Variable value must be a valid integer number.", true);
-        return;
-    }
-    if (['d', 'kh', 'kl'].includes(cleanName.toLowerCase())) {
+    if (['D', 'KH', 'KL'].includes(cleanName)) {
         showStatus(`"${cleanName}" is a reserved syntax key word.`, true);
         return;
     }
 
-    database[currentCharacter].variables[cleanName] = value;
+    const cleanVal = parseFloat(valueStr);
+    const finalValue = (!isNaN(cleanVal) && cleanVal.toString() === valueStr) ? cleanVal : valueStr;
+
+    database[currentCharacter].variables[cleanName] = finalValue;
     saveToStorage();
     renderUI();
 
@@ -572,11 +591,15 @@ function addVariable() {
 }
 
 function updateVariableValue(name, val) {
-    const cleanVal = parseInt(val);
-    database[currentCharacter].variables[name] = isNaN(cleanVal) ? 0 : cleanVal;
+    const valueStr = val.trim();
+    const cleanVal = parseFloat(valueStr);
+    
+    // Store as a strict number if it is one, otherwise store the raw text formula string
+    database[currentCharacter].variables[name] = (!isNaN(cleanVal) && cleanVal.toString() === valueStr) ? cleanVal : valueStr;
+    
     saveToStorage();
     renderUI();
-    showStatus(`Updated variable "${name}" to ${database[currentCharacter].variables[name]}`);
+    showStatus(`Updated variable "${name}"`);
 }
 
 function removeVariable(name) {
