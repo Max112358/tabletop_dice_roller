@@ -1,6 +1,6 @@
 // Core database state architecture updated to support custom variable schema objects per profile
 let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
-    "Example Paladin": {
+    "Example Paladin (D&D)": {
         buttons: [
 			{ label: "Longsword (Standard)", formula: "1d20+[STR]+[PROF]+[BLESS]", note: "To Hit" },
 			{ label: "Longsword (Advantage)", formula: "2d20kh1+[STR]+[PROF]+[BLESS]", note: "To Hit" },
@@ -8,10 +8,21 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
             { label: "Longsword Savage Attacker Damage", formula: "[CRIT_MULTIPLIER]d8p2kh1+[STR]", note: "Slashing" },
 			{ label: "Divine Smite", formula: "[SMITE_DICE]d8", note: "Radiant Damage" },
 			{ label: "Athletics Check", formula: "1d20+[STR]+[PROF]+[GUIDANCE]", note: "" },
-            { label: "Daggerheart Action with Hope", formula: "2d12daggerheart+[HOPE]", note: "Hope vs Fear" }
         ],
-        variables: { "STR": 4, "PROF": 2, "HOPE": 2, "HITPOINTS": 20, "AC": 18, "CRIT_MULTIPLIER": 1, "SMITE_DICE_BASE": 2, "SMITE_DICE": "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]", "BLESS_MULTIPLIER": 0, "BLESS": "[BLESS_MULTIPLIER]d4", "GUIDANCE_MULTIPLIER": 0, "GUIDANCE": "[GUIDANCE_MULTIPLIER]d4" }
-    }
+        variables: { "STR": 4, "PROF": 2, "HITPOINTS": 20, "AC": 18, "CRIT_MULTIPLIER": 1, "SMITE_DICE_BASE": 2, "SMITE_DICE": "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]", "BLESS_MULTIPLIER": 0, "BLESS": "[BLESS_MULTIPLIER]d4", "GUIDANCE_MULTIPLIER": 0, "GUIDANCE": "[GUIDANCE_MULTIPLIER]d4" }
+    },
+	"Example Seraph (Daggerheart)": {
+		buttons: [
+            { label: "Daggerheart Action", formula: "2d12daggerheart", note: "" },
+			{ label: "Daggerheart Action With Exp", formula: "2d12daggerheart+2", note: "" },
+			{ label: "Greatsword Attack", formula: "2d12daggerheart+[STR]", note: "to hit" },
+			{ label: "Greatsword Attack (Advantage)", formula: "2d12daggerheart+[STR]+1d6", note: "to hit" },
+			{ label: "Greatsword Attack (Disadvantage)", formula: "2d12daggerheart+[STR]-1d6", note: "to hit" },
+			{ label: "Greatsword Damage", formula: "[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage" },
+			{ label: "Greatsword Damage Crit", formula: "[PROF]*10+[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage critical hit" },
+        ],
+        variables: { "STR": 2, "PROF": 1, "HOPE": 2, "STRESS": 6, "HITPOINTS": 6, "EVASION": 9, "DAMAGE_THRESHOLDS": "7/15", "ARMOR": 4, "ATTACK_DICE": "[PROF]+1" }
+	}
 };
 
 // Fallback cleanup migration helper for old localstorage profiles data if found
