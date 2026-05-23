@@ -9,7 +9,7 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
 			{ label: "Divine Smite", formula: "[SMITE_DICE]d8", note: "Radiant Damage" },
 			{ label: "Athletics Check", formula: "1d20+[STR]+[PROF]+[GUIDANCE]", note: "" },
         ],
-        variables: { "STR": 4, "PROF": 2, "HITPOINTS": 20, "AC": 18, "CRIT_MULTIPLIER": 1, "SMITE_DICE_BASE": 2, "SMITE_DICE": "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]", "BLESS_MULTIPLIER": 0, "BLESS": "[BLESS_MULTIPLIER]d4", "GUIDANCE_MULTIPLIER": 0, "GUIDANCE": "[GUIDANCE_MULTIPLIER]d4" }
+        variables: { "STR": 4, "PROF": 2, "HIT_POINTS": 20, "AC": 18, "CRIT_MULTIPLIER": 1, "SMITE_DICE_BASE": 2, "SMITE_DICE": "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]", "BLESS_MULTIPLIER": 0, "BLESS": "[BLESS_MULTIPLIER]d4", "GUIDANCE_MULTIPLIER": 0, "GUIDANCE": "[GUIDANCE_MULTIPLIER]d4" }
     },
 	"Example Seraph (Daggerheart)": {
 		buttons: [
@@ -21,7 +21,7 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
 			{ label: "Greatsword Damage", formula: "[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage" },
 			{ label: "Greatsword Damage Crit", formula: "[PROF]*10+[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage critical hit" },
         ],
-        variables: { "STR": 2, "PROF": 1, "HOPE": 2, "STRESS": 6, "HITPOINTS": 6, "EVASION": 9, "DAMAGE_THRESHOLDS": "7/15", "ARMOR": 4, "ATTACK_DICE": "[PROF]+1" }
+        variables: { "STR": 2, "PROF": 1, "HOPE": 2, "STRESS": 6, "HIT_POINTS": 6, "EVASION": 9, "DAMAGE_THRESHOLDS": "7/15", "ARMOR": 4, "ATTACK_DICE": "[PROF]+1" }
 	}
 };
 
