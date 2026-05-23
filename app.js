@@ -2,10 +2,11 @@
 let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
     "Example Paladin": {
         buttons: [
-            { label: "Longsword (Advantage)", formula: "2d20kh1+STR+PROF", note: "To Hit" },
-            { label: "Longsword Damage", formula: "1d8+STR", note: "Slashing" },
+            { label: "Longsword (Advantage)", formula: "2d20kh1+[STR]+[PROF]", note: "To Hit" },
+            { label: "Longsword Damage", formula: "1d8+[STR]", note: "Slashing" },
+            { label: "Variable Swarm", formula: "[STR]d[PROF]", note: "Dynamic Engine Test!" },
             { label: "Divine Smite (2nd Level)", formula: "3d8", note: "Radiant Damage" },
-            { label: "Daggerheart Action", formula: "2d12daggerheart+STR", note: "Hope vs Fear" }
+            { label: "Daggerheart Action", formula: "2d12daggerheart+[STR]", note: "Hope vs Fear" }
         ],
         variables: { "STR": 4, "PROF": 3 }
     }
@@ -41,32 +42,242 @@ let draggedVarName = null; // Drag and drop helper tracking state for variables
 
 // --- FORMULA VARIABLE VALIDATION CHECKER ---
 function getMissingVariables(formula) {
-    let cleanFormula = formula.replace(/\s+/g, '').toLowerCase();
-    
-    // Strip the special custom keyword prefix out so it does not trigger a false-missing alert
-    if (cleanFormula.startsWith('2d12daggerheart')) {
-        cleanFormula = cleanFormula.substring(15);
-    }
-
+    ensureCharacterStructure(currentCharacter);
     const activeVars = database[currentCharacter].variables || {};
-    const wordMatches = cleanFormula.match(/\b[a-z_][a-z0-9_]*\b/g) || [];
-    const missing = [];
+    // Keep keys exactly as they are defined for accurate mapping
+    const lowerVars = Object.keys(activeVars).map(v => v.toLowerCase());
+    
+    let missing = [];
+    // Extract everything enclosed cleanly in square brackets
+    const bracketRegex = /\[([^\]]+)\]/g;
+    let match;
 
-    const reservedKeywords = ['d', 'kh', 'kl'];
-
-    for (let word of wordMatches) {
-        if (reservedKeywords.includes(word)) continue;
-		// If it's a pure number inside a match boundary, skip it
-        if (!isNaN(word)) continue; 
-
-		// Check if our uppercase variable bank contains this word
-        const matchedVar = Object.keys(activeVars).find(v => v.toLowerCase() === word);
-        if (!matchedVar && !missing.includes(word.toUpperCase())) {
-            missing.push(word.toUpperCase());
+    while ((match = bracketRegex.exec(formula)) !== null) {
+        let varName = match[1].trim().toLowerCase();
+        if (!lowerVars.includes(varName)) {
+            missing.push(match[1].trim());
         }
     }
     return missing;
 }
+
+// =========================================================================
+// REFACTORED DICE PIPELINE ENGINE (FIXED)
+// =========================================================================
+
+function parseAndRoll(label, formula) {
+    try {
+        ensureCharacterStructure(currentCharacter);
+        let activeVars = database[currentCharacter].variables || {};
+        
+        let workingFormula = formula.trim().toLowerCase();
+        const displayFormula = formula;
+
+        let breakdownLogs = [];
+        let daggerheartContext = null;
+
+        // -----------------------------------------------------------------
+        // STEP 1: VARIABLE SUBSTITUTION (Square Brackets)
+        // -----------------------------------------------------------------
+        const bracketRegex = /\[([^\]]+)\]/g;
+        let hasMissingVar = false;
+        let missingVarName = "";
+
+        workingFormula = workingFormula.replace(bracketRegex, (fullMatch, varName) => {
+            let foundKey = Object.keys(activeVars).find(k => k.toLowerCase() === varName.trim());
+            
+            if (foundKey !== undefined) {
+                return activeVars[foundKey];
+            } else {
+                hasMissingVar = true;
+                missingVarName = varName.toUpperCase();
+                return fullMatch;
+            }
+        });
+
+        if (hasMissingVar) {
+            throw new Error(`Missing variable reference: [${missingVarName}]`);
+        }
+
+        // -----------------------------------------------------------------
+        // STEP 2: LEFT-TO-RIGHT DICE EVALUATION LOOP
+        // -----------------------------------------------------------------
+        // Updated regex supports: 
+        // Normal (2d12), standard keep (4d12kh2), daggerheart, 
+        // AND Pool Matching notation: 2d12p2kh1 (Pool 2 times, keep highest 1)
+        const diceRegex = /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart)?/;
+
+        while (diceRegex.test(workingFormula)) {
+            let matchInstance = workingFormula.match(diceRegex);
+            let fullDiceExpression = matchInstance[0];
+            let count = parseInt(matchInstance[1], 10);
+            let sides = parseInt(matchInstance[2], 10);
+            let modifier = matchInstance[3] || "";
+
+            let evaluatedNumericValue = 0;
+            let logString = "";
+
+            // 1. Daggerheart Interceptor
+            if (modifier === "daggerheart") {
+                let hopeRoll = Math.floor(Math.random() * sides) + 1;
+                let fearRoll = Math.floor(Math.random() * sides) + 1;
+                evaluatedNumericValue = hopeRoll + fearRoll;
+                
+                let outcome = hopeRoll === fearRoll ? "CRITICAL SUCCESS! ✨" : 
+                              (hopeRoll > fearRoll ? "Roll with HOPE ☀️" : "Roll with FEAR 🌙");
+                
+                daggerheartContext = `[Hope: ${hopeRoll} | Fear: ${fearRoll}] -> ${outcome}`;
+                logString = `${fullDiceExpression} (${hopeRoll} hope, ${fearRoll} fear)`;
+            } 
+            // 2. Pool Matching Syntax (e.g., 2d12p2kh1 -> Pool 2 times, keep highest 1)
+            else if (modifier.startsWith("p") && (modifier.includes("kh") || modifier.includes("kl"))) {
+                let isHighest = modifier.includes("kh");
+                
+                // Parse out the pool iterations and keep count using regex groups
+                // modifier looks like: p2kh1 or p3kl1
+                let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
+                let poolIterations = parseInt(poolMatch[1], 10);
+                let keepCount = parseInt(poolMatch[3], 10);
+
+                let poolTotals = [];
+                let poolDetails = [];
+
+                // Execute the full pool roll iterations separately
+                for (let i = 0; i < poolIterations; i++) {
+                    let currentIterationRolls = [];
+                    for (let j = 0; j < count; j++) {
+                        currentIterationRolls.push(Math.floor(Math.random() * sides) + 1);
+                    }
+                    let currentIterationTotal = currentIterationRolls.reduce((sum, val) => sum + val, 0);
+                    poolTotals.push(currentIterationTotal);
+                    poolDetails.push(`[${currentIterationRolls.join('+')} = ${currentIterationTotal}]`);
+                }
+
+                // Sort the totals to keep the highest or lowest pools
+                let keptPools = [];
+                if (isHighest) {
+                    // Sort descending for keep highest
+                    keptPools = [...poolTotals].sort((a, b) => b - a).slice(0, keepCount);
+                    logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(' vs ')} } -> Kept Highest ${keepCount}: (${keptPools.join('+')})`;
+                } else {
+                    // Sort ascending for keep lowest
+                    keptPools = [...poolTotals].sort((a, b) => a - b).slice(0, keepCount);
+                    logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(' vs ')} } -> Kept Lowest ${keepCount}: (${keptPools.join('+')})`;
+                }
+
+                evaluatedNumericValue = keptPools.reduce((sum, val) => sum + val, 0);
+            }
+            // 3. Standard Keep Highest Modifiers (e.g., 4d12kh2)
+            else if (modifier.startsWith("kh")) {
+                let keepCount = parseInt(modifier.replace("kh", ""), 10);
+                let rolls = [];
+                for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
+                let kept = [...rolls].sort((a, b) => b - a).slice(0, keepCount);
+                evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
+                logString = `${fullDiceExpression} [Rolls: ${rolls.join(', ')}] Kept: (${kept.join('+')})`;
+            } 
+            // 4. Standard Keep Lowest Modifiers (e.g., 4d12kl2)
+            else if (modifier.startsWith("kl")) {
+                let keepCount = parseInt(modifier.replace("kl", ""), 10);
+                let rolls = [];
+                for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
+                let kept = [...rolls].sort((a, b) => a - b).slice(0, keepCount);
+                evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
+                logString = `${fullDiceExpression} [Rolls: ${rolls.join(', ')}] Kept: (${kept.join('+')})`;
+            } 
+            // 5. Plain Vanilla Dice Roll
+            else {
+                let rolls = [];
+                for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
+                evaluatedNumericValue = rolls.reduce((sum, val) => sum + val, 0);
+                logString = `${fullDiceExpression} (${rolls.join('+')}=${evaluatedNumericValue})`;
+            }
+
+            breakdownLogs.push(logString);
+            workingFormula = workingFormula.replace(fullDiceExpression, evaluatedNumericValue);
+        }
+
+        // -----------------------------------------------------------------
+        // STEP 3: STANDARD PEMDAS MATHEMATICS EVALUATION
+        // -----------------------------------------------------------------
+        workingFormula = workingFormula.replace(/\s+/g, '');
+
+        if (/[^0-9\+\-\*\/\(\)\.]/.test(workingFormula)) {
+            throw new Error("Syntax Error: Unexpected math operator configuration remaining.");
+        }
+
+        let finalResultTotal = Function(`"use strict"; return (${workingFormula})`)();
+
+        // Return data payload structured back to execution buffer coordinator
+        return {
+            total: finalResultTotal,
+            breakdown: breakdownLogs.length > 0 ? breakdownLogs.join(' -> ') : null,
+            dhContext: daggerheartContext
+        };
+
+    } catch (error) {
+        console.error(error);
+        showStatus(error.message || "Error evaluating math formula structure!", true);
+        return null;
+    }
+}
+
+function executeRoll(label, formula, note, buttonElement) {
+    const missing = getMissingVariables(formula);
+    if (missing.length > 0) {
+        showStatus(`Cannot roll! Missing variables: ${missing.join(', ')}`, true);
+        return;
+    }
+
+    const currentTime = Date.now();
+    // Pass both label and formula to parseAndRoll
+    const rollData = parseAndRoll(label, formula);
+    
+    if (!rollData || isNaN(rollData.total)) {
+        showStatus("Error evaluating math or dice formula! Check syntax.", true);
+        return;
+    }
+
+    // Format single roll line strings cleanly
+    let singleLineOutput = `*rolls ${label} (${formula}):* **${rollData.total}**`;
+    if (rollData.dhContext) singleLineOutput += ` ${rollData.dhContext}`;
+    if (rollData.breakdown) singleLineOutput += ` [Details: ${rollData.breakdown}]`;
+    if (note) singleLineOutput += ` *(${note})*`;
+
+    if (currentTime - lastRollTime > COMBO_TIMEOUT_MS) {
+        rollBuffer = [];
+    }
+    
+    rollBuffer.push(singleLineOutput);
+    lastRollTime = currentTime;
+
+    const combinedOutputText = rollBuffer.join('\n');
+
+    navigator.clipboard.writeText(combinedOutputText).then(() => {
+        showStatus(rollBuffer.length > 1 ? `Combined sequence copy active (${rollBuffer.length} rolls)!` : `Copied roll for ${label}!`);
+        
+        document.getElementById('resTitle').innerHTML = `Active Stack: <strong>${rollBuffer.length} Roll(s)</strong>`;
+        document.getElementById('resRaw').innerText = combinedOutputText;
+
+        const timerBadge = document.getElementById('bufferTimer');
+        timerBadge.style.display = 'inline-block';
+        timerBadge.innerText = `Combo active: +10s added`;
+
+        if(buttonElement) {
+            const originalText = buttonElement.innerText;
+            buttonElement.innerText = "✓ Added!";
+            buttonElement.classList.add('success-flash');
+            
+            setTimeout(() => {
+                buttonElement.innerText = originalText;
+                buttonElement.classList.remove('success-flash');
+            }, 600);
+        }
+    }).catch(err => {
+        showStatus("Clipboard execution error!", true);
+    });
+}
+
 
 // --- CORE DICE ROLL SIMULATOR ---
 function rollBasicDice(countStr, sidesStr) {
@@ -131,188 +342,6 @@ function evaluateSimpleExpression(expr, detailedRolls) {
     });
 }
 
-// --- COMPREHENSIVE ADVANCED PARSING ENGINE ---
-function parseAndRoll(formula) {
-    let cleanFormula = formula.replace(/\s+/g, '').toLowerCase();
-    
-    // VARIABLE INJECTION INTERCEPTOR
-    const activeVars = database[currentCharacter].variables || {};
-    const sortedVarNames = Object.keys(activeVars).sort((a, b) => b.length - a.length);
-    
-    for (let varName of sortedVarNames) {
-        const lowerVarName = varName.toLowerCase();
-        const value = activeVars[varName];
-        const varRegex = new RegExp(`\\b${lowerVarName}\\b`, 'g');
-        cleanFormula = cleanFormula.replace(varRegex, `(${value})`);
-    }
-
-	// --- SPECIAL CASE INTERCEPTOR: DAGGERHEART DUAL D12 ---
-    if (cleanFormula.includes('2d12daggerheart')) {
-        // 1. Sniff out what modifiers were originally written after the keyword (e.g., "+1d6+HOPE")
-        let originalModifiersText = formula.replace(/\s+/g, '');
-        const keywordIndex = originalModifiersText.toLowerCase().indexOf('2d12daggerheart');
-        if (keywordIndex !== -1) {
-            originalModifiersText = originalModifiersText.substring(keywordIndex + 15);
-        }
-
-        // 2. Roll the core Daggerheart dice
-        const hopeDie = Math.floor(Math.random() * 12) + 1;
-        const fearDie = Math.floor(Math.random() * 12) + 1;
-        const diceTotal = hopeDie + fearDie;
-
-        // 3. Determine the narrative/resource outcome rule
-        let outcomeType = "";
-        if (hopeDie === fearDie) {
-            outcomeType = "CRITICAL SUCCESS! ✨";
-        } else if (hopeDie > fearDie) {
-            outcomeType = "Roll with HOPE ☀️";
-        } else {
-            outcomeType = "Roll with FEAR 🌙";
-        }
-
-        // 4. Swap out the keyword for the numerical sum of the two dice
-        let mathFormula = cleanFormula.replace('2d12daggerheart', `(${diceTotal})`);
-
-        // 5. Run the newly modified formula through the dice evaluation engine
-        let extraDiceLogs = [];
-        mathFormula = evaluateSimpleExpression(mathFormula, extraDiceLogs);
-
-        let finalTotal;
-        try {
-            finalTotal = Function(`"use strict"; return (${mathFormula})`)();
-        } catch (e) {
-            return null;
-        }
-
-        // 6. Assemble an all-inclusive breakdown showing dice details AND variable text
-        let detailedMessage = `[Hope: ${hopeDie} | Fear: ${fearDie}] -> ${outcomeType}`;
-        
-        if (originalModifiersText) {
-            // Clean up look (ensure it starts nicely with a plus sign if needed)
-            if (!originalModifiersText.startsWith('+') && !originalModifiersText.startsWith('-')) {
-                originalModifiersText = '+' + originalModifiersText;
-            }
-            
-            // Build visual text displaying the evaluated dice logs alongside stat variables
-            let displayMods = originalModifiersText;
-            extraDiceLogs.forEach(log => {
-                // Extracts the "1d6" chunk from "1d6 (4)" to align match strings
-                let matchDiceStr = log.split(' ')[0]; 
-                displayMods = displayMods.replace(matchDiceStr, log);
-            });
-            
-            detailedMessage += ` (Modifiers: ${displayMods})`;
-        }
-
-        return {
-            total: finalTotal,
-            breakdown: detailedMessage
-        };
-    }
-
-    let detailedRolls = [];
-    const groupRegex = /(\d+)\*\(([^)]+)\)(kh|kl)(\d+)/g;
-
-    cleanFormula = cleanFormula.replace(groupRegex, (match, setsStr, innerExpr, mod, keepStr) => {
-        const totalSets = parseInt(setsStr);
-        const keepCount = parseInt(keepStr);
-        let simulatedSets = [];
-
-        for (let i = 0; i < totalSets; i++) {
-            let setRollLogs = [];
-            let substitutedExpr = evaluateSimpleExpression(innerExpr, setRollLogs);
-            
-            let setTotal;
-            try {
-                setTotal = Function(`"use strict"; return (${substitutedExpr})`)();
-            } catch (e) {
-                setTotal = 0;
-            }
-            simulatedSets.push({ total: setTotal, log: setRollLogs.join(', ') });
-        }
-
-        let indexedSets = simulatedSets.map((set, idx) => ({ set, idx }));
-        if (mod === "kh") {
-            indexedSets.sort((a, b) => b.set.total - a.set.total);
-        } else {
-            indexedSets.sort((a, b) => a.set.total - b.set.total);
-        }
-
-        let keptIndices = indexedSets.slice(0, keepCount).map(item => item.idx);
-        let breakdownStrings = simulatedSets.map((set, idx) => {
-            return keptIndices.includes(idx) ? `[${set.log} = ${set.total}]` : `~~[${set.log} = ${set.total}]~~`;
-        });
-
-        detailedRolls.push(`${totalSets}*(${innerExpr})${mod}${keepCount} (${breakdownStrings.join(' vs ')})`);
-        let finalGroupSum = indexedSets.slice(0, keepCount).reduce((sum, item) => sum + item.set.total, 0);
-        return `(${finalGroupSum})`;
-    });
-
-    cleanFormula = evaluateSimpleExpression(cleanFormula, detailedRolls);
-
-    let finalResult;
-    try {
-        finalResult = Function(`"use strict"; return (${cleanFormula})`)();
-    } catch (e) {
-        return null;
-    }
-
-    return { total: finalResult, breakdown: detailedRolls.join(', ') };
-}
-
-function executeRoll(label, formula, note, buttonElement) {
-	// Alert stop blocker if execution is attempted on an invalid config card setup
-    const missing = getMissingVariables(formula);
-    if (missing.length > 0) {
-        showStatus(`Cannot roll! Missing variables: ${missing.join(', ')}`, true);
-        return;
-    }
-
-    const currentTime = Date.now();
-    const rollData = parseAndRoll(formula);
-    
-    if (!rollData || isNaN(rollData.total)) {
-        showStatus("Error evaluating math or dice formula! Check syntax.", true);
-        return;
-    }
-
-    let singleLineOutput = `*rolls ${label} (${formula}):* **${rollData.total}**`;
-    if (rollData.breakdown) singleLineOutput += ` [Details: ${rollData.breakdown}]`;
-    if (note) singleLineOutput += ` *(${note})*`;
-
-    if (currentTime - lastRollTime > COMBO_TIMEOUT_MS) {
-        rollBuffer = [];
-    }
-    
-    rollBuffer.push(singleLineOutput);
-    lastRollTime = currentTime;
-
-    const combinedOutputText = rollBuffer.join('\n');
-
-    navigator.clipboard.writeText(combinedOutputText).then(() => {
-        showStatus(rollBuffer.length > 1 ? `Combined sequence copy active (${rollBuffer.length} rolls)!` : `Copied roll for ${label}!`);
-        
-        document.getElementById('resTitle').innerHTML = `Active Stack: <strong>${rollBuffer.length} Roll(s)</strong>`;
-        document.getElementById('resRaw').innerText = combinedOutputText;
-
-        const timerBadge = document.getElementById('bufferTimer');
-        timerBadge.style.display = 'inline-block';
-        timerBadge.innerText = `Combo active: +10s added`;
-
-        if(buttonElement) {
-            const originalText = buttonElement.innerText;
-            buttonElement.innerText = "✓ Added!";
-            buttonElement.classList.add('success-flash');
-            
-            setTimeout(() => {
-                buttonElement.innerText = originalText;
-                buttonElement.classList.remove('success-flash');
-            }, 600);
-        }
-    }).catch(err => {
-        showStatus("Clipboard execution error!", true);
-    });
-}
 
 // Auto-cleanup timer window update loop
 setInterval(() => {
