@@ -14,14 +14,15 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
 	"Example Seraph (Daggerheart)": {
 		buttons: [
             { label: "Daggerheart Action", formula: "2d12daggerheart", note: "" },
-			{ label: "Daggerheart Action With Exp", formula: "2d12daggerheart+2", note: "" },
-			{ label: "Greatsword Attack", formula: "2d12daggerheart+[STR]", note: "to hit" },
-			{ label: "Greatsword Attack (Advantage)", formula: "2d12daggerheart+[STR]+1d6", note: "to hit" },
-			{ label: "Greatsword Attack (Disadvantage)", formula: "2d12daggerheart+[STR]-1d6", note: "to hit" },
+			{ label: "Daggerheart Action Vs DC", formula: "2d12daggerheartvs[TARGET_DC]", note: "" },
+			{ label: "Daggerheart Action Vs DC With Exp", formula: "2d12daggerheart+2vs[TARGET_DC]", note: "" },
+			{ label: "Greatsword Attack Vs Enemy", formula: "2d12daggerheart+[STR]vs[ENEMY_EVASION]", note: "to hit" },
+			{ label: "Greatsword Attack Vs Enemy (Advantage)", formula: "2d12daggerheart+[STR]+1d6vs[ENEMY_EVASION]", note: "to hit" },
+			{ label: "Greatsword Attack Vs Enemy (Disadvantage)", formula: "2d12daggerheart+[STR]-1d6vs[ENEMY_EVASION]", note: "to hit" },
 			{ label: "Greatsword Damage", formula: "[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage" },
 			{ label: "Greatsword Damage Crit", formula: "[PROF]*10+[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage critical hit" },
         ],
-        variables: { "STR": 2, "PROF": 1, "HOPE": 2, "STRESS": 6, "HIT_POINTS": 6, "EVASION": 9, "DAMAGE_THRESHOLDS": "7/15", "ARMOR": 4, "ATTACK_DICE": "[PROF]+1" }
+        variables: { "STR": 2, "PROF": 1, "HOPE": 2, "STRESS": 6, "HIT_POINTS": 6, "EVASION": 9, "DAMAGE_THRESHOLDS": "7/15", "ARMOR": 4, "ATTACK_DICE": "[PROF]+1", "TARGET_DC": 16, "ENEMY_EVASION": 11 }
 	}
 };
 
@@ -229,16 +230,54 @@ function parseAndRoll(label, formula) {
                 throw new Error(`Syntax Error: Unexpected math operator configuration remaining in "${workingExpr}"`);
             }
 
-            return Function(`"use strict"; return (${workingExpr})`)();
+            // Execute the math and return the hard number for this recursive layer
+            return Function(`'use strict'; return (${workingExpr})`)();
         }
 
-        // Kick off the whole chain starting with the top-level button formula
-        let finalResultTotal = evaluateMathAndDice(formula);
+        // -----------------------------------------------------------------
+        // STEP 4: RESULT MAPPER INTERCEPTOR (BINARY / TERNARY LOGIC)
+        // -----------------------------------------------------------------
+        
+        // Clean the master string and look for the 'vs' operator
+        let formulaString = String(formula).trim().toLowerCase().replace(/\s+/g, '');
+        let vsSplit = formulaString.split('vs');
+        let baseFormula = vsSplit[0];
+        
+        // Kick off the whole chain starting with the left-hand formula
+        let finalResultTotal = evaluateMathAndDice(baseFormula);
+        let resultContext = null;
+
+        // If a 'vs' operator was found, evaluate the right-hand DCs
+        if (vsSplit.length > 1) {
+            let targets = vsSplit[1].split('/');
+            
+            if (targets.length === 1) {
+                // Binary Check: Pass/Fail
+                let targetDC = evaluateMathAndDice(targets[0]);
+                let isSuccess = finalResultTotal >= targetDC;
+                resultContext = isSuccess ? `[vs ${targetDC}] -> SUCCESS ✨` : `[vs ${targetDC}] -> MISS ❌`;
+            } else if (targets.length === 2) {
+                // Ternary Check: Strong/Weak/Miss
+                let weakDC = evaluateMathAndDice(targets[0]);
+                let strongDC = evaluateMathAndDice(targets[1]);
+                
+                if (finalResultTotal >= strongDC) {
+                    resultContext = `[vs ${weakDC}/${strongDC}] -> STRONG HIT ✨`;
+                } else if (finalResultTotal >= weakDC) {
+                    resultContext = `[vs ${weakDC}/${strongDC}] -> WEAK HIT ⚠️`;
+                } else {
+                    resultContext = `[vs ${weakDC}/${strongDC}] -> MISS ❌`;
+                }
+            }
+        }
+
+        // Combine any Daggerheart context with target-mapping context
+        let combinedContext = [daggerheartContext, resultContext].filter(Boolean).join(' | ');
 
         return {
             total: finalResultTotal,
             breakdown: breakdownLogs.length > 0 ? breakdownLogs.join(' -> ') : null,
-            dhContext: daggerheartContext
+            dhContext: combinedContext.length > 0 ? combinedContext : null
         };
 
     } catch (error) {
@@ -602,7 +641,7 @@ function addVariable() {
     const valInput = document.getElementById('newVarValue'); // Ensure this is also type="text" in your HTML!
     
     const rawName = nameInput.value.trim().toUpperCase();
-    const cleanName = rawName.replace(/[^A-Z]/g, '');
+    const cleanName = rawName.replace(/[^A-Z_-]/g, ''); //allow uppercase letters, underscore and dashes
     const valueStr = valInput.value.trim();
 
     if (!cleanName) {
