@@ -74,6 +74,11 @@
         <br><br>
         <button onclick="exportCharacter()">Generate Export Code</button>
         <button onclick="importCharacter()">Import from Code</button>
+        
+        <hr style="border: 0; border-top: 1px dashed #45475a; margin: 20px 0;">
+        <div style="text-align: right;">
+            <button class="danger" onclick="factoryResetDatabase()" style="font-size: 12px; padding: 6px 12px;">⚠ Factory Reset All Data</button>
+        </div>
     </div>
 	
 	<div id="variable-guide-modal" class="modal-overlay modal-hidden" onclick="closeModal('variable-guide-modal')">
@@ -111,7 +116,7 @@
 			</div>
 		</div>
 	</div>
-
+	
     <script src="app.js"></script>
 </body>
 </html>

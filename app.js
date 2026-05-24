@@ -829,5 +829,24 @@ function showStatus(msg, isError = false) {
     setTimeout(() => { el.innerText = ''; }, 4000);
 }
 
+function factoryResetDatabase() {
+    const firstConfirmation = confirm("WARNING: This will permanently delete ALL characters, custom buttons, and variables from this browser's local storage.\n\nAre you sure you want to proceed?");
+    
+    if (firstConfirmation) {
+        // Double-check confirmation to prevent accidental multi-clicks or rapid confirmation bypassing
+        const secondConfirmation = confirm("FINAL CONFIRMATION:\n\nThis action is irreversible. Press OK to completely wipe the application data and reload the page.");
+        
+        if (secondConfirmation) {
+            // Clear out all versions of app keys tracked in localStorage
+            localStorage.removeItem('dice_profiles_v2');
+            localStorage.removeItem('dice_profiles');
+            localStorage.removeItem('current_dice_char');
+            
+            // Reload the window to re-trigger the default state architecture setup
+            window.location.reload();
+        }
+    }
+}
+
 // Initialize on execution
 renderUI();
