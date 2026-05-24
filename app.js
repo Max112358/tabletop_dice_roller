@@ -16,7 +16,7 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
 		buttons: [
             { label: "Daggerheart Action", formula: "2d12daggerheart", note: "" },
 			{ label: "Daggerheart Action Vs DC", formula: "2d12daggerheartvs[TARGET_DC]", note: "" },
-			{ label: "Daggerheart Action Vs DC With Exp", formula: "2d12daggerheart+2vs[TARGET_DC]", note: "" },
+			{ label: "Daggerheart Action With Exp Vs DC", formula: "2d12daggerheart+2vs[TARGET_DC]", note: "" },
 			{ label: "Greatsword Attack", formula: "2d12daggerheart+[STR]vs[ENEMY_DIFFICULTY]", note: "To Hit" },
 			{ label: "Greatsword Attack (Advantage)", formula: "2d12daggerheart+[STR]+1d6vs[ENEMY_DIFFICULTY]", note: "To Hit" },
 			{ label: "Greatsword Attack (Disadvantage)", formula: "2d12daggerheart+[STR]-1d6vs[ENEMY_DIFFICULTY]", note: "To Hit" },
