@@ -2,14 +2,14 @@
 let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
     "Example Paladin (D&D)": {
         buttons: [
-			{ label: "Longsword (Standard)", formula: "1d20+[STR]+[PROF]+[BLESS]", note: "To Hit" },
-			{ label: "Longsword (Advantage)", formula: "2d20kh1+[STR]+[PROF]+[BLESS]", note: "To Hit" },
-            { label: "Longsword (Disadvantage)", formula: "2d20kl1+[STR]+[PROF]+[BLESS]", note: "To Hit" },
+			{ label: "Longsword (Standard) Vs AC", formula: "1d20+[STR]+[PROF]+[BLESS]vs[ENEMY_AC]", note: "To Hit" },
+			{ label: "Longsword (Advantage)", formula: "2d20kh1+[STR]+[PROF]+[BLESS]vs[ENEMY_AC]", note: "To Hit" },
+            { label: "Longsword (Disadvantage)", formula: "2d20kl1+[STR]+[PROF]+[BLESS]vs[ENEMY_AC]", note: "To Hit" },
             { label: "Longsword Savage Attacker Damage", formula: "[CRIT_MULTIPLIER]d8p2kh1+[STR]", note: "Slashing" },
 			{ label: "Divine Smite", formula: "[SMITE_DICE]d8", note: "Radiant Damage" },
-			{ label: "Athletics Check", formula: "1d20+[STR]+[PROF]+[GUIDANCE]", note: "" },
+			{ label: "Athletics Check", formula: "1d20+[STR]+[PROF]+[GUIDANCE]vs[TARGET_DC]", note: "" },
         ],
-        variables: { "STR": 4, "PROF": 2, "HIT_POINTS": 20, "AC": 18, "CRIT_MULTIPLIER": 1, "SMITE_DICE_BASE": 2, "SMITE_DICE": "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]", "BLESS_MULTIPLIER": 0, "BLESS": "[BLESS_MULTIPLIER]d4", "GUIDANCE_MULTIPLIER": 0, "GUIDANCE": "[GUIDANCE_MULTIPLIER]d4" }
+        variables: { "STR": 4, "PROF": 2, "HIT_POINTS": 20, "AC": 18, "CRIT_MULTIPLIER": 1, "SMITE_DICE_BASE": 2, "SMITE_DICE": "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]", "BLESS_MULTIPLIER": 0, "BLESS": "[BLESS_MULTIPLIER]d4", "GUIDANCE_MULTIPLIER": 0, "GUIDANCE": "[GUIDANCE_MULTIPLIER]d4", "TARGET_DC": 16, "ENEMY_AC": 14 }
     },
 	"Example Seraph (Daggerheart)": {
 		buttons: [
@@ -90,6 +90,24 @@ function getMissingVariables(formula, checkedVars = new Set()) {
     return [...new Set(missing)];
 }
 
+function rollExplodingDie(sides, logs = []) {
+    // Instant safety guard against infinite loops (d1)
+    if (sides <= 1) {
+        logs.push("1");
+        return 1;
+    }
+
+    const roll = Math.floor(Math.random() * sides) + 1;
+
+    if (roll === sides) {
+        logs.push(`${roll}!`);
+        return roll + rollExplodingDie(sides, logs);
+    } else {
+        logs.push(`${roll}`);
+        return roll;
+    }
+}
+
 // =========================================================================
 // REFACTORED DICE PIPELINE ENGINE (RECURSIVE RESOLUTION)
 // =========================================================================
@@ -136,7 +154,7 @@ function parseAndRoll(label, formula) {
             // -----------------------------------------------------------------
             // STEP 2: LEFT-TO-RIGHT DICE EVALUATION LOOP
             // -----------------------------------------------------------------
-            const diceRegex = /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart)?/;
+            const diceRegex = /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|explosive)?/;
 
             while (diceRegex.test(workingExpr)) {
                 let matchInstance = workingExpr.match(diceRegex);
@@ -209,7 +227,30 @@ function parseAndRoll(label, formula) {
                     evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
                     logString = `${fullDiceExpression} [Rolls: ${rolls.join(', ')}] Kept: (${kept.join('+')})`;
                 } 
-                // 5. Plain Vanilla
+				// 5. explosive dice
+				else if (modifier.startsWith("explosive")) {
+					let rollsDisplay = [];
+					let cumulativeSum = 0;
+
+					for (let i = 0; i < count; i++) {
+						let singleDieLogs = [];
+						let singleDieTotal = rollExplodingDie(sides, singleDieLogs);
+						
+						cumulativeSum += singleDieTotal;
+
+						// If the die rolled maximum and chained/exploded, group it: (6!+6!+2)
+						// Otherwise, just show the single roll result: 4
+						if (singleDieLogs.length > 1) {
+							rollsDisplay.push(`(${singleDieLogs.join('+')})`);
+						} else {
+							rollsDisplay.push(singleDieLogs[0]);
+						}
+					}
+
+					evaluatedNumericValue = cumulativeSum;
+					logString = `${fullDiceExpression} [Dice: ${rollsDisplay.join(', ')}] Total: ${evaluatedNumericValue}`;
+				}
+                // 6. Plain Vanilla
                 else {
                     let rolls = [];
                     for (let i = 0; i < count; i++) { rolls.push(Math.floor(Math.random() * sides) + 1); }
@@ -255,18 +296,18 @@ function parseAndRoll(label, formula) {
                 // Binary Check: Pass/Fail
                 let targetDC = evaluateMathAndDice(targets[0]);
                 let isSuccess = finalResultTotal >= targetDC;
-                resultContext = isSuccess ? `[vs ${targetDC}] -> SUCCESS ✨` : `[vs ${targetDC}] -> MISS ❌`;
+                resultContext = isSuccess ? `[vs ${targetDC}] -> SUCCESS ✨` : `[vs ${targetDC}] -> FAILURE ❌`;
             } else if (targets.length === 2) {
                 // Ternary Check: Strong/Weak/Miss
                 let weakDC = evaluateMathAndDice(targets[0]);
                 let strongDC = evaluateMathAndDice(targets[1]);
                 
                 if (finalResultTotal >= strongDC) {
-                    resultContext = `[vs ${weakDC}/${strongDC}] -> STRONG HIT ✨`;
+                    resultContext = `[vs ${weakDC}/${strongDC}] -> STRONG SUCCESS ✨`;
                 } else if (finalResultTotal >= weakDC) {
-                    resultContext = `[vs ${weakDC}/${strongDC}] -> WEAK HIT ⚠️`;
+                    resultContext = `[vs ${weakDC}/${strongDC}] -> WEAK SUCCESS ⚠️`;
                 } else {
-                    resultContext = `[vs ${weakDC}/${strongDC}] -> MISS ❌`;
+                    resultContext = `[vs ${weakDC}/${strongDC}] -> FAILURE ❌`;
                 }
             }
         }
