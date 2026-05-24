@@ -16,13 +16,13 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
             { label: "Daggerheart Action", formula: "2d12daggerheart", note: "" },
 			{ label: "Daggerheart Action Vs DC", formula: "2d12daggerheartvs[TARGET_DC]", note: "" },
 			{ label: "Daggerheart Action Vs DC With Exp", formula: "2d12daggerheart+2vs[TARGET_DC]", note: "" },
-			{ label: "Greatsword Attack Vs Enemy", formula: "2d12daggerheart+[STR]vs[ENEMY_EVASION]", note: "to hit" },
-			{ label: "Greatsword Attack Vs Enemy (Advantage)", formula: "2d12daggerheart+[STR]+1d6vs[ENEMY_EVASION]", note: "to hit" },
-			{ label: "Greatsword Attack Vs Enemy (Disadvantage)", formula: "2d12daggerheart+[STR]-1d6vs[ENEMY_EVASION]", note: "to hit" },
+			{ label: "Greatsword Attack", formula: "2d12daggerheart+[STR]vs[ENEMY_DIFFICULTY]", note: "To Hit" },
+			{ label: "Greatsword Attack (Advantage)", formula: "2d12daggerheart+[STR]+1d6vs[ENEMY_DIFFICULTY]", note: "To Hit" },
+			{ label: "Greatsword Attack (Disadvantage)", formula: "2d12daggerheart+[STR]-1d6vs[ENEMY_DIFFICULTY]", note: "To Hit" },
 			{ label: "Greatsword Damage", formula: "[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage" },
 			{ label: "Greatsword Damage Crit", formula: "[PROF]*10+[ATTACK_DICE]d10kh[PROF]+3", note: "Physical damage critical hit" },
         ],
-        variables: { "STR": 2, "PROF": 1, "HOPE": 2, "STRESS": 6, "HIT_POINTS": 6, "EVASION": 9, "DAMAGE_THRESHOLDS": "7/15", "ARMOR": 4, "ATTACK_DICE": "[PROF]+1", "TARGET_DC": 16, "ENEMY_EVASION": 11 }
+        variables: { "STR": 2, "PROF": 1, "HOPE": 2, "STRESS": 6, "HIT_POINTS": 6, "EVASION": 9, "DAMAGE_THRESHOLDS": "7/15", "ARMOR": 4, "ATTACK_DICE": "[PROF]+1", "TARGET_DC": 16, "ENEMY_DIFFICULTY": 11 }
 	}
 };
 
