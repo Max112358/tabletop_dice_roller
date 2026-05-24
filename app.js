@@ -7,7 +7,8 @@ let database = JSON.parse(localStorage.getItem('dice_profiles_v2')) || {
             { label: "Longsword (Disadvantage)", formula: "2d20kl1+[STR]+[PROF]+[BLESS]vs[ENEMY_AC]", note: "To Hit" },
             { label: "Longsword Savage Attacker Damage", formula: "[CRIT_MULTIPLIER]d8p2kh1+[STR]", note: "Slashing" },
 			{ label: "Divine Smite", formula: "[SMITE_DICE]d8", note: "Radiant Damage" },
-			{ label: "Athletics Check", formula: "1d20+[STR]+[PROF]+[GUIDANCE]vs[TARGET_DC]", note: "" },
+			{ label: "Athletics Check", formula: "1d20+[STR]+[PROF]+[GUIDANCE]", note: "" },
+			{ label: "Athletics Check Vs DC", formula: "1d20+[STR]+[PROF]+[GUIDANCE]vs[TARGET_DC]", note: "" },
         ],
         variables: { "STR": 4, "PROF": 2, "HIT_POINTS": 20, "AC": 18, "CRIT_MULTIPLIER": 1, "SMITE_DICE_BASE": 2, "SMITE_DICE": "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]", "BLESS_MULTIPLIER": 0, "BLESS": "[BLESS_MULTIPLIER]d4", "GUIDANCE_MULTIPLIER": 0, "GUIDANCE": "[GUIDANCE_MULTIPLIER]d4", "TARGET_DC": 16, "ENEMY_AC": 14 }
     },
