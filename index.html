@@ -1,122 +1,248 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tabletop Dice Roller</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <h2>🎲 Tabletop Dice Deck</h2>
     <div id="status"></div>
 
     <div class="section">
-        <h3>Character Profiles</h3>
-        <select id="charSelect" onchange="switchCharacter()">
-            </select>
-        <input type="text" id="newCharName" placeholder="New Character Name">
-        <button onclick="createCharacter()">Create</button>
-        <button class="danger" onclick="deleteCharacter()">Delete Current</button>
+      <h3>Character Profiles</h3>
+      <select id="charSelect" onchange="switchCharacter()"></select>
+      <input type="text" id="newCharName" placeholder="New Character Name" />
+      <button onclick="createCharacter()">Create</button>
+      <button class="danger" onclick="deleteCharacter()">Delete Current</button>
     </div>
 
     <div class="section">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-			<h3>Character Variables (Stats/Modifiers)</h3>
-			<button onclick="openModal('variable-guide-modal')" style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af;">💡 Variable Guide</button>
-		</div>
-        <div class="var-creator">
-            <input type="text" id="newVarName" placeholder="Variable Name (e.g., STR)" style="width: 180px;">
-            <input type="text" id="newVarValue" placeholder="Value (e.g., 3)" style="width: 90px;">
-            <button onclick="addVariable()">Add Variable</button>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <h3>Character Variables (Stats/Modifiers)</h3>
+        <button
+          onclick="openModal('variable-guide-modal')"
+          style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af"
+        >
+          💡 Variable Guide
+        </button>
+      </div>
+      <div class="var-creator">
+        <input
+          type="text"
+          id="newVarName"
+          placeholder="Variable Name (e.g., STR)"
+          style="width: 180px"
+        />
+        <input
+          type="text"
+          id="newVarValue"
+          placeholder="Value (e.g., 3)"
+          style="width: 90px"
+        />
+        <button onclick="addVariable()">Add Variable</button>
+      </div>
+      <div class="var-container" id="varContainer"></div>
+    </div>
+
+    <div class="section">
+      <h3>Roll Actions</h3>
+      <div class="grid" id="diceGrid"></div>
+    </div>
+
+    <div class="section">
+      <h3>📋 Clipboard Result Feed</h3>
+      <div class="result-panel">
+        <div class="result-title">
+          <span id="resTitle">No dice rolled yet...</span>
+          <span id="bufferTimer" class="timer-badge" style="display: none"
+            >Combo Window Active</span
+          >
         </div>
-        <div class="var-container" id="varContainer">
-            </div>
-    </div>
-
-    <div class="section">
-        <h3>Roll Actions</h3>
-        <div class="grid" id="diceGrid">
-            </div>
-    </div>
-
-    <div class="section">
-        <h3>📋 Clipboard Result Feed</h3>
-        <div class="result-panel">
-            <div class="result-title">
-                <span id="resTitle">No dice rolled yet...</span>
-                <span id="bufferTimer" class="timer-badge" style="display: none;">Combo Window Active</span>
-            </div>
-            <div id="resRaw" class="result-raw">Click a custom action button above to calculate a formula string.</div>
+        <div id="resRaw" class="result-raw">
+          Click a custom action button above to calculate a formula string.
         </div>
+      </div>
     </div>
 
     <div class="section">
-		<div style="display: flex; justify-content: space-between; align-items: center;">
-			<h3>Add New Roll Button</h3>
-			<button onclick="openModal('button-guide-modal')" style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af;">💡 Button Guide</button>
-		</div>
-        <div class="creator-container">
-            <div class="creator-form">
-                <input type="text" id="btnLabel" placeholder="Button Label (e.g., Greatsword)">
-                <input type="text" id="btnFormula" placeholder="Formula (e.g., 2d6+STR)">
-                <input type="text" id="btnNote" placeholder="Note/Description (e.g., Slashing)">
-                <button onclick="addButton()" style="margin-top: 5px;">Add Button to Deck</button>
-            </div>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <h3>Add New Roll Button</h3>
+        <button
+          onclick="openModal('button-guide-modal')"
+          style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af"
+        >
+          💡 Button Guide
+        </button>
+      </div>
+      <div class="creator-container">
+        <div class="creator-form">
+          <input
+            type="text"
+            id="btnLabel"
+            placeholder="Button Label (e.g., Greatsword)"
+          />
+          <input
+            type="text"
+            id="btnFormula"
+            placeholder="Formula (e.g., 2d6+STR)"
+          />
+          <input
+            type="text"
+            id="btnNote"
+            placeholder="Note/Description (e.g., Slashing)"
+          />
+          <button onclick="addButton()" style="margin-top: 5px">
+            Add Button to Deck
+          </button>
         </div>
+      </div>
     </div>
 
     <div class="section">
-        <h3>Import / Export Profile Data</h3>
-        <p style="font-size: 12px; color: #a6adc8;">Copy this JSON text to back up this character, or paste a saved character JSON string below and click Import.</p>
-        <textarea id="ioJson" rows="4"></textarea>
-        <br><br>
-        <button onclick="exportCharacter()">Generate Export Code</button>
-        <button onclick="importCharacter()">Import from Code</button>
-        
-        <hr style="border: 0; border-top: 1px dashed #45475a; margin: 20px 0;">
-        <div style="text-align: right;">
-            <button class="danger" onclick="factoryResetDatabase()" style="font-size: 12px; padding: 6px 12px;">⚠ Factory Reset All Data</button>
-        </div>
-    </div>
-	
-	<div id="variable-guide-modal" class="modal-overlay modal-hidden" onclick="closeModal('variable-guide-modal')">
-		<div class="modal-content" onclick="event.stopPropagation()">
-			<span class="modal-close" onclick="closeModal('variable-guide-modal')">&times;</span>
-			<h3>Variable Syntax Guide</h3>
-			<div class="guide-box">
-				<strong style="color: #fab387;">Advanced Variable Features:</strong>
-				<ul style="margin-top: 10px; line-height: 1.6; text-align: left;">
-					<li><strong>Recursive Scaling:</strong> You can embed variables inside variables. Example: Define <span class="code-inline">TOTAL_MOD</span> as <span class="code-inline">[STR]+[PROF]</span>. Then, simply use <span class="code-inline">1d20+[TOTAL_MOD]</span> in your roll buttons.</li>
-					<li><strong>Order of Operations:</strong> The engine resolves variables first, then calculates the math string. Keep formulas clean by nesting simple variables into complex ones.</li>
-				</ul>
-			</div>
-		</div>
-	</div>
+      <h3>Import / Export Profile Data</h3>
+      <p style="font-size: 12px; color: #a6adc8">
+        Copy this JSON text to back up this character, or paste a saved
+        character JSON string below and click Import.
+      </p>
+      <textarea id="ioJson" rows="4"></textarea>
+      <br /><br />
+      <button onclick="exportCharacter()">Generate Export Code</button>
+      <button onclick="importCharacter()">Import from Code</button>
 
-	<div id="button-guide-modal" class="modal-overlay modal-hidden" onclick="closeModal('button-guide-modal')">
-		<div class="modal-content" onclick="event.stopPropagation()">
-			<span class="modal-close" onclick="closeModal('button-guide-modal')">&times;</span>
-			<h3>Button Formula Syntax Guide</h3>
-			<div class="guide-box">
-				<ul style="margin-top: 10px; line-height: 1.6; text-align: left;">
-					<li><strong>Standard Syntax:</strong> <span class="code-inline">1d20+4</span> or <span class="code-inline">1d20+[PROF]+[DEX]</span></li>
-					<li><strong>Complex Multiplication:</strong> <span class="code-inline">[PROF]*(1d10)</span> or <span class="code-inline">([STR]*2)+1d4</span></li>
-					<li><strong>Variable Dice:</strong> <span class="code-inline">[PROF]d10</span></li>
-					<li><strong>Advantage:</strong> <span class="code-inline">2d20kh1+[STR]</span> <em>(Keep Highest 1)</em></li>
-					<li><strong>Disadvantage:</strong> <span class="code-inline">2d20kl1+[STR]</span> <em>(Keep Lowest 1)</em></li>
-					<li><strong>Savage Attacker:</strong> <span class="code-inline">2d12p2kh1+[STR]</span> <em>(Pool 2 times, Keep Highest 1 total)</em></li>
-					<li><strong>Daggerheart Check:</strong> <span class="code-inline">2d12daggerheart+2</span></li>
-					<li><strong>Binary Check (Failure/Success):</strong> <span class="code-inline">1d20+[STR]vs[TARGET_DC]</span></li>
-					<li><strong>Ternary Check (Failure/Mixed/Strong):</strong> <span class="code-inline">2d6+[WIS]vs7/10</span></li>
-					<li><strong>Dynamic DCs:</strong> <span class="code-inline">1d20+[STR]vs[ENEMY_AC]/[ENEMY_AC]+5</span></li>
-					<li><strong>Explosive Dice (Aces):</strong> <span class="code-inline">3d6explosive</span>(reroll any dice that lands on highest number and keep adding)</li>
-				</ul>
-			</div>
-		</div>
-	</div>
-	
+      <hr style="border: 0; border-top: 1px dashed #45475a; margin: 20px 0" />
+      <div style="text-align: right">
+        <button
+          class="danger"
+          onclick="factoryResetDatabase()"
+          style="font-size: 12px; padding: 6px 12px"
+        >
+          ⚠ Factory Reset All Data
+        </button>
+      </div>
+    </div>
+
+    <div
+      id="variable-guide-modal"
+      class="modal-overlay modal-hidden"
+      onclick="closeModal('variable-guide-modal')"
+    >
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal('variable-guide-modal')"
+          >&times;</span
+        >
+        <h3>Variable Syntax Guide</h3>
+        <div class="guide-box">
+          <strong style="color: #fab387">Advanced Variable Features:</strong>
+          <ul style="margin-top: 10px; line-height: 1.6; text-align: left">
+            <li>
+              <strong>Recursive Scaling:</strong> You can embed variables inside
+              variables. Example: Define
+              <span class="code-inline">TOTAL_MOD</span> as
+              <span class="code-inline">[STR]+[PROF]</span>. Then, simply use
+              <span class="code-inline">1d20+[TOTAL_MOD]</span> in your roll
+              buttons.
+            </li>
+            <li>
+              <strong>Order of Operations:</strong> The engine resolves
+              variables first, then calculates the math string. Keep formulas
+              clean by nesting simple variables into complex ones.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="button-guide-modal"
+      class="modal-overlay modal-hidden"
+      onclick="closeModal('button-guide-modal')"
+    >
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal('button-guide-modal')"
+          >&times;</span
+        >
+        <h3>Button Formula Syntax Guide</h3>
+        <div class="guide-box">
+          <ul style="margin-top: 10px; line-height: 1.6; text-align: left">
+            <li>
+              <strong>Standard Syntax:</strong>
+              <span class="code-inline">1d20+4</span> or
+              <span class="code-inline">1d20+[PROF]+[DEX]</span>
+            </li>
+            <li>
+              <strong>Complex Multiplication:</strong>
+              <span class="code-inline">[PROF]*(1d10)</span> or
+              <span class="code-inline">([STR]*2)+1d4</span>
+            </li>
+            <li>
+              <strong>Variable Dice:</strong>
+              <span class="code-inline">[PROF]d10</span>
+            </li>
+            <li>
+              <strong>Advantage:</strong>
+              <span class="code-inline">2d20kh1+[STR]</span>
+              <em>(Keep Highest 1)</em>
+            </li>
+            <li>
+              <strong>Disadvantage:</strong>
+              <span class="code-inline">2d20kl1+[STR]</span>
+              <em>(Keep Lowest 1)</em>
+            </li>
+            <li>
+              <strong>Savage Attacker:</strong>
+              <span class="code-inline">2d12p2kh1+[STR]</span>
+              <em>(Pool 2 times, Keep Highest 1 total)</em>
+            </li>
+            <li>
+              <strong>Daggerheart Check:</strong>
+              <span class="code-inline">2d12daggerheart+2</span>
+            </li>
+            <li>
+              <strong>Binary Check (Failure/Success):</strong>
+              <span class="code-inline">1d20+[STR]vs[TARGET_DC]</span>
+            </li>
+            <li>
+              <strong>Roll Under Check (Success/Fail):</strong>
+              <span class="code-inline">1d100lessthanvs[SKILL]</span>
+            </li>
+            <li>
+              <strong>Ternary Check (Failure/Mixed/Strong):</strong>
+              <span class="code-inline">2d6+[WIS]vs7/10</span>
+            </li>
+            <li>
+              <strong>Dynamic DCs:</strong>
+              <span class="code-inline"
+                >1d20+[STR]vs[ENEMY_AC]/[ENEMY_AC]+5</span
+              >
+            </li>
+            <li>
+              <strong>Explosive Dice (Aces):</strong>
+              <span class="code-inline">3d6explosive</span>(reroll any dice that
+              lands on highest number and keep adding)
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <script src="app.js"></script>
-</body>
+  </body>
 </html>
