@@ -499,8 +499,8 @@ function executeRoll(label, formula, note, buttonElement) {
     return;
   }
 
-  // Format single roll line strings cleanly
-  let singleLineOutput = `*rolls ${label} (${formula}):* **${rollData.total}**`;
+  // Format single roll line strings cleanly with current active character name
+  let singleLineOutput = `*${currentCharacter} rolls ${label} (${formula}):* **${rollData.total}**`;
   if (rollData.dhContext) singleLineOutput += ` ${rollData.dhContext}`;
   if (rollData.breakdown)
     singleLineOutput += ` [Details: ${rollData.breakdown}]`;
