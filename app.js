@@ -53,6 +53,8 @@ let database = JSON.parse(localStorage.getItem("dice_profiles_v2")) || {
       TARGET_DC: 16,
       ENEMY_AC: 14,
     },
+    notes:
+      "11 gold, 2 silver, 3 copper. Longsword +1, Shield +1, Chainmail +1. Potion of Healing x2.",
   },
   "Example Seraph (Daggerheart)": {
     buttons: [
@@ -106,6 +108,7 @@ let database = JSON.parse(localStorage.getItem("dice_profiles_v2")) || {
       TARGET_DC: 16,
       ENEMY_DIFFICULTY: 11,
     },
+    notes: "Potion of Healing x2.",
   },
 };
 
@@ -131,9 +134,12 @@ let currentCharacter =
 ensureCharacterStructure(currentCharacter);
 
 function ensureCharacterStructure(charName) {
-  if (!database[charName]) database[charName] = { buttons: [], variables: {} };
+  if (!database[charName])
+    database[charName] = { buttons: [], variables: {}, notes: "" };
   if (!database[charName].buttons) database[charName].buttons = [];
   if (!database[charName].variables) database[charName].variables = {};
+  if (typeof database[charName].notes === "undefined")
+    database[charName].notes = "";
 }
 
 // Rolling Buffer State Variables
@@ -666,6 +672,11 @@ window.addEventListener("keydown", function (event) {
 
 function renderUI() {
   ensureCharacterStructure(currentCharacter);
+  // Populate the notes area
+  const notesArea = document.getElementById("charNotes");
+  if (notesArea) {
+    notesArea.value = database[currentCharacter].notes || "";
+  }
 
   // 1. Render Character Selection List
   const select = document.getElementById("charSelect");
@@ -914,6 +925,11 @@ function updateVariableValue(name, val) {
   showStatus(`Updated variable "${name}"`);
 }
 
+function updateNotes(text) {
+  database[currentCharacter].notes = text;
+  saveToStorage();
+}
+
 function removeVariable(name) {
   if (confirm(`Delete character variable "${name}"?`)) {
     delete database[currentCharacter].variables[name];
@@ -938,7 +954,8 @@ function switchCharacter() {
 function createCharacter() {
   const name = document.getElementById("newCharName").value.trim();
   if (!name) return;
-  if (!database[name]) database[name] = { buttons: [], variables: {} };
+  if (!database[name])
+    database[name] = { buttons: [], variables: {}, notes: "" }; // Updated line
   currentCharacter = name;
   document.getElementById("newCharName").value = "";
   saveToStorage();
@@ -995,6 +1012,7 @@ function exportCharacter() {
     characterName: currentCharacter,
     buttons: database[currentCharacter].buttons,
     variables: database[currentCharacter].variables,
+    notes: database[currentCharacter].notes, // Added notes property
   };
   document.getElementById("ioJson").value = JSON.stringify(exportPack);
   showStatus("JSON package generated! Copy it from the text block below.");
@@ -1008,6 +1026,7 @@ function importCharacter() {
       database[parsed.characterName] = {
         buttons: parsed.buttons,
         variables: parsed.variables || {},
+        notes: parsed.notes || "", // Added fallback parsing for notes
       };
       currentCharacter = parsed.characterName;
       saveToStorage();
