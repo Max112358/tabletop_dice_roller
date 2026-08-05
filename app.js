@@ -150,6 +150,7 @@ let draggedIndex = null; // Drag and drop helper tracking state for buttons
 let draggedVarName = null; // Drag and drop helper tracking state for variables
 
 // --- FORMULA VARIABLE VALIDATION CHECKER ---
+// --- FORMULA VARIABLE VALIDATION CHECKER ---
 function getMissingVariables(formula, checkedVars = new Set()) {
   ensureCharacterStructure(currentCharacter);
   const activeVars = database[currentCharacter].variables || {};
@@ -161,9 +162,46 @@ function getMissingVariables(formula, checkedVars = new Set()) {
   });
 
   let missing = [];
+  let workingFormula = String(formula);
+
+  // 1. Extract crit rules so they don't break standard variable parsing,
+  // but DO check them for missing custom variables.
+  let critVars = [];
+  workingFormula = workingFormula.replace(
+    /crit(?:success|fail)\[([^\]]+)\]/gi,
+    (match, val) => {
+      let v = val.trim().toLowerCase();
+      // Ignore reserved crit keywords; flag anything else as a potential variable
+      if (
+        v !== "max" &&
+        v !== "min" &&
+        v !== "doubles" &&
+        v !== "yahtzee" &&
+        !/^\d+(-\d+)?$/.test(v)
+      ) {
+        critVars.push(v);
+      }
+      return ""; // Remove from formula for the normal regex validation
+    },
+  );
+
+  // Check extracted custom crit vars
+  critVars.forEach((v) => {
+    if (!lowerVars.hasOwnProperty(v)) {
+      missing.push(v);
+    } else {
+      // Dive into nested variables mapped in the crit rules
+      if (!checkedVars.has(v)) {
+        checkedVars.add(v);
+        let subFormula = String(lowerVars[v]);
+        let subMissing = getMissingVariables(subFormula, checkedVars);
+        missing = missing.concat(subMissing);
+      }
+    }
+  });
+
   const bracketRegex = /\[([^\]]+)\]/g;
   let match;
-  let workingFormula = String(formula);
 
   while ((match = bracketRegex.exec(workingFormula)) !== null) {
     let varName = match[1].trim().toLowerCase();
@@ -181,26 +219,7 @@ function getMissingVariables(formula, checkedVars = new Set()) {
     }
   }
 
-  // Return a unique array of missing variables
   return [...new Set(missing)];
-}
-
-function rollExplodingDie(sides, logs = []) {
-  // Instant safety guard against infinite loops (d1)
-  if (sides <= 1) {
-    logs.push("1");
-    return 1;
-  }
-
-  const roll = Math.floor(Math.random() * sides) + 1;
-
-  if (roll === sides) {
-    logs.push(`${roll}!`);
-    return roll + rollExplodingDie(sides, logs);
-  } else {
-    logs.push(`${roll}`);
-    return roll;
-  }
 }
 
 // =========================================================================
@@ -214,18 +233,37 @@ function parseAndRoll(label, formula) {
 
     let breakdownLogs = [];
     let daggerheartContext = null;
+    let primaryRoll = null; // Track the first dice pool rolled for crit logic
+
+    // Extract Crit Rules early so they don't corrupt the PEMDAS/Variable pipeline
+    let critSuccessRules = [];
+    let critFailRules = [];
+
+    let formulaString = String(formula)
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+
+    formulaString = formulaString.replace(
+      /critsuccess\[([^\]]+)\]/g,
+      (m, val) => {
+        critSuccessRules.push(val);
+        return "";
+      },
+    );
+    formulaString = formulaString.replace(/critfail\[([^\]]+)\]/g, (m, val) => {
+      critFailRules.push(val);
+      return "";
+    });
 
     // The core 3-step pipeline wrapped as a recursive executor
     function evaluateMathAndDice(expr, depth = 0) {
-      // Circuit breaker to prevent infinite loops (e.g., A -> B -> A)
       if (depth > 50)
         throw new Error("Infinite loop detected in variable resolution!");
 
       let workingExpr = String(expr).trim().toLowerCase();
 
-      // -----------------------------------------------------------------
       // STEP 1: RECURSIVE VARIABLE SUBSTITUTION
-      // -----------------------------------------------------------------
       const bracketRegex = /\[([^\]]+)\]/g;
       let hasMissingVar = false;
       let missingVarName = "";
@@ -236,7 +274,6 @@ function parseAndRoll(label, formula) {
         );
 
         if (foundKey !== undefined) {
-          // Dive deep: run the sub-variable through this exact pipeline to get a hard number
           return evaluateMathAndDice(activeVars[foundKey], depth + 1);
         } else {
           hasMissingVar = true;
@@ -249,9 +286,7 @@ function parseAndRoll(label, formula) {
         throw new Error(`Missing variable reference: [${missingVarName}]`);
       }
 
-      // -----------------------------------------------------------------
       // STEP 2: LEFT-TO-RIGHT DICE EVALUATION LOOP
-      // -----------------------------------------------------------------
       const diceRegex =
         /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|explosive)?/;
 
@@ -264,12 +299,14 @@ function parseAndRoll(label, formula) {
 
         let evaluatedNumericValue = 0;
         let logString = "";
+        let finalRollsArray = []; // Tracks specific faces for Yahtzee/Max/Min crit evaluations
 
         // 1. Daggerheart Interceptor
         if (modifier === "daggerheart") {
           let hopeRoll = Math.floor(Math.random() * sides) + 1;
           let fearRoll = Math.floor(Math.random() * sides) + 1;
           evaluatedNumericValue = hopeRoll + fearRoll;
+          finalRollsArray = [hopeRoll, fearRoll];
 
           let outcome =
             hopeRoll === fearRoll
@@ -321,8 +358,8 @@ function parseAndRoll(label, formula) {
               .slice(0, keepCount);
             logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(" vs ")} } -> Kept Lowest ${keepCount}: (${keptPools.join("+")})`;
           }
-
           evaluatedNumericValue = keptPools.reduce((sum, val) => sum + val, 0);
+          finalRollsArray = keptPools; // Yahtzee logic doesn't cleanly apply to pools, but we map it for safety
         }
         // 3. Standard Keep Highest
         else if (modifier.startsWith("kh")) {
@@ -334,6 +371,7 @@ function parseAndRoll(label, formula) {
           let kept = [...rolls].sort((a, b) => b - a).slice(0, keepCount);
           evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
           logString = `${fullDiceExpression} [Rolls: ${rolls.join(", ")}] Kept: (${kept.join("+")})`;
+          finalRollsArray = kept;
         }
         // 4. Standard Keep Lowest
         else if (modifier.startsWith("kl")) {
@@ -345,20 +383,21 @@ function parseAndRoll(label, formula) {
           let kept = [...rolls].sort((a, b) => a - b).slice(0, keepCount);
           evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
           logString = `${fullDiceExpression} [Rolls: ${rolls.join(", ")}] Kept: (${kept.join("+")})`;
+          finalRollsArray = kept;
         }
-        // 5. explosive dice
+        // 5. Explosive dice
         else if (modifier.startsWith("explosive")) {
           let rollsDisplay = [];
+          let cumulativeSumsArray = [];
           let cumulativeSum = 0;
 
           for (let i = 0; i < count; i++) {
             let singleDieLogs = [];
             let singleDieTotal = rollExplodingDie(sides, singleDieLogs);
 
+            cumulativeSumsArray.push(singleDieTotal);
             cumulativeSum += singleDieTotal;
 
-            // If the die rolled maximum and chained/exploded, group it: (6!+6!+2)
-            // Otherwise, just show the single roll result: 4
             if (singleDieLogs.length > 1) {
               rollsDisplay.push(`(${singleDieLogs.join("+")})`);
             } else {
@@ -368,6 +407,7 @@ function parseAndRoll(label, formula) {
 
           evaluatedNumericValue = cumulativeSum;
           logString = `${fullDiceExpression} [Dice: ${rollsDisplay.join(", ")}] Total: ${evaluatedNumericValue}`;
+          finalRollsArray = cumulativeSumsArray;
         }
         // 6. Plain Vanilla
         else {
@@ -377,6 +417,17 @@ function parseAndRoll(label, formula) {
           }
           evaluatedNumericValue = rolls.reduce((sum, val) => sum + val, 0);
           logString = `${fullDiceExpression} (${rolls.join("+")}=${evaluatedNumericValue})`;
+          finalRollsArray = rolls;
+        }
+
+        // Lock in the anchor roll metrics for crit tracking
+        if (!primaryRoll && count > 0) {
+          primaryRoll = {
+            count: count,
+            sides: sides,
+            total: evaluatedNumericValue,
+            rolls: finalRollsArray,
+          };
         }
 
         breakdownLogs.push(logString);
@@ -386,9 +437,7 @@ function parseAndRoll(label, formula) {
         );
       }
 
-      // -----------------------------------------------------------------
       // STEP 3: STANDARD PEMDAS MATHEMATICS EVALUATION
-      // -----------------------------------------------------------------
       workingExpr = workingExpr.replace(/\s+/g, "");
 
       if (/[^0-9\+\-\*\/\(\)\.]/.test(workingExpr)) {
@@ -397,21 +446,10 @@ function parseAndRoll(label, formula) {
         );
       }
 
-      // Execute the math and return the hard number for this recursive layer
       return Function(`'use strict'; return (${workingExpr})`)();
     }
 
-    // -----------------------------------------------------------------
-    // STEP 4: RESULT MAPPER INTERCEPTOR (BINARY / TERNARY LOGIC)
-    // -----------------------------------------------------------------
-
-    // Clean the master string and look for the operators
-    let formulaString = String(formula)
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "");
-
-    // Prioritize lessthanvs check since it contains "vs"
+    // STEP 4: RESULT MAPPER INTERCEPTOR & CRIT RESOLUTION
     let isLessThan = formulaString.includes("lessthanvs");
     let splitOperator = isLessThan
       ? "lessthanvs"
@@ -423,18 +461,17 @@ function parseAndRoll(label, formula) {
       ? formulaString.split(splitOperator)[0]
       : formulaString;
 
-    // Kick off the whole chain starting with the left-hand formula
     let finalResultTotal = evaluateMathAndDice(baseFormula);
     let resultContext = null;
+    let isSuccess = null; // Boolean tracker to contextualize "doubles"
 
-    // If an operator was found, evaluate the right-hand DCs
+    // Evaluate target DCs
     if (splitOperator) {
       let targets = formulaString.split(splitOperator)[1].split("/");
 
       if (targets.length === 1) {
-        // Binary Check: Pass/Fail
         let targetDC = evaluateMathAndDice(targets[0]);
-        let isSuccess = isLessThan
+        isSuccess = isLessThan
           ? finalResultTotal <= targetDC
           : finalResultTotal >= targetDC;
         let opDisplay = isLessThan ? "<=" : "vs";
@@ -443,12 +480,11 @@ function parseAndRoll(label, formula) {
           ? `[${opDisplay} ${targetDC}] -> SUCCESS ✨`
           : `[${opDisplay} ${targetDC}] -> FAILURE ❌`;
       } else if (targets.length === 2) {
-        // Ternary Check: Strong/Weak/Miss
         let weakDC = evaluateMathAndDice(targets[0]);
         let strongDC = evaluateMathAndDice(targets[1]);
 
         if (isLessThan) {
-          // For roll-under, lower is better (e.g. strongDC is 25, weakDC is 50)
+          isSuccess = finalResultTotal <= weakDC;
           if (finalResultTotal <= strongDC) {
             resultContext = `[<= ${weakDC}/${strongDC}] -> STRONG SUCCESS ✨`;
           } else if (finalResultTotal <= weakDC) {
@@ -457,7 +493,7 @@ function parseAndRoll(label, formula) {
             resultContext = `[<= ${weakDC}/${strongDC}] -> FAILURE ❌`;
           }
         } else {
-          // Standard roll-over logic
+          isSuccess = finalResultTotal >= weakDC;
           if (finalResultTotal >= strongDC) {
             resultContext = `[vs ${weakDC}/${strongDC}] -> STRONG SUCCESS ✨`;
           } else if (finalResultTotal >= weakDC) {
@@ -469,8 +505,65 @@ function parseAndRoll(label, formula) {
       }
     }
 
-    // Combine any Daggerheart context with target-mapping context
-    let combinedContext = [daggerheartContext, resultContext]
+    // --- NEW: CRIT RULE EVALUATOR ---
+    function checkCrit(rulesArray, isCheckingSuccess) {
+      if (!primaryRoll) return false;
+
+      for (let ruleRaw of rulesArray) {
+        let rule = ruleRaw;
+        // Hot-swap in variable targets if requested
+        let key = Object.keys(activeVars).find(
+          (k) => k.toLowerCase() === ruleRaw,
+        );
+        if (key) rule = String(activeVars[key]).trim().toLowerCase();
+
+        if (rule === "max") {
+          if (primaryRoll.total === primaryRoll.count * primaryRoll.sides)
+            return true;
+        } else if (rule === "min") {
+          if (primaryRoll.total === primaryRoll.count) return true;
+        } else if (rule === "doubles") {
+          const totalStr = String(primaryRoll.total);
+          // Matches format (11, 22, 111) but rejects single digits like (9)
+          if (totalStr.length > 1 && /^(\d)\1+$/.test(totalStr)) {
+            // Smart context handling based on the pass/fail boolean state
+            if (isSuccess === true && isCheckingSuccess) return true;
+            if (isSuccess === false && !isCheckingSuccess) return true;
+            if (isSuccess === null) return true;
+          }
+        } else if (rule === "yahtzee") {
+          if (
+            primaryRoll.rolls.length > 1 &&
+            primaryRoll.rolls.every((r) => r === primaryRoll.rolls[0])
+          ) {
+            return true;
+          }
+        } else if (/^\d+-\d+$/.test(rule)) {
+          let parts = rule.split("-");
+          if (
+            primaryRoll.total >= parseInt(parts[0], 10) &&
+            primaryRoll.total <= parseInt(parts[1], 10)
+          )
+            return true;
+        } else if (/^\d+$/.test(rule)) {
+          if (primaryRoll.total === parseInt(rule, 10)) return true;
+        }
+      }
+      return false;
+    }
+
+    let gotCritSuccess = checkCrit(critSuccessRules, true);
+    let gotCritFail = checkCrit(critFailRules, false);
+    let critContextTokens = [];
+
+    if (gotCritSuccess) critContextTokens.push("🌟 CRIT SUCCESS!");
+    if (gotCritFail) critContextTokens.push("💀 CRIT FAIL!");
+
+    let combinedContext = [
+      daggerheartContext,
+      resultContext,
+      ...critContextTokens,
+    ]
       .filter(Boolean)
       .join(" | ");
 
@@ -486,6 +579,24 @@ function parseAndRoll(label, formula) {
       true,
     );
     return null;
+  }
+}
+
+function rollExplodingDie(sides, logs = []) {
+  // Instant safety guard against infinite loops (d1)
+  if (sides <= 1) {
+    logs.push("1");
+    return 1;
+  }
+
+  const roll = Math.floor(Math.random() * sides) + 1;
+
+  if (roll === sides) {
+    logs.push(`${roll}!`);
+    return roll + rollExplodingDie(sides, logs);
+  } else {
+    logs.push(`${roll}`);
+    return roll;
   }
 }
 

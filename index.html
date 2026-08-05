@@ -248,6 +248,22 @@
               <span class="code-inline">3d6explosive</span>(reroll any dice that
               lands on highest number and keep adding)
             </li>
+            <li>
+              <strong>Critical Modifiers:</strong> Append modifiers right after
+              a dice roll to evaluate crits without affecting the numeric math.
+              Available triggers: <span class="code-inline">max</span>,
+              <span class="code-inline">min</span>,
+              <span class="code-inline">doubles</span>,
+              <span class="code-inline">yahtzee</span>, ranges like
+              <span class="code-inline">19-20</span>, or character variables.<br />
+              <em>Examples:</em>
+              <span class="code-inline"
+                >1d100critsuccess[min]critfail[max]lessthanvs[TARGET_DC]</span
+              >
+              <span class="code-inline"
+                >1d100critsuccess[min]critfail[max]lessthanvs[TARGET_DC]critsuccess[doubles]critfail[doubles]</span
+              >
+            </li>
           </ul>
         </div>
       </div>
