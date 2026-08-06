@@ -781,16 +781,16 @@ window.addEventListener("keydown", function (event) {
   }
 });
 
-function renderUI() {
-  ensureCharacterStructure(currentCharacter);
-  // Populate the notes area
+function renderNotes() {
   const notesArea = document.getElementById("charNotes");
   if (notesArea) {
     notesArea.value = database[currentCharacter].notes || "";
   }
+}
 
-  // 1. Render Character Selection List
+function renderCharacterSelect() {
   const select = document.getElementById("charSelect");
+  if (!select) return;
   select.innerHTML = "";
   Object.keys(database).forEach((char) => {
     const opt = document.createElement("option");
@@ -799,9 +799,11 @@ function renderUI() {
     if (char === currentCharacter) opt.selected = true;
     select.appendChild(opt);
   });
+}
 
-  // 2. Render Variables Dashboard
+function renderVariables() {
   const varContainer = document.getElementById("varContainer");
+  if (!varContainer) return;
   varContainer.innerHTML = "";
   const variables = database[currentCharacter].variables || {};
 
@@ -811,7 +813,6 @@ function renderUI() {
     badge.setAttribute("draggable", true);
     badge.style.cursor = "grab";
 
-    // Drag events for variables
     badge.ondragstart = function (e) {
       draggedVarName = varName;
       this.style.opacity = "0.4";
@@ -851,7 +852,6 @@ function renderUI() {
           varKeys.splice(sourceIndex, 1);
           varKeys.splice(targetIndex, 0, draggedVarName);
 
-          // Rebuild variables schema configuration state order maps
           const newVariables = {};
           varKeys.forEach((k) => {
             newVariables[k] = variables[k];
@@ -859,7 +859,7 @@ function renderUI() {
 
           database[currentCharacter].variables = newVariables;
           saveToStorage();
-          renderUI();
+          renderVariables();
         }
       }
     };
@@ -869,20 +869,14 @@ function renderUI() {
     label.innerText = varName;
 
     const input = document.createElement("input");
-    // Check if the stored value is purely a number or a numeric string
     const isNumeric =
       !isNaN(parseFloat(variables[varName])) && isFinite(variables[varName]);
     input.type = isNumeric ? "number" : "text";
-
     input.className = "var-val-input";
     input.value = variables[varName];
     input.setAttribute("draggable", false);
     input.onchange = function () {
       updateVariableValue(varName, this.value);
-      // Dynamically adjust type post-edit so arrows appear/disappear immediately
-      const isNumericNow =
-        !isNaN(parseFloat(this.value)) && isFinite(this.value);
-      this.type = isNumericNow ? "number" : "text";
     };
 
     const delBtn = document.createElement("button");
@@ -900,9 +894,11 @@ function renderUI() {
     badge.appendChild(delBtn);
     varContainer.appendChild(badge);
   });
+}
 
-  // 3. Render Dice Action Grid Buttons
+function renderDiceGrid() {
   const grid = document.getElementById("diceGrid");
+  if (!grid) return;
   grid.innerHTML = "";
   const buttons = database[currentCharacter].buttons || [];
 
@@ -954,7 +950,7 @@ function renderUI() {
         )[0];
         database[currentCharacter].buttons.splice(index, 0, movedItem);
         saveToStorage();
-        renderUI();
+        renderDiceGrid();
       }
     };
 
@@ -962,11 +958,8 @@ function renderUI() {
     rollBtn.style.width = "100%";
     rollBtn.style.whiteSpace = "pre-line";
     rollBtn.style.cursor = "pointer";
-
-    // Display only the label on the button face
     rollBtn.innerText = btn.label;
 
-    // Set hover popup tooltip containing formula and notes
     let tooltipText = `Formula: ${btn.formula}`;
     if (btn.note) {
       tooltipText += `\nNote: ${btn.note}`;
@@ -997,6 +990,15 @@ function renderUI() {
     wrapper.appendChild(delBtn);
     grid.appendChild(wrapper);
   });
+}
+
+// Master coordinator function
+function renderUI() {
+  ensureCharacterStructure(currentCharacter);
+  renderNotes();
+  renderCharacterSelect();
+  renderVariables();
+  renderDiceGrid();
 }
 
 // --- VARIABLE MANAGEMENT SUB-ROUTINES ---
