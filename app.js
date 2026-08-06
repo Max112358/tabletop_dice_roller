@@ -962,7 +962,17 @@ function renderUI() {
     rollBtn.style.width = "100%";
     rollBtn.style.whiteSpace = "pre-line";
     rollBtn.style.cursor = "pointer";
-    rollBtn.innerText = `${btn.label}\n(${btn.formula})`;
+
+    // Display only the label on the button face
+    rollBtn.innerText = btn.label;
+
+    // Set hover popup tooltip containing formula and notes
+    let tooltipText = `Formula: ${btn.formula}`;
+    if (btn.note) {
+      tooltipText += `\nNote: ${btn.note}`;
+    }
+    rollBtn.title = tooltipText;
+
     rollBtn.onclick = function () {
       executeRoll(btn.label, btn.formula, btn.note, this);
     };
