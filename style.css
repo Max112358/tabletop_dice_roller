@@ -59,9 +59,19 @@ button:hover {
   flex-direction: column;
   justify-content: center;
 }
+/* Style the roll buttons inside the dice grid */
 .dice-btn button {
-  padding: 2px 2px;
+  background-color: #1e1e2e; /* Darker background */
+  color: #cdd6f4; /* Light text color */
+  border: 1.5px solid #89b4fa; /* Blue border */
+  padding: 8px 12px;
   text-align: left;
+  border-radius: 4px;
+}
+/* Hover state for roll buttons */
+.dice-btn button:hover {
+  background-color: #313244; /* Slightly lighter dark background on hover */
+  border-color: #b4befe; /* Lighter blue border on hover */
 }
 .dice-btn button.success-flash {
   background-color: #a6e3a1 !important;
