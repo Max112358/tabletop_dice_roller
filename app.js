@@ -1199,4 +1199,5 @@ function factoryResetDatabase() {
 }
 
 // Initialize on execution
+
 renderUI();
