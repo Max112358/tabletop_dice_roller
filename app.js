@@ -650,13 +650,26 @@ function executeRoll(label, formula, note, buttonElement) {
       timerBadge.innerText = `Combo active: +10s added`;
 
       if (buttonElement) {
-        const originalText = buttonElement.innerText;
+        // 1. Cancel any active reset timer from a previous rapid click
+        if (buttonElement._flashTimeout) {
+          clearTimeout(buttonElement._flashTimeout);
+        }
+
+        // 2. Preserve the initial label before applying the flash state
+        if (!buttonElement.dataset.originalText) {
+          buttonElement.dataset.originalText = buttonElement.innerText;
+        }
+
+        const originalText = buttonElement.dataset.originalText;
         buttonElement.innerText = "✓ Added!";
         buttonElement.classList.add("success-flash");
 
-        setTimeout(() => {
+        // 3. Set timer to restore label and clean up dataset tracking
+        buttonElement._flashTimeout = setTimeout(() => {
           buttonElement.innerText = originalText;
           buttonElement.classList.remove("success-flash");
+          delete buttonElement.dataset.originalText;
+          buttonElement._flashTimeout = null;
         }, 600);
       }
     })
@@ -1199,5 +1212,4 @@ function factoryResetDatabase() {
 }
 
 // Initialize on execution
-
 renderUI();
