@@ -193,40 +193,40 @@ textarea {
 }
 .var-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   margin-top: 15px;
 }
+/* Thin full-width row containers */
 .var-badge {
   background-color: #313244;
   border: 1px solid #45475a;
-  border-radius: 6px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
-  padding: 4px 4px 4px 10px;
+  gap: 8px;
+  padding: 0 8px !important; /* Strips top/bottom padding */
+  height: 26px; /* Forces a fixed, slim row height */
+  width: 100%;
+  position: relative;
 }
 .var-name {
   font-family: monospace;
   font-weight: bold;
   color: #f9e2af;
-  margin-right: 8px;
+  min-width: 140px;
 }
-.var-val-input {
-  width: 55px; /* Bumped slightly from 45px to comfortably fit the arrows */
+.var-val-input,
+.var-val-input[type="text"] {
+  flex: 1;
+  width: 100%;
   background-color: #1e1e2e;
   border: 1px solid #45475a;
   color: #cdd6f4;
-  padding: 2px 4px;
+  padding: 4px 8px;
   border-radius: 4px;
-  text-align: center;
-  font-weight: bold;
-  transition: width 0.15s ease;
-}
-/* Optional helper: expands the field if a user types a longer text formula string */
-.var-val-input[type="text"] {
-  width: 110px;
   text-align: left;
-  padding-left: 6px;
+  font-weight: bold;
 }
 .var-del-btn {
   background: none;
