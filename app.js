@@ -1211,5 +1211,22 @@ function factoryResetDatabase() {
   }
 }
 
+function clearFeed() {
+  // Clear buffer memory
+  rollBuffer = [];
+  lastRollTime = 0;
+
+  // Clear system clipboard content
+  navigator.clipboard.writeText("").catch(() => {});
+
+  // Reset UI elements
+  document.getElementById("resTitle").innerText = "No dice rolled yet...";
+  document.getElementById("resRaw").innerText =
+    "Click a custom action button above to calculate a formula string.";
+  document.getElementById("bufferTimer").style.display = "none";
+
+  showStatus("Clipboard feed cleared!");
+}
+
 // Initialize on execution
 renderUI();

@@ -66,9 +66,19 @@
       <div class="result-panel">
         <div class="result-title">
           <span id="resTitle">No dice rolled yet...</span>
-          <span id="bufferTimer" class="timer-badge" style="display: none"
-            >Combo Window Active</span
-          >
+          <div class="result-actions">
+            <span id="bufferTimer" class="timer-badge" style="display: none"
+              >Combo Window Active</span
+            >
+            <button
+              id="clearFeedBtn"
+              onclick="clearFeed()"
+              class="clear-feed-btn"
+              title="Clear result feed"
+            >
+              Clear
+            </button>
+          </div>
         </div>
         <div id="resRaw" class="result-raw">
           Click a custom action button above to calculate a formula string.
