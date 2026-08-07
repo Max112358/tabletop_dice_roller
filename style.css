@@ -63,8 +63,7 @@ button:hover {
 .dice-btn button {
   background-color: #1e1e2e; /* Darker background */
   color: #cdd6f4; /* Light text color */
-  border: 1.5px solid #89b4fa; /* Blue border */
-  padding: 8px 12px;
+  padding: 2px 2px;
   text-align: left;
   border-radius: 4px;
 }
