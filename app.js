@@ -1228,5 +1228,48 @@ function clearFeed() {
   showStatus("Clipboard feed cleared!");
 }
 
+// --- SORTING MANAGEMENT ---
+function alphabetizeVariables() {
+  if (
+    confirm(
+      "Are you sure you want to sort all variables alphabetically? This will change their current visual order.",
+    )
+  ) {
+    const vars = database[currentCharacter].variables;
+    // Extract keys, sort them alphabetically
+    const sortedKeys = Object.keys(vars).sort((a, b) => a.localeCompare(b));
+
+    // Create a new object with the sorted keys
+    const newVars = {};
+    sortedKeys.forEach((key) => {
+      newVars[key] = vars[key];
+    });
+
+    // Save back to state and re-render
+    database[currentCharacter].variables = newVars;
+    saveToStorage();
+    renderUI();
+    showStatus("Variables sorted alphabetically.");
+  }
+}
+
+function alphabetizeButtons() {
+  if (
+    confirm(
+      "Are you sure you want to sort all macro buttons alphabetically? This will change their current visual order.",
+    )
+  ) {
+    // Sort the buttons array in place based on the label string
+    database[currentCharacter].buttons.sort((a, b) =>
+      a.label.localeCompare(b.label),
+    );
+
+    // Save back to state and re-render
+    saveToStorage();
+    renderUI();
+    showStatus("Buttons sorted alphabetically.");
+  }
+}
+
 // Initialize on execution
 renderUI();

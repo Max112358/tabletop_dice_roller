@@ -31,12 +31,25 @@
         "
       >
         <h3>Character Variables (Stats/Modifiers)</h3>
-        <button
-          onclick="openModal('variable-guide-modal')"
-          style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af"
-        >
-          💡 Variable Guide
-        </button>
+        <div>
+          <button
+            onclick="alphabetizeVariables()"
+            style="
+              padding: 4px 8px;
+              font-size: 12px;
+              background-color: #89b4fa;
+              margin-right: 5px;
+            "
+          >
+            A-Z Sort
+          </button>
+          <button
+            onclick="openModal('variable-guide-modal')"
+            style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af"
+          >
+            💡 Variable Guide
+          </button>
+        </div>
       </div>
       <div class="var-creator">
         <input
@@ -57,7 +70,21 @@
     </div>
 
     <div class="section">
-      <h3>Roll Actions</h3>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <h3>Roll Actions</h3>
+        <button
+          onclick="alphabetizeButtons()"
+          style="padding: 4px 8px; font-size: 12px; background-color: #89b4fa"
+        >
+          A-Z Sort
+        </button>
+      </div>
       <div class="grid" id="diceGrid"></div>
     </div>
 
