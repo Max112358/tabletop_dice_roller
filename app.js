@@ -567,10 +567,16 @@ function parseAndRoll(label, formula) {
       .filter(Boolean)
       .join(" | ");
 
+    let isDhCritSuccess = daggerheartContext
+      ? daggerheartContext.includes("CRITICAL SUCCESS")
+      : false;
+
     return {
       total: finalResultTotal,
       breakdown: breakdownLogs.length > 0 ? breakdownLogs.join(" -> ") : null,
       dhContext: combinedContext.length > 0 ? combinedContext : null,
+      isCritSuccess: gotCritSuccess || isDhCritSuccess, // Expose success
+      isCritFail: gotCritFail, // Expose failure
     };
   } catch (error) {
     console.error(error);
@@ -614,6 +620,13 @@ function executeRoll(label, formula, note, buttonElement) {
   if (!rollData || isNaN(rollData.total)) {
     showStatus("Error evaluating math or dice formula! Check syntax.", true);
     return;
+  }
+
+  // --- TRIGGER VISUALS ---
+  if (rollData.isCritSuccess) {
+    triggerCritSuccessVisuals();
+  } else if (rollData.isCritFail) {
+    triggerCritFailVisuals();
   }
 
   // Format single roll line strings cleanly with current active character name
@@ -1269,6 +1282,91 @@ function alphabetizeButtons() {
     renderUI();
     showStatus("Buttons sorted alphabetically.");
   }
+}
+
+// =========================================================================
+// CRIT VISUAL EFFECTS ENGINE
+// =========================================================================
+
+function triggerCritSuccessVisuals() {
+  triggerBackgroundFlash("#a6e3a1"); // Theme green
+  createParticleExplosion(["✨", "🟩"], 45);
+}
+
+function triggerCritFailVisuals() {
+  triggerBackgroundFlash("#f38ba8"); // Theme red
+  createParticleExplosion(["💀", "💥"], 45);
+}
+
+function triggerBackgroundFlash(color) {
+  const body = document.body;
+
+  // Spam resistance: clear any existing reset timers if clicked rapidly
+  if (body._flashTimeout) {
+    clearTimeout(body._flashTimeout);
+  }
+
+  // Instantly apply the flash color
+  body.style.transition = "none";
+  body.style.backgroundColor = color;
+
+  // Force a browser reflow to register the instant color change
+  void body.offsetWidth;
+
+  // Apply a smooth half-second fade out back to the default CSS background
+  body.style.transition = "background-color 0.5s ease-out";
+  body.style.backgroundColor = ""; // Empty string forces it to fall back to style.css
+
+  // Clean up the inline transition style after it finishes so it doesn't linger
+  body._flashTimeout = setTimeout(() => {
+    body.style.transition = "";
+    body._flashTimeout = null;
+  }, 500);
+}
+
+function createParticleExplosion(emojis, count) {
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.top = "50%";
+  container.style.left = "50%";
+  container.style.pointerEvents = "none";
+  container.style.zIndex = "10000";
+  document.body.appendChild(container);
+
+  for (let i = 0; i < count; i++) {
+    const particle = document.createElement("div");
+    particle.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+    particle.style.position = "absolute";
+    particle.style.fontSize = Math.random() * 1.5 + 1.2 + "rem";
+    particle.style.userSelect = "none";
+
+    // Calculate random radial scatter directions
+    const angle = Math.random() * Math.PI * 2;
+    // Scale the explosion to browser viewport size so it always looks proportional
+    const tx =
+      Math.cos(angle) * (window.innerWidth * (Math.random() * 0.3 + 0.05));
+    const ty =
+      Math.sin(angle) * (window.innerHeight * (Math.random() * 0.3 + 0.05));
+    const rot = Math.random() * 720 - 360;
+
+    // Start small and in the dead center
+    particle.style.transform = `translate(-50%, -50%) scale(0.1)`;
+    particle.style.transition =
+      "transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.5s ease-in";
+
+    container.appendChild(particle);
+
+    // Apply layout trigger so CSS processes the difference between start and end states
+    requestAnimationFrame(() => {
+      particle.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(${rot}deg) scale(1)`;
+      particle.style.opacity = "0";
+    });
+  }
+
+  // Self-cleanup the DOM elements when the animation concludes
+  setTimeout(() => {
+    container.remove();
+  }, 600);
 }
 
 // Initialize on execution
