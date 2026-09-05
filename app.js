@@ -1289,16 +1289,16 @@ function alphabetizeButtons() {
 // =========================================================================
 
 function triggerCritSuccessVisuals() {
-  triggerBackgroundFlash("#a6e3a1"); // Theme green
-  createParticleExplosion(["✨", "🟩"], 45);
+  triggerBackgroundFlash("#a6e3a1", 1); // Theme green
+  createParticleExplosion(["✨", "🟩"], 45, 1);
 }
 
 function triggerCritFailVisuals() {
-  triggerBackgroundFlash("#f38ba8"); // Theme red
-  createParticleExplosion(["💀", "💥"], 45);
+  triggerBackgroundFlash("#f38ba8", 1); // Theme red
+  createParticleExplosion(["💀", "💥"], 45, 1);
 }
 
-function triggerBackgroundFlash(color) {
+function triggerBackgroundFlash(color, duration) {
   const body = document.body;
 
   // Spam resistance: clear any existing reset timers if clicked rapidly
@@ -1314,17 +1314,20 @@ function triggerBackgroundFlash(color) {
   void body.offsetWidth;
 
   // Apply a smooth half-second fade out back to the default CSS background
-  body.style.transition = "background-color 0.5s ease-out";
+  body.style.transition = `background-color ${duration}s ease-out`;
   body.style.backgroundColor = ""; // Empty string forces it to fall back to style.css
 
   // Clean up the inline transition style after it finishes so it doesn't linger
-  body._flashTimeout = setTimeout(() => {
-    body.style.transition = "";
-    body._flashTimeout = null;
-  }, 500);
+  body._flashTimeout = setTimeout(
+    () => {
+      body.style.transition = "";
+      body._flashTimeout = null;
+    },
+    duration * 1000 + 100,
+  );
 }
 
-function createParticleExplosion(emojis, count) {
+function createParticleExplosion(emojis, count, duration = 0.5) {
   const container = document.createElement("div");
   container.style.position = "fixed";
   container.style.top = "50%";
@@ -1351,8 +1354,7 @@ function createParticleExplosion(emojis, count) {
 
     // Start small and in the dead center
     particle.style.transform = `translate(-50%, -50%) scale(0.1)`;
-    particle.style.transition =
-      "transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.5s ease-in";
+    particle.style.transition = `transform ${duration}s cubic-bezier(0.25, 1, 0.5, 1), opacity ${duration}s ease-in`;
 
     container.appendChild(particle);
 
@@ -1364,9 +1366,12 @@ function createParticleExplosion(emojis, count) {
   }
 
   // Self-cleanup the DOM elements when the animation concludes
-  setTimeout(() => {
-    container.remove();
-  }, 600);
+  setTimeout(
+    () => {
+      container.remove();
+    },
+    duration * 1000 + 100,
+  );
 }
 
 // Initialize on execution
