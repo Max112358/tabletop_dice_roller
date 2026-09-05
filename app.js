@@ -1,3 +1,7 @@
+let success_color = "#0b7002"; // Theme green
+let fail_color = "#8b0229"; // Theme red
+let success_fail_flash_duration = 1; // seconds
+
 // Core database state architecture updated to support custom variable schema objects per profile
 let database = JSON.parse(localStorage.getItem("dice_profiles_v2")) || {
   "Example Paladin (D&D)": {
@@ -577,6 +581,7 @@ function parseAndRoll(label, formula) {
       dhContext: combinedContext.length > 0 ? combinedContext : null,
       isCritSuccess: gotCritSuccess || isDhCritSuccess, // Expose success
       isCritFail: gotCritFail, // Expose failure
+      isSuccess: isSuccess, // expose success/failure state for external use
     };
   } catch (error) {
     console.error(error);
@@ -627,6 +632,12 @@ function executeRoll(label, formula, note, buttonElement) {
     triggerCritSuccessVisuals();
   } else if (rollData.isCritFail) {
     triggerCritFailVisuals();
+  } else if (rollData.isSuccess === true) {
+    // Flash green for standard success, no particles
+    triggerBackgroundFlash(success_color, success_fail_flash_duration);
+  } else if (rollData.isSuccess === false) {
+    // Flash red for standard failure, no particles
+    triggerBackgroundFlash(fail_color, success_fail_flash_duration);
   }
 
   // Format single roll line strings cleanly with current active character name
@@ -1289,16 +1300,16 @@ function alphabetizeButtons() {
 // =========================================================================
 
 function triggerCritSuccessVisuals() {
-  triggerBackgroundFlash("#a6e3a1", 1); // Theme green
-  createParticleExplosion(["✨", "🟩"], 45, 1);
+  triggerBackgroundFlash(success_color, success_fail_flash_duration); // Theme green
+  createParticleExplosion(["✨", "🟩"], 45, success_fail_flash_duration);
 }
 
 function triggerCritFailVisuals() {
-  triggerBackgroundFlash("#f38ba8", 1); // Theme red
-  createParticleExplosion(["💀", "💥"], 45, 1);
+  triggerBackgroundFlash(fail_color, success_fail_flash_duration); // Theme red
+  createParticleExplosion(["💀", "💥"], 45, success_fail_flash_duration);
 }
 
-function triggerBackgroundFlash(color, duration) {
+function triggerBackgroundFlash(color, duration = 0.5) {
   const body = document.body;
 
   // Spam resistance: clear any existing reset timers if clicked rapidly
