@@ -561,7 +561,7 @@ function parseAndRoll(label, formula) {
     let critContextTokens = [];
 
     if (gotCritSuccess) critContextTokens.push("🌟 CRITICAL SUCCESS!");
-    if (gotCritFail) critContextTokens.push("💀 CRITICAL FAIL!");
+    if (gotCritFail) critContextTokens.push("💀 CRITICAL FAILURE!");
 
     let combinedContext = [
       daggerheartContext,
