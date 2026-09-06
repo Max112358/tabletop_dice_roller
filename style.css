@@ -341,11 +341,13 @@ textarea {
   border: 1px solid #45475a;
   padding: 25px;
   border-radius: 8px;
-  max-width: 550px;
-  width: 90%;
+  width: min(90%, 34rem);
   position: relative;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
   color: #cdd6f4;
+  max-height: 85dvh; /* cap height at 85% of the viewport */
+  overflow-y: auto; /* scroll when content exceeds that */
+  box-sizing: border-box; /* include padding in the height calc */
 }
 
 .modal-close {

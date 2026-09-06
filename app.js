@@ -204,6 +204,19 @@ function getMissingVariables(formula, checkedVars = new Set()) {
     }
   });
 
+  // --- NEW: EXTRACT REROLL RULES TO PREVENT FALSE MISSING VARIABLE ALERTS ---
+  workingFormula = workingFormula.replace(
+    /reroll(?:once|repeating|additively|additivelyrepeating)\[([^\]]+)\]/gi,
+    (match, val) => {
+      let v = val.trim().toLowerCase();
+      // Ignore reserved keywords and literal numbers; flag anything else as a potential variable
+      if (v !== "max" && v !== "min" && !/^\d+$/.test(v)) {
+        critVars.push(v);
+      }
+      return ""; // Remove from formula for the normal bracketRegex validation
+    },
+  );
+
   const bracketRegex = /\[([^\]]+)\]/g;
   let match;
 
@@ -280,6 +293,12 @@ function parseAndRoll(label, formula) {
         if (foundKey !== undefined) {
           return evaluateMathAndDice(activeVars[foundKey], depth + 1);
         } else {
+          // Soft-fail: reserved reroll keywords (min/max) are not variables.
+          // Leave them intact so the dice evaluation loop can resolve them
+          // against the die's actual sides at roll time.
+          if (/^(min|max)$/i.test(varName.trim())) {
+            return fullMatch;
+          }
           hasMissingVar = true;
           missingVarName = varName.toUpperCase();
           return fullMatch;
@@ -305,7 +324,7 @@ function parseAndRoll(label, formula) {
 
       // STEP 3: LEFT-TO-RIGHT DICE EVALUATION LOOP
       const diceRegex =
-        /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|explosive)?/;
+        /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|reroll(?:once|repeating|additively|additivelyrepeating)\[[^\]]+\])?/;
 
       while (diceRegex.test(workingExpr)) {
         let matchInstance = workingExpr.match(diceRegex);
@@ -402,21 +421,91 @@ function parseAndRoll(label, formula) {
           logString = `${fullDiceExpression} [Rolls: ${rolls.join(", ")}] Kept: (${kept.join("+")})`;
           finalRollsArray = kept;
         }
-        // 5. Explosive dice
-        else if (modifier.startsWith("explosive")) {
+        // 5. Reroll System (Substitutive & Additive)
+        else if (modifier.startsWith("reroll")) {
+          let rerollMatch = modifier.match(
+            /reroll(once|repeating|additively|additivelyrepeating)\[([^\]]+)\]/,
+          );
+          let mode = rerollMatch[1];
+          let targetRaw = rerollMatch[2];
+
+          // Allow variable insertion, "max", or "min"
+          if (
+            Object.keys(activeVars).some((k) => k.toLowerCase() === targetRaw)
+          ) {
+            let key = Object.keys(activeVars).find(
+              (k) => k.toLowerCase() === targetRaw,
+            );
+            targetRaw = String(activeVars[key]).trim().toLowerCase();
+          }
+          let targetNum =
+            targetRaw === "max"
+              ? sides
+              : targetRaw === "min"
+                ? 1
+                : parseInt(targetRaw, 10);
+
           let rollsDisplay = [];
           let cumulativeSumsArray = [];
           let cumulativeSum = 0;
 
           for (let i = 0; i < count; i++) {
+            let currentRoll = Math.floor(Math.random() * sides) + 1;
             let singleDieLogs = [];
-            let singleDieTotal = rollExplodingDie(sides, singleDieLogs);
+            let dieTotal = currentRoll;
+            let iterations = 0;
 
-            cumulativeSumsArray.push(singleDieTotal);
-            cumulativeSum += singleDieTotal;
+            // Substitutive Mode (Replaces the die)
+            if (mode === "once" || mode === "repeating") {
+              if (currentRoll === targetNum && sides > 1) {
+                singleDieLogs.push(`~~${currentRoll}~~`);
+                let maxIter = mode === "once" ? 1 : 50; // Infinite loop safety cap
 
+                while (
+                  currentRoll === targetNum &&
+                  iterations < maxIter &&
+                  sides > 1
+                ) {
+                  currentRoll = Math.floor(Math.random() * sides) + 1;
+                  iterations++;
+                  if (currentRoll === targetNum && iterations < maxIter) {
+                    singleDieLogs.push(`~~${currentRoll}~~`);
+                  }
+                }
+                singleDieLogs.push(`${currentRoll}`);
+                dieTotal = currentRoll;
+              } else {
+                singleDieLogs.push(`${currentRoll}`);
+              }
+              cumulativeSum += dieTotal;
+              cumulativeSumsArray.push(dieTotal);
+            }
+            // Additive Mode (Exploding dice replacement)
+            else if (mode === "additively" || mode === "additivelyrepeating") {
+              singleDieLogs.push(`${currentRoll}`);
+              if (currentRoll === targetNum && sides > 1) {
+                let maxIter = mode === "additively" ? 1 : 50; // Infinite loop safety cap
+
+                while (
+                  currentRoll === targetNum &&
+                  iterations < maxIter &&
+                  sides > 1
+                ) {
+                  currentRoll = Math.floor(Math.random() * sides) + 1;
+                  singleDieLogs.push(`${currentRoll}`);
+                  dieTotal += currentRoll;
+                  iterations++;
+                }
+              }
+              cumulativeSum += dieTotal;
+              cumulativeSumsArray.push(dieTotal);
+            }
+
+            // Format Markdown output
             if (singleDieLogs.length > 1) {
-              rollsDisplay.push(`(${singleDieLogs.join("+")})`);
+              rollsDisplay.push(
+                `(${singleDieLogs.join(mode.includes("additively") ? "+" : " -> ")})`,
+              );
             } else {
               rollsDisplay.push(singleDieLogs[0]);
             }

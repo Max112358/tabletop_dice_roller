@@ -281,11 +281,6 @@
               >
             </li>
             <li>
-              <strong>Explosive Dice (Aces):</strong>
-              <span class="code-inline">3d6explosive</span>(reroll any dice that
-              lands on highest number and keep adding)
-            </li>
-            <li>
               <strong>Critical Modifiers:</strong> Append modifiers right after
               a dice roll to evaluate crits without affecting the numeric math.
               Available triggers: <span class="code-inline">max</span>,
@@ -299,6 +294,25 @@
               >
               <span class="code-inline"
                 >1d100critsuccess[min]critfail[max]lessthanvs[TARGET_DC]critsuccess[doubles]critfail[doubles]</span
+              >
+            </li>
+            <li>
+              <strong>Substitutive Rerolls:</strong>
+              <span class="code-inline">2d4rerollonce[1]</span> or
+              <span class="code-inline">2d4rerollrepeating[min]</span><br />
+              <em
+                >(Discards the original die if it matches the target number and
+                rolls a replacement.)</em
+              >
+            </li>
+            <li>
+              <strong>Additive Rerolls (Exploding):</strong>
+              <span class="code-inline">1d6rerolladditively[6]</span> or
+              <span class="code-inline">1d6rerolladditivelyrepeating[max]</span
+              ><br />
+              <em
+                >(Keeps adding a new die to the total if it matches the target
+                number.)</em
               >
             </li>
           </ul>
