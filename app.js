@@ -437,10 +437,27 @@ function parseAndRoll(label, formula) {
           finalRollsArray = rolls;
         }
 
+        // Determine how many dice are actually kept for max/min crit calculation
+        let keptCount = count;
+        if (modifier) {
+          if (modifier.startsWith("kh") || modifier.startsWith("kl")) {
+            keptCount = parseInt(modifier.replace(/k[hl]/, ""), 10);
+          } else if (
+            modifier.startsWith("p") &&
+            (modifier.includes("kh") || modifier.includes("kl"))
+          ) {
+            let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
+            let poolKeep = parseInt(poolMatch[3], 10);
+            keptCount = poolKeep * count; // Sets kept * dice per set
+          } else if (modifier === "daggerheart") {
+            keptCount = 2;
+          }
+        }
+
         // Lock in the anchor roll metrics for crit tracking
         if (!primaryRoll && count > 0) {
           primaryRoll = {
-            count: count,
+            count: keptCount,
             sides: sides,
             total: evaluatedNumericValue,
             rolls: finalRollsArray,
