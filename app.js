@@ -290,7 +290,20 @@ function parseAndRoll(label, formula) {
         throw new Error(`Missing variable reference: [${missingVarName}]`);
       }
 
-      // STEP 2: LEFT-TO-RIGHT DICE EVALUATION LOOP
+      // STEP 2: RECURSIVE PARENTHESES RESOLUTION
+      // Matches innermost parentheses first and fully evaluates them from the inside out.
+      const parenRegex = /\(([^()]+)\)/;
+      while (parenRegex.test(workingExpr)) {
+        workingExpr = workingExpr.replace(
+          parenRegex,
+          (fullMatch, innerExpr) => {
+            // Recursively evaluate the inside of the parenthesis
+            return evaluateMathAndDice(innerExpr, depth + 1);
+          },
+        );
+      }
+
+      // STEP 3: LEFT-TO-RIGHT DICE EVALUATION LOOP
       const diceRegex =
         /(\d+)d(\d+)(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|explosive)?/;
 
@@ -441,7 +454,7 @@ function parseAndRoll(label, formula) {
         );
       }
 
-      // STEP 3: STANDARD PEMDAS MATHEMATICS EVALUATION
+      // STEP 4: STANDARD PEMDAS MATHEMATICS EVALUATION
       workingExpr = workingExpr.replace(/\s+/g, "");
 
       if (/[^0-9\+\-\*\/\(\)\.]/.test(workingExpr)) {
@@ -453,7 +466,7 @@ function parseAndRoll(label, formula) {
       return Function(`'use strict'; return (${workingExpr})`)();
     }
 
-    // STEP 4: RESULT MAPPER INTERCEPTOR & CRIT RESOLUTION
+    // STEP 5: RESULT MAPPER INTERCEPTOR & CRIT RESOLUTION
     let isLessThan = formulaString.includes("lessthanvs");
     let splitOperator = isLessThan
       ? "lessthanvs"
