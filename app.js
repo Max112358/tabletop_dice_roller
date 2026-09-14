@@ -1044,7 +1044,11 @@ function renderVariables() {
 
           database[currentCharacter].variables = newVariables;
           saveToStorage();
-          renderVariables();
+
+          // Defer the re-render so the drag event finishes safely
+          setTimeout(() => {
+            renderVariables();
+          }, 0);
         }
       }
     };
@@ -1135,7 +1139,11 @@ function renderDiceGrid() {
         )[0];
         database[currentCharacter].buttons.splice(index, 0, movedItem);
         saveToStorage();
-        renderDiceGrid();
+
+        // Defer the re-render so the drag event finishes safely
+        setTimeout(() => {
+          renderDiceGrid();
+        }, 0);
       }
     };
 
