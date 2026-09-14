@@ -164,8 +164,6 @@ function ensureCharacterStructure(charName) {
 let rollBuffer = [];
 let lastRollTime = 0;
 const COMBO_TIMEOUT_MS = 10000; // 10 seconds tracking limit
-let draggedIndex = null; // Drag and drop helper tracking state for buttons
-let draggedVarName = null; // Drag and drop helper tracking state for variables
 
 // --- FORMULA VARIABLE VALIDATION CHECKER ---
 function getMissingVariables(formula, checkedVars = new Set()) {
