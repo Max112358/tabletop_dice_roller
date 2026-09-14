@@ -1,3 +1,5 @@
+window.DiceApp = window.DiceApp || {};
+
 window.onerror = function (msg, url, line, col, err) {
   console.error("GLOBAL ERROR:", msg, "line:", line, "err:", err);
 };
@@ -5,1323 +7,12 @@ window.addEventListener("unhandledrejection", function (e) {
   console.error("UNHANDLED PROMISE REJECTION:", e.reason);
 });
 
-function logElapsed(name, startMs, thresholdMs = 5) {
-  const elapsed = performance.now() - startMs;
-  if (elapsed > thresholdMs) {
-    console.warn(`${name} took ${elapsed.toFixed(1)}ms`);
-  }
-}
-
-let success_color = "#0b7002"; // Theme green
-let fail_color = "#8b0229"; // Theme red
-let success_fail_flash_duration = 1; // seconds
-
-// Core database state architecture updated to support custom variable schema objects per profile
-let database = JSON.parse(localStorage.getItem("dice_profiles_v2")) || {
-  "Example Paladin (D&D)": {
-    buttons: [
-      {
-        label: "Longsword (Standard) Vs AC",
-        formula: "1d20+[STR]+[PROF]+[BLESS]vs[ENEMY_AC]",
-        note: "To Hit",
-      },
-      {
-        label: "Longsword (Advantage)",
-        formula: "2d20kh1+[STR]+[PROF]+[BLESS]vs[ENEMY_AC]",
-        note: "To Hit",
-      },
-      {
-        label: "Longsword (Disadvantage)",
-        formula: "2d20kl1+[STR]+[PROF]+[BLESS]vs[ENEMY_AC]",
-        note: "To Hit",
-      },
-      {
-        label: "Longsword Savage Attacker Damage",
-        formula: "[CRIT_MULTIPLIER]d8p2kh1+[STR]",
-        note: "Slashing",
-      },
-      {
-        label: "Divine Smite",
-        formula: "[SMITE_DICE]d8",
-        note: "Radiant Damage",
-      },
-      {
-        label: "Athletics Check",
-        formula: "1d20+[STR]+[PROF]+[GUIDANCE]",
-        note: "",
-      },
-      {
-        label: "Athletics Check Vs DC",
-        formula: "1d20+[STR]+[PROF]+[GUIDANCE]vs[TARGET_DC]",
-        note: "",
-      },
-    ],
-    variables: {
-      STR: 4,
-      PROF: 2,
-      HIT_POINTS: 20,
-      AC: 18,
-      CRIT_MULTIPLIER: 1,
-      SMITE_DICE_BASE: 2,
-      SMITE_DICE: "[SMITE_DICE_BASE] * [CRIT_MULTIPLIER]",
-      BLESS_MULTIPLIER: 0,
-      BLESS: "[BLESS_MULTIPLIER]d4",
-      GUIDANCE_MULTIPLIER: 0,
-      GUIDANCE: "[GUIDANCE_MULTIPLIER]d4",
-      TARGET_DC: 16,
-      ENEMY_AC: 14,
-    },
-    notes:
-      "11 gold, 2 silver, 3 copper. Longsword +1, Shield +1, Chainmail +1. Potion of Healing x2.",
-  },
-  "Example Seraph (Daggerheart)": {
-    buttons: [
-      { label: "Daggerheart Action", formula: "2d12daggerheart", note: "" },
-      {
-        label: "Daggerheart Action Vs DC",
-        formula: "2d12daggerheartvs[TARGET_DC]",
-        note: "",
-      },
-      {
-        label: "Daggerheart Action With Exp Vs DC",
-        formula: "2d12daggerheart+2vs[TARGET_DC]",
-        note: "",
-      },
-      {
-        label: "Greatsword Attack",
-        formula: "2d12daggerheart+[STR]vs[ENEMY_DIFFICULTY]",
-        note: "To Hit",
-      },
-      {
-        label: "Greatsword Attack (Advantage)",
-        formula: "2d12daggerheart+[STR]+1d6vs[ENEMY_DIFFICULTY]",
-        note: "To Hit",
-      },
-      {
-        label: "Greatsword Attack (Disadvantage)",
-        formula: "2d12daggerheart+[STR]-1d6vs[ENEMY_DIFFICULTY]",
-        note: "To Hit",
-      },
-      {
-        label: "Greatsword Damage",
-        formula: "[ATTACK_DICE]d10kh[PROF]+3",
-        note: "Physical damage",
-      },
-      {
-        label: "Greatsword Damage Crit",
-        formula: "[PROF]*10+[ATTACK_DICE]d10kh[PROF]+3",
-        note: "Physical damage critical hit",
-      },
-    ],
-    variables: {
-      STR: 2,
-      PROF: 1,
-      HOPE: 2,
-      STRESS: 6,
-      HIT_POINTS: 6,
-      EVASION: 9,
-      DAMAGE_THRESHOLDS: "7/15",
-      ARMOR: 4,
-      ATTACK_DICE: "[PROF]+1",
-      TARGET_DC: 16,
-      ENEMY_DIFFICULTY: 11,
-    },
-    notes: "Potion of Healing x2.",
-  },
-};
-
-// Fallback cleanup migration helper for old localstorage profiles data if found
-if (
-  localStorage.getItem("dice_profiles") &&
-  !localStorage.getItem("dice_profiles_v2")
-) {
-  try {
-    let oldDb = JSON.parse(localStorage.getItem("dice_profiles"));
-    Object.keys(oldDb).forEach((charKey) => {
-      if (Array.isArray(oldDb[charKey])) {
-        database[charKey] = { buttons: oldDb[charKey], variables: {} };
-      }
-    });
-  } catch (e) {}
-}
-
-let currentCharacter =
-  localStorage.getItem("current_dice_char") ||
-  Object.keys(database)[0] ||
-  "Example Paladin";
-ensureCharacterStructure(currentCharacter);
-
-function ensureCharacterStructure(charName) {
-  if (!database[charName])
-    database[charName] = { buttons: [], variables: {}, notes: "" };
-  if (!database[charName].buttons) database[charName].buttons = [];
-  if (!database[charName].variables) database[charName].variables = {};
-  if (typeof database[charName].notes === "undefined")
-    database[charName].notes = "";
-}
-
-// Rolling Buffer State Variables
-let rollBuffer = [];
-let lastRollTime = 0;
-const COMBO_TIMEOUT_MS = 10000; // 10 seconds tracking limit
-
-// --- FORMULA VARIABLE VALIDATION CHECKER ---
-function getMissingVariables(formula, checkedVars = new Set()) {
-  const t0 = performance.now();
-  ensureCharacterStructure(currentCharacter);
-  const activeVars = database[currentCharacter].variables || {};
-
-  // Build a lowercase map for case-insensitive checking
-  const lowerVars = {};
-  Object.keys(activeVars).forEach((k) => {
-    lowerVars[k.toLowerCase()] = activeVars[k];
-  });
-
-  let missing = [];
-  let workingFormula = String(formula);
-
-  // 1. Extract crit rules so they don't break standard variable parsing,
-  // but DO check them for missing custom variables.
-  let critVars = [];
-  workingFormula = workingFormula.replace(
-    /crit(?:success|fail)\[([^\]]+)\]/gi,
-    (match, val) => {
-      let v = val.trim().toLowerCase();
-      // Ignore reserved crit keywords; flag anything else as a potential variable
-      if (
-        v !== "max" &&
-        v !== "min" &&
-        v !== "doubles" &&
-        v !== "yahtzee" &&
-        !/^\d+(-\d+)?$/.test(v)
-      ) {
-        critVars.push(v);
-      }
-      return ""; // Remove from formula for the normal regex validation
-    },
-  );
-
-  // Check extracted custom crit vars
-  critVars.forEach((v) => {
-    if (!lowerVars.hasOwnProperty(v)) {
-      missing.push(v);
-    } else {
-      // Dive into nested variables mapped in the crit rules
-      if (!checkedVars.has(v)) {
-        checkedVars.add(v);
-        let subFormula = String(lowerVars[v]);
-        let subMissing = getMissingVariables(subFormula, checkedVars);
-        missing = missing.concat(subMissing);
-      }
-    }
-  });
-
-  // --- EXTRACT REROLL RULES TO PREVENT FALSE MISSING VARIABLE ALERTS ---
-  workingFormula = workingFormula.replace(
-    /reroll(?:once|repeating|additively|additivelyrepeating)\[([^\]]+)\]/gi,
-    (match, val) => {
-      let v = val.trim().toLowerCase();
-      // Ignore reserved keywords and literal numbers; flag anything else as a potential variable
-      if (v !== "max" && v !== "min" && !/^\d+$/.test(v)) {
-        critVars.push(v);
-      }
-      return ""; // Remove from formula for the normal bracketRegex validation
-    },
-  );
-
-  // ---allow for the replace keyword ---
-  workingFormula = workingFormula.replace(
-    /replace\[\d+(?:-\d+)?\]\[\d+\]/gi,
-    "",
-  );
-
-  const bracketRegex = /\[([^\]]+)\]/g;
-  let match;
-
-  while ((match = bracketRegex.exec(workingFormula)) !== null) {
-    let varName = match[1].trim().toLowerCase();
-
-    if (!lowerVars.hasOwnProperty(varName)) {
-      missing.push(match[1].trim());
-    } else {
-      // Dive into the nested variable to validate its formula too
-      if (!checkedVars.has(varName)) {
-        checkedVars.add(varName);
-        let subFormula = String(lowerVars[varName]);
-        let subMissing = getMissingVariables(subFormula, checkedVars);
-        missing = missing.concat(subMissing);
-      }
-    }
-  }
-
-  logElapsed("getMissingVariables", t0, 10);
-  return [...new Set(missing)];
-}
-
-// =========================================================================
-// REFACTORED DICE PIPELINE ENGINE (RECURSIVE RESOLUTION)
-// =========================================================================
-
-function parseAndRoll(label, formula) {
-  try {
-    ensureCharacterStructure(currentCharacter);
-    let activeVars = database[currentCharacter].variables || {};
-
-    let breakdownLogs = [];
-    let daggerheartContext = null;
-    let primaryRoll = null; // Track the first dice pool rolled for crit logic
-
-    // Extract Crit Rules early so they don't corrupt the PEMDAS/Variable pipeline
-    let critSuccessRules = [];
-    let critFailRules = [];
-
-    let formulaString = String(formula)
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "");
-
-    formulaString = formulaString.replace(
-      /critsuccess\[([^\]]+)\]/g,
-      (m, val) => {
-        critSuccessRules.push(val);
-        return "";
-      },
-    );
-    formulaString = formulaString.replace(/critfail\[([^\]]+)\]/g, (m, val) => {
-      critFailRules.push(val);
-      return "";
-    });
-
-    // The core 3-step pipeline wrapped as a recursive executor
-    function evaluateMathAndDice(expr, depth = 0) {
-      if (depth > 50)
-        throw new Error("Infinite loop detected in variable resolution!");
-
-      let workingExpr = String(expr).trim().toLowerCase();
-
-      // STEP 1: RECURSIVE VARIABLE SUBSTITUTION
-      const bracketRegex = /\[([^\]]+)\]/g;
-      let hasMissingVar = false;
-      let missingVarName = "";
-
-      workingExpr = workingExpr.replace(bracketRegex, (fullMatch, varName) => {
-        let foundKey = Object.keys(activeVars).find(
-          (k) => k.toLowerCase() === varName.trim(),
-        );
-
-        if (foundKey !== undefined) {
-          return evaluateMathAndDice(activeVars[foundKey], depth + 1);
-        } else {
-          // Soft-fail: reserved keywords (min/max) and literal numbers/ranges
-          // are not variables. Leave them intact for the dice evaluation loop.
-          if (
-            /^(min|max)$/i.test(varName.trim()) ||
-            /^\d+(-\d+)?$/.test(varName.trim())
-          ) {
-            return fullMatch;
-          }
-          hasMissingVar = true;
-          missingVarName = varName.toUpperCase();
-          return fullMatch;
-        }
-      });
-
-      if (hasMissingVar) {
-        throw new Error(`Missing variable reference: [${missingVarName}]`);
-      }
-
-      // STEP 2: RECURSIVE PARENTHESES AND MATH FUNCTION RESOLUTION
-      // Matches innermost parentheses first and fully evaluates them from the inside out.
-      const parenRegex = /(max|min|ceil|floor|round)?\(([^()]+)\)/;
-
-      while (parenRegex.test(workingExpr)) {
-        workingExpr = workingExpr.replace(
-          parenRegex,
-          (fullMatch, funcName, innerExpr) => {
-            if (funcName) {
-              // It's a math function. Split inner arguments by comma and evaluate each one.
-              let args = innerExpr
-                .split(",")
-                .map((arg) => evaluateMathAndDice(arg, depth + 1));
-              return Math[funcName](...args);
-            } else {
-              // It's a standard parenthesis block. Recursively evaluate the inside.
-              return evaluateMathAndDice(innerExpr, depth + 1);
-            }
-          },
-        );
-      }
-
-      // STEP 3: LEFT-TO-RIGHT DICE EVALUATION LOOP
-      const diceRegex =
-        /(\d+)d(\d+)(?:replace\[(\d+)(?:-(\d+))?\]\[(\d+)\])?(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|reroll(?:once|repeating|additively|additivelyrepeating)\[[^\]]+\])?/;
-
-      while (diceRegex.test(workingExpr)) {
-        let matchInstance = workingExpr.match(diceRegex);
-        let fullDiceExpression = matchInstance[0];
-        let count = parseInt(matchInstance[1], 10);
-        let sides = parseInt(matchInstance[2], 10);
-
-        // New Extraction Logic
-        let hasReplace = matchInstance[3] !== undefined;
-        let repMin = hasReplace ? parseInt(matchInstance[3], 10) : null;
-        let repMax = matchInstance[4] ? parseInt(matchInstance[4], 10) : repMin;
-        let repTarget = hasReplace ? parseInt(matchInstance[5], 10) : null;
-        let modifier = matchInstance[6] || "";
-
-        // Centralized Roll Generator
-        const getRoll = () => {
-          let r = Math.floor(Math.random() * sides) + 1;
-          return hasReplace && r >= repMin && r <= repMax ? repTarget : r;
-        };
-
-        let evaluatedNumericValue = 0;
-        let logString = "";
-        let finalRollsArray = []; // Tracks specific faces for Yahtzee/Max/Min crit evaluations
-
-        // 1. Daggerheart Interceptor
-        if (modifier === "daggerheart") {
-          let hopeRoll = getRoll();
-          let fearRoll = getRoll();
-          evaluatedNumericValue = hopeRoll + fearRoll;
-          finalRollsArray = [hopeRoll, fearRoll];
-
-          let outcome =
-            hopeRoll === fearRoll
-              ? "CRITICAL SUCCESS! ✨"
-              : hopeRoll > fearRoll
-                ? "Roll with HOPE ☀️"
-                : "Roll with FEAR 🌙";
-
-          daggerheartContext = `[Hope: ${hopeRoll} | Fear: ${fearRoll}] -> ${outcome}`;
-          logString = `${fullDiceExpression} (${hopeRoll} hope, ${fearRoll} fear)`;
-        }
-        // 2. Pool Matching Syntax
-        else if (
-          modifier.startsWith("p") &&
-          (modifier.includes("kh") || modifier.includes("kl"))
-        ) {
-          let isHighest = modifier.includes("kh");
-          let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
-          let poolIterations = parseInt(poolMatch[1], 10);
-          let keepCount = parseInt(poolMatch[3], 10);
-
-          let poolTotals = [];
-          let poolDetails = [];
-
-          for (let i = 0; i < poolIterations; i++) {
-            let currentIterationRolls = [];
-            for (let j = 0; j < count; j++) {
-              currentIterationRolls.push(getRoll());
-            }
-            let currentIterationTotal = currentIterationRolls.reduce(
-              (sum, val) => sum + val,
-              0,
-            );
-            poolTotals.push(currentIterationTotal);
-            poolDetails.push(
-              `[${currentIterationRolls.join("+")} = ${currentIterationTotal}]`,
-            );
-          }
-
-          let keptPools = [];
-          if (isHighest) {
-            keptPools = [...poolTotals]
-              .sort((a, b) => b - a)
-              .slice(0, keepCount);
-            logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(" vs ")} } -> Kept Highest ${keepCount}: (${keptPools.join("+")})`;
-          } else {
-            keptPools = [...poolTotals]
-              .sort((a, b) => a - b)
-              .slice(0, keepCount);
-            logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(" vs ")} } -> Kept Lowest ${keepCount}: (${keptPools.join("+")})`;
-          }
-          evaluatedNumericValue = keptPools.reduce((sum, val) => sum + val, 0);
-          finalRollsArray = keptPools; // Yahtzee logic doesn't cleanly apply to pools, but we map it for safety
-        }
-        // 3. Standard Keep Highest
-        else if (modifier.startsWith("kh")) {
-          let keepCount = parseInt(modifier.replace("kh", ""), 10);
-          let rolls = [];
-          for (let i = 0; i < count; i++) {
-            rolls.push(getRoll());
-          }
-          let kept = [...rolls].sort((a, b) => b - a).slice(0, keepCount);
-          evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
-          logString = `${fullDiceExpression} [Rolls: ${rolls.join(", ")}] Kept: (${kept.join("+")})`;
-          finalRollsArray = kept;
-        }
-        // 4. Standard Keep Lowest
-        else if (modifier.startsWith("kl")) {
-          let keepCount = parseInt(modifier.replace("kl", ""), 10);
-          let rolls = [];
-          for (let i = 0; i < count; i++) {
-            rolls.push(getRoll());
-          }
-          let kept = [...rolls].sort((a, b) => a - b).slice(0, keepCount);
-          evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
-          logString = `${fullDiceExpression} [Rolls: ${rolls.join(", ")}] Kept: (${kept.join("+")})`;
-          finalRollsArray = kept;
-        }
-        // 5. Reroll System (Substitutive & Additive)
-        else if (modifier.startsWith("reroll")) {
-          let rerollMatch = modifier.match(
-            /reroll(once|repeating|additively|additivelyrepeating)\[([^\]]+)\]/,
-          );
-          let mode = rerollMatch[1];
-          let targetRaw = rerollMatch[2];
-
-          // Allow variable insertion, "max", or "min"
-          if (
-            Object.keys(activeVars).some((k) => k.toLowerCase() === targetRaw)
-          ) {
-            let key = Object.keys(activeVars).find(
-              (k) => k.toLowerCase() === targetRaw,
-            );
-            targetRaw = String(activeVars[key]).trim().toLowerCase();
-          }
-          let targetNum =
-            targetRaw === "max"
-              ? sides
-              : targetRaw === "min"
-                ? 1
-                : parseInt(targetRaw, 10);
-
-          let rollsDisplay = [];
-          let cumulativeSumsArray = [];
-          let cumulativeSum = 0;
-
-          for (let i = 0; i < count; i++) {
-            let currentRoll = getRoll();
-            let singleDieLogs = [];
-            let dieTotal = currentRoll;
-            let iterations = 0;
-
-            // Substitutive Mode (Replaces the die)
-            if (mode === "once" || mode === "repeating") {
-              if (currentRoll === targetNum && sides > 1) {
-                singleDieLogs.push(`~~${currentRoll}~~`);
-                let maxIter = mode === "once" ? 1 : 50; // Infinite loop safety cap
-
-                while (
-                  currentRoll === targetNum &&
-                  iterations < maxIter &&
-                  sides > 1
-                ) {
-                  currentRoll = getRoll();
-                  iterations++;
-                  if (currentRoll === targetNum && iterations < maxIter) {
-                    singleDieLogs.push(`~~${currentRoll}~~`);
-                  }
-                }
-                singleDieLogs.push(`${currentRoll}`);
-                dieTotal = currentRoll;
-              } else {
-                singleDieLogs.push(`${currentRoll}`);
-              }
-              cumulativeSum += dieTotal;
-              cumulativeSumsArray.push(dieTotal);
-            }
-            // Additive Mode (Exploding dice replacement)
-            else if (mode === "additively" || mode === "additivelyrepeating") {
-              singleDieLogs.push(`${currentRoll}`);
-              if (currentRoll === targetNum && sides > 1) {
-                let maxIter = mode === "additively" ? 1 : 50; // Infinite loop safety cap
-
-                while (
-                  currentRoll === targetNum &&
-                  iterations < maxIter &&
-                  sides > 1
-                ) {
-                  currentRoll = getRoll();
-                  singleDieLogs.push(`${currentRoll}`);
-                  dieTotal += currentRoll;
-                  iterations++;
-                }
-              }
-              cumulativeSum += dieTotal;
-              cumulativeSumsArray.push(dieTotal);
-            }
-
-            // Format Markdown output
-            if (singleDieLogs.length > 1) {
-              rollsDisplay.push(
-                `(${singleDieLogs.join(mode.includes("additively") ? "+" : " -> ")})`,
-              );
-            } else {
-              rollsDisplay.push(singleDieLogs[0]);
-            }
-          }
-
-          evaluatedNumericValue = cumulativeSum;
-          logString = `${fullDiceExpression} [Dice: ${rollsDisplay.join(", ")}] Total: ${evaluatedNumericValue}`;
-          finalRollsArray = cumulativeSumsArray;
-        }
-        // 6. Plain Vanilla
-        else {
-          let rolls = [];
-          for (let i = 0; i < count; i++) {
-            rolls.push(getRoll());
-          }
-          evaluatedNumericValue = rolls.reduce((sum, val) => sum + val, 0);
-          logString = `${fullDiceExpression} (${rolls.join("+")}=${evaluatedNumericValue})`;
-          finalRollsArray = rolls;
-        }
-
-        // Determine how many dice are actually kept for max/min crit calculation
-        let keptCount = count;
-        if (modifier) {
-          if (modifier.startsWith("kh") || modifier.startsWith("kl")) {
-            keptCount = parseInt(modifier.replace(/k[hl]/, ""), 10);
-          } else if (
-            modifier.startsWith("p") &&
-            (modifier.includes("kh") || modifier.includes("kl"))
-          ) {
-            let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
-            let poolKeep = parseInt(poolMatch[3], 10);
-            keptCount = poolKeep * count; // Sets kept * dice per set
-          } else if (modifier === "daggerheart") {
-            keptCount = 2;
-          }
-        }
-
-        // Lock in the anchor roll metrics for crit tracking
-        if (!primaryRoll && count > 0) {
-          primaryRoll = {
-            count: keptCount,
-            sides: sides,
-            total: evaluatedNumericValue,
-            rolls: finalRollsArray,
-          };
-        }
-
-        breakdownLogs.push(logString);
-        workingExpr = workingExpr.replace(
-          fullDiceExpression,
-          evaluatedNumericValue,
-        );
-      }
-
-      // STEP 4: STANDARD PEMDAS MATHEMATICS EVALUATION
-      workingExpr = workingExpr.replace(/\s+/g, "");
-
-      if (/[^0-9\+\-\*\/\(\)\.]/.test(workingExpr)) {
-        throw new Error(
-          `Syntax Error: Unexpected math operator configuration remaining in "${workingExpr}"`,
-        );
-      }
-
-      return Function(`'use strict'; return (${workingExpr})`)();
-    }
-
-    // STEP 5: RESULT MAPPER INTERCEPTOR & CRIT RESOLUTION
-    let isLessThan = formulaString.includes("lessthanvs");
-    let splitOperator = isLessThan
-      ? "lessthanvs"
-      : formulaString.includes("vs")
-        ? "vs"
-        : null;
-
-    let baseFormula = splitOperator
-      ? formulaString.split(splitOperator)[0]
-      : formulaString;
-
-    let finalResultTotal = evaluateMathAndDice(baseFormula);
-    let resultContext = null;
-    let isSuccess = null; // Boolean tracker to contextualize "doubles"
-
-    // Evaluate target DCs
-    if (splitOperator) {
-      let targets = formulaString.split(splitOperator)[1].split("/");
-
-      if (targets.length === 1) {
-        let targetDC = evaluateMathAndDice(targets[0]);
-        isSuccess = isLessThan
-          ? finalResultTotal <= targetDC
-          : finalResultTotal >= targetDC;
-        let opDisplay = isLessThan ? "<=" : "vs";
-
-        resultContext = isSuccess
-          ? `[${opDisplay} ${targetDC}] -> SUCCESS ✨`
-          : `[${opDisplay} ${targetDC}] -> FAILURE ❌`;
-      } else if (targets.length === 2) {
-        let weakDC = evaluateMathAndDice(targets[0]);
-        let strongDC = evaluateMathAndDice(targets[1]);
-
-        if (isLessThan) {
-          isSuccess = finalResultTotal <= weakDC;
-          if (finalResultTotal <= strongDC) {
-            resultContext = `[<= ${weakDC}/${strongDC}] -> STRONG SUCCESS ✨`;
-          } else if (finalResultTotal <= weakDC) {
-            resultContext = `[<= ${weakDC}/${strongDC}] -> WEAK SUCCESS ⚠️`;
-          } else {
-            resultContext = `[<= ${weakDC}/${strongDC}] -> FAILURE ❌`;
-          }
-        } else {
-          isSuccess = finalResultTotal >= weakDC;
-          if (finalResultTotal >= strongDC) {
-            resultContext = `[vs ${weakDC}/${strongDC}] -> STRONG SUCCESS ✨`;
-          } else if (finalResultTotal >= weakDC) {
-            resultContext = `[vs ${weakDC}/${strongDC}] -> WEAK SUCCESS ⚠️`;
-          } else {
-            resultContext = `[vs ${weakDC}/${strongDC}] -> FAILURE ❌`;
-          }
-        }
-      }
-    }
-
-    // --- NEW: CRIT RULE EVALUATOR ---
-    function checkCrit(rulesArray, isCheckingSuccess) {
-      if (!primaryRoll) return false;
-
-      for (let ruleRaw of rulesArray) {
-        let rule = ruleRaw;
-        // Hot-swap in variable targets if requested
-        let key = Object.keys(activeVars).find(
-          (k) => k.toLowerCase() === ruleRaw,
-        );
-        if (key) rule = String(activeVars[key]).trim().toLowerCase();
-
-        if (rule === "max") {
-          if (primaryRoll.total === primaryRoll.count * primaryRoll.sides)
-            return true;
-        } else if (rule === "min") {
-          if (primaryRoll.total === primaryRoll.count) return true;
-        } else if (rule === "doubles") {
-          const totalStr = String(primaryRoll.total);
-          // Matches format (11, 22, 111) but rejects single digits like (9)
-          if (totalStr.length > 1 && /^(\d)\1+$/.test(totalStr)) {
-            // Smart context handling based on the pass/fail boolean state
-            if (isSuccess === true && isCheckingSuccess) return true;
-            if (isSuccess === false && !isCheckingSuccess) return true;
-            if (isSuccess === null) return true;
-          }
-        } else if (rule === "yahtzee") {
-          if (
-            primaryRoll.rolls.length > 1 &&
-            primaryRoll.rolls.every((r) => r === primaryRoll.rolls[0])
-          ) {
-            return true;
-          }
-        } else if (/^\d+-\d+$/.test(rule)) {
-          let parts = rule.split("-");
-          if (
-            primaryRoll.total >= parseInt(parts[0], 10) &&
-            primaryRoll.total <= parseInt(parts[1], 10)
-          )
-            return true;
-        } else if (/^\d+$/.test(rule)) {
-          if (primaryRoll.total === parseInt(rule, 10)) return true;
-        }
-      }
-      return false;
-    }
-
-    let gotCritSuccess = checkCrit(critSuccessRules, true);
-    let gotCritFail = checkCrit(critFailRules, false);
-    let critContextTokens = [];
-
-    if (gotCritSuccess) critContextTokens.push("🌟 CRITICAL SUCCESS!");
-    if (gotCritFail) critContextTokens.push("💀 CRITICAL FAILURE!");
-
-    let combinedContext = [
-      daggerheartContext,
-      resultContext,
-      ...critContextTokens,
-    ]
-      .filter(Boolean)
-      .join(" | ");
-
-    let isDhCritSuccess = daggerheartContext
-      ? daggerheartContext.includes("CRITICAL SUCCESS")
-      : false;
-
-    return {
-      total: finalResultTotal,
-      breakdown: breakdownLogs.length > 0 ? breakdownLogs.join(" -> ") : null,
-      dhContext: combinedContext.length > 0 ? combinedContext : null,
-      isCritSuccess: gotCritSuccess || isDhCritSuccess, // Expose success
-      isCritFail: gotCritFail, // Expose failure
-      isSuccess: isSuccess, // expose success/failure state for external use
-    };
-  } catch (error) {
-    console.error(error);
-    showStatus(
-      error.message || "Error evaluating math formula structure!",
-      true,
-    );
-    return null;
-  }
-}
-
-function rollExplodingDie(sides, logs = []) {
-  // Instant safety guard against infinite loops (d1)
-  if (sides <= 1) {
-    logs.push("1");
-    return 1;
-  }
-
-  const roll = Math.floor(Math.random() * sides) + 1;
-
-  if (roll === sides) {
-    logs.push(`${roll}!`);
-    return roll + rollExplodingDie(sides, logs);
-  } else {
-    logs.push(`${roll}`);
-    return roll;
-  }
-}
-
-function executeRoll(label, formula, note, buttonElement) {
-  const missing = getMissingVariables(formula);
-  if (missing.length > 0) {
-    showStatus(`Cannot roll! Missing variables: ${missing.join(", ")}`, true);
-    return;
-  }
-
-  const currentTime = Date.now();
-  // Pass both label and formula to parseAndRoll
-  const rollData = parseAndRoll(label, formula);
-
-  if (!rollData || isNaN(rollData.total)) {
-    showStatus("Error evaluating math or dice formula! Check syntax.", true);
-    return;
-  }
-
-  // --- TRIGGER VISUALS ---
-  if (rollData.isCritSuccess) {
-    triggerCritSuccessVisuals();
-  } else if (rollData.isCritFail) {
-    triggerCritFailVisuals();
-  } else if (rollData.isSuccess === true) {
-    // Flash green for standard success, no particles
-    triggerBackgroundFlash(success_color, success_fail_flash_duration);
-  } else if (rollData.isSuccess === false) {
-    // Flash red for standard failure, no particles
-    triggerBackgroundFlash(fail_color, success_fail_flash_duration);
-  }
-
-  // Format single roll line strings cleanly with current active character name
-  let singleLineOutput = `*${currentCharacter} rolls ${label} (${formula}):* **${rollData.total}**`;
-  if (rollData.dhContext) singleLineOutput += ` ${rollData.dhContext}`;
-  if (rollData.breakdown)
-    singleLineOutput += ` [Details: ${rollData.breakdown}]`;
-  if (note) singleLineOutput += ` *(${note})*`;
-
-  if (currentTime - lastRollTime > COMBO_TIMEOUT_MS) {
-    rollBuffer = [];
-  }
-
-  rollBuffer.push(singleLineOutput);
-  lastRollTime = currentTime;
-
-  const combinedOutputText = rollBuffer.join("\n");
-
-  navigator.clipboard
-    .writeText(combinedOutputText)
-    .then(() => {
-      showStatus(
-        rollBuffer.length > 1
-          ? `Combined sequence copy active (${rollBuffer.length} rolls)!`
-          : `Copied roll for ${label}!`,
-      );
-
-      document.getElementById("resTitle").innerHTML =
-        `Active Stack: <strong>${rollBuffer.length} Roll(s)</strong>`;
-      document.getElementById("resRaw").innerText = combinedOutputText;
-
-      const timerBadge = document.getElementById("bufferTimer");
-      timerBadge.style.display = "inline-block";
-      timerBadge.innerText = `Combo active: +10s added`;
-
-      if (buttonElement) {
-        // 1. Cancel any active reset timer from a previous rapid click
-        if (buttonElement._flashTimeout) {
-          clearTimeout(buttonElement._flashTimeout);
-        }
-
-        // 2. Preserve the initial label before applying the flash state
-        if (!buttonElement.dataset.originalText) {
-          buttonElement.dataset.originalText = buttonElement.innerText;
-        }
-
-        const originalText = buttonElement.dataset.originalText;
-        buttonElement.innerText = "✓ Added!";
-        buttonElement.classList.add("success-flash");
-
-        // 3. Set timer to restore label and clean up dataset tracking
-        buttonElement._flashTimeout = setTimeout(() => {
-          buttonElement.innerText = originalText;
-          buttonElement.classList.remove("success-flash");
-          delete buttonElement.dataset.originalText;
-          buttonElement._flashTimeout = null;
-        }, 600);
-      }
-    })
-    .catch((err) => {
-      showStatus("Clipboard execution error!", true);
-    });
-}
-
-// --- CORE DICE ROLL SIMULATOR ---
-function rollBasicDice(countStr, sidesStr) {
-  const count = countStr ? parseInt(countStr) : 1;
-  const sides = parseInt(sidesStr);
-  let rolls = [];
-  for (let i = 0; i < count; i++) {
-    rolls.push(Math.floor(Math.random() * sides) + 1);
-  }
-  return {
-    total: rolls.reduce((a, b) => a + b, 0),
-    breakdown: rolls,
-  };
-}
-
-function evaluateSimpleExpression(expr, detailedRolls) {
-  const diceRegex = /(\d*)d(\d+)(kh|kl)?(\d*)/g;
-
-  return expr.replace(diceRegex, (match, countStr, sidesStr, mod, keepStr) => {
-    const count = countStr ? parseInt(countStr) : 1;
-    const sides = parseInt(sidesStr);
-    const roll = rollBasicDice(count, sides);
-
-    const formatRoll = (val) => {
-      if (sides === 20 && (val === 1 || val === 20)) {
-        return `Natural ${val}`;
-      }
-      return val;
-    };
-
-    if (mod) {
-      const keepCount = keepStr ? parseInt(keepStr) : 1;
-      let indexed = roll.breakdown.map((val, idx) => ({ val, idx }));
-
-      if (mod === "kh") indexed.sort((a, b) => b.val - a.val);
-      else indexed.sort((a, b) => a.val - b.val);
-
-      let keptIndices = indexed.slice(0, keepCount).map((item) => item.idx);
-      let keptRolls = [];
-      let droppedRolls = [];
-
-      roll.breakdown.forEach((val, idx) => {
-        let formattedVal = formatRoll(val);
-        if (keptIndices.includes(idx)) {
-          keptRolls.push(formattedVal);
-        } else {
-          droppedRolls.push(formattedVal);
-        }
-      });
-
-      let allRollsStr = roll.breakdown.map(formatRoll).join(" OR ");
-      let stringBreakdown = `${allRollsStr} -> Kept: ${keptRolls.join(", ")}`;
-
-      detailedRolls.push(
-        `${count}d${sides}${mod}${keepCount} (${stringBreakdown})`,
-      );
-      let keptSum = indexed
-        .slice(0, keepCount)
-        .reduce((sum, item) => sum + item.val, 0);
-      return `(${keptSum})`;
-    } else {
-      let formattedBreakdown = roll.breakdown.map(formatRoll).join("+");
-      detailedRolls.push(`${count}d${sides} (${formattedBreakdown})`);
-      return `(${roll.total})`;
-    }
-  });
-}
-
-// Auto-cleanup timer window update loop
-setInterval(() => {
-  if (rollBuffer.length > 0) {
-    const timePassed = Date.now() - lastRollTime;
-    const timerBadge = document.getElementById("bufferTimer");
-
-    if (timePassed > COMBO_TIMEOUT_MS) {
-      timerBadge.style.display = "none";
-      document.getElementById("resTitle").innerHTML =
-        `Stack Expired <span style="font-size:12px; font-weight:normal; color:#a6adc8;">(Next click resets)</span>`;
-    } else {
-      const remainingSeconds = ((COMBO_TIMEOUT_MS - timePassed) / 1000).toFixed(
-        1,
-      );
-      timerBadge.innerText = `Combo Window: ${remainingSeconds}s`;
-    }
-  }
-}, 200);
-
-// --- UI & STATE MANAGEMENT ---
-function saveToStorage() {
-  localStorage.setItem("dice_profiles_v2", JSON.stringify(database));
-  localStorage.setItem("current_dice_char", currentCharacter);
-}
-
-// Modal Display Control Functions
-function openModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove("modal-hidden");
-  }
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.add("modal-hidden");
-  }
-}
-
-// Optional: Close modals automatically if the user presses the 'Escape' key
-window.addEventListener("keydown", function (event) {
-  if (event.key === "Escape") {
-    document.querySelectorAll(".modal-overlay").forEach((modal) => {
-      modal.classList.add("modal-hidden");
-    });
-  }
-});
-
-function renderNotes() {
-  const notesArea = document.getElementById("charNotes");
-  if (notesArea) {
-    notesArea.value = database[currentCharacter].notes || "";
-  }
-}
-
-function renderCharacterSelect() {
-  const select = document.getElementById("charSelect");
-  if (!select) return;
-  select.innerHTML = "";
-  Object.keys(database).forEach((char) => {
-    const opt = document.createElement("option");
-    opt.value = char;
-    opt.innerText = char;
-    if (char === currentCharacter) opt.selected = true;
-    select.appendChild(opt);
-  });
-}
-
-function renderVariables() {
-  const varContainer = document.getElementById("varContainer");
-  if (!varContainer) return;
-  varContainer.innerHTML = "";
-  const variables = database[currentCharacter].variables || {};
-
-  Object.keys(variables).forEach((varName) => {
-    const badge = document.createElement("div");
-    badge.className = "var-badge";
-    badge.dataset.varname = varName;
-    badge.style.cursor = "grab";
-
-    const label = document.createElement("span");
-    label.className = "var-name";
-    label.innerText = varName;
-
-    const input = document.createElement("input");
-    const isNumeric =
-      !isNaN(parseFloat(variables[varName])) && isFinite(variables[varName]);
-    input.type = isNumeric ? "number" : "text";
-    input.className = "var-val-input";
-    input.value = variables[varName];
-    input.onchange = function () {
-      updateVariableValue(varName, this.value);
-    };
-
-    const delBtn = document.createElement("button");
-    delBtn.className = "var-del-btn";
-    delBtn.innerHTML = "✕";
-    delBtn.title = `Delete variable ${varName}`;
-    delBtn.onclick = function (e) {
-      e.stopPropagation();
-      removeVariable(varName);
-    };
-
-    badge.appendChild(label);
-    badge.appendChild(input);
-    badge.appendChild(delBtn);
-    varContainer.appendChild(badge);
-  });
-
-  setupVariableDragAndDrop();
-}
-
-function setupVariableDragAndDrop() {
-  const container = document.getElementById("varContainer");
-  if (!container || container._customDragSetup) return;
-  container._customDragSetup = true;
-
-  let dragState = null;
-
-  function getBadgeFromPoint(x, y) {
-    const el = document.elementFromPoint(x, y);
-    return el ? el.closest(".var-badge") : null;
-  }
-
-  container.addEventListener("pointerdown", (e) => {
-    const badge = e.target.closest(".var-badge");
-    if (!badge) return;
-
-    // Let inputs, buttons, and the delete X work normally
-    if (e.target.closest("input, button, .var-del-btn")) return;
-
-    dragState = {
-      name: badge.dataset.varname,
-      sourceBadge: badge,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      isDragging: false,
-    };
-  });
-
-  function onPointerMove(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return;
-
-    if (!dragState.isDragging) {
-      const dx = e.clientX - dragState.startX;
-      const dy = e.clientY - dragState.startY;
-      if (Math.sqrt(dx * dx + dy * dy) <= 5) return;
-
-      dragState.isDragging = true;
-      dragState.sourceBadge.classList.add("dragging");
-      // Make the source invisible to hit-testing so we can detect the target underneath
-      dragState.sourceBadge.style.pointerEvents = "none";
-      dragState.sourceBadge.setPointerCapture(e.pointerId);
-    }
-
-    e.preventDefault();
-
-    const targetBadge = getBadgeFromPoint(e.clientX, e.clientY);
-
-    container.querySelectorAll(".var-badge").forEach((el) => {
-      const isTarget =
-        targetBadge &&
-        targetBadge !== dragState.sourceBadge &&
-        targetBadge.dataset.varname !== dragState.name &&
-        el === targetBadge;
-      el.classList.toggle("drag-target", isTarget);
-    });
-  }
-
-  function endDrag(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return;
-
-    let didReorder = false;
-
-    if (dragState.isDragging) {
-      const targetBadge = getBadgeFromPoint(e.clientX, e.clientY);
-
-      if (targetBadge && targetBadge.dataset.varname !== dragState.name) {
-        const variables = database[currentCharacter].variables;
-        const keys = Object.keys(variables);
-        const sourceIndex = keys.indexOf(dragState.name);
-        const targetIndex = keys.indexOf(targetBadge.dataset.varname);
-
-        if (sourceIndex !== -1 && targetIndex !== -1) {
-          keys.splice(sourceIndex, 1);
-          keys.splice(targetIndex, 0, dragState.name);
-
-          const newVariables = {};
-          keys.forEach((k) => (newVariables[k] = variables[k]));
-          database[currentCharacter].variables = newVariables;
-          saveToStorage();
-          didReorder = true;
-        }
-      }
-
-      dragState.sourceBadge.style.pointerEvents = "";
-      dragState.sourceBadge.classList.remove("dragging");
-      container
-        .querySelectorAll(".var-badge")
-        .forEach((el) => el.classList.remove("drag-target"));
-
-      if (dragState.sourceBadge.hasPointerCapture(e.pointerId)) {
-        dragState.sourceBadge.releasePointerCapture(e.pointerId);
-      }
-    }
-
-    if (didReorder) {
-      renderVariables();
-    }
-
-    dragState = null;
-  }
-
-  document.addEventListener("pointermove", onPointerMove);
-  document.addEventListener("pointerup", endDrag);
-  document.addEventListener("pointercancel", endDrag);
-}
-
-function renderDiceGrid() {
-  const grid = document.getElementById("diceGrid");
-  if (!grid) return;
-  grid.innerHTML = "";
-  const buttons = database[currentCharacter].buttons || [];
-
-  buttons.forEach((btn, index) => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "dice-btn";
-    wrapper.dataset.index = index.toString();
-    wrapper.style.cursor = "grab";
-
-    const missingVars = getMissingVariables(btn.formula);
-    if (missingVars.length > 0) {
-      wrapper.classList.add("broken");
-    }
-
-    const rollBtn = document.createElement("button");
-    rollBtn.style.width = "100%";
-    rollBtn.style.whiteSpace = "pre-line";
-    rollBtn.style.cursor = "pointer";
-    rollBtn.innerText = btn.label;
-
-    let tooltipText = `Formula: ${btn.formula}`;
-    if (btn.note) tooltipText += `\nNote: ${btn.note}`;
-    rollBtn.title = tooltipText;
-
-    rollBtn.onclick = function () {
-      executeRoll(btn.label, btn.formula, btn.note, this);
-    };
-
-    const errorBadge = document.createElement("div");
-    errorBadge.className = "error-badge";
-    errorBadge.innerText = `⚠️ Missing: ${missingVars.join(", ")}`;
-
-    const delBtn = document.createElement("button");
-    delBtn.className = "delete-corner-btn";
-    delBtn.innerText = "✕";
-    delBtn.title = `Delete ${btn.label}`;
-    delBtn.onclick = (e) => {
-      e.stopPropagation();
-      removeButton(index, btn.label);
-    };
-
-    wrapper.appendChild(rollBtn);
-    wrapper.appendChild(errorBadge);
-    wrapper.appendChild(delBtn);
-    grid.appendChild(wrapper);
-  });
-
-  setupButtonDragAndDrop();
-}
-
-function setupButtonDragAndDrop() {
-  const grid = document.getElementById("diceGrid");
-  if (!grid || grid._customDragSetup) return;
-  grid._customDragSetup = true;
-
-  let dragState = null;
-
-  function getCardFromPoint(x, y) {
-    const el = document.elementFromPoint(x, y);
-    return el ? el.closest(".dice-btn") : null;
-  }
-
-  grid.addEventListener("pointerdown", (e) => {
-    const card = e.target.closest(".dice-btn");
-    if (!card) return;
-
-    // Never drag when clicking the delete X
-    if (e.target.closest(".delete-corner-btn")) return;
-
-    dragState = {
-      index: parseInt(card.dataset.index, 10),
-      sourceCard: card,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      isDragging: false,
-    };
-  });
-
-  function onPointerMove(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return;
-
-    if (!dragState.isDragging) {
-      const dx = e.clientX - dragState.startX;
-      const dy = e.clientY - dragState.startY;
-      if (Math.sqrt(dx * dx + dy * dy) <= 5) return;
-
-      dragState.isDragging = true;
-      dragState.sourceCard.classList.add("dragging");
-      dragState.sourceCard.style.pointerEvents = "none";
-      dragState.sourceCard.setPointerCapture(e.pointerId);
-    }
-
-    e.preventDefault();
-
-    const targetCard = getCardFromPoint(e.clientX, e.clientY);
-
-    grid.querySelectorAll(".dice-btn").forEach((el) => {
-      const isTarget =
-        targetCard &&
-        targetCard !== dragState.sourceCard &&
-        parseInt(targetCard.dataset.index, 10) !== dragState.index &&
-        el === targetCard;
-      el.classList.toggle("drag-target", isTarget);
-    });
-  }
-
-  function endDrag(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return;
-
-    let didReorder = false;
-
-    if (dragState.isDragging) {
-      const targetCard = getCardFromPoint(e.clientX, e.clientY);
-
-      if (targetCard) {
-        const targetIndex = parseInt(targetCard.dataset.index, 10);
-        if (targetIndex !== dragState.index) {
-          const movedItem = database[currentCharacter].buttons.splice(
-            dragState.index,
-            1,
-          )[0];
-          database[currentCharacter].buttons.splice(targetIndex, 0, movedItem);
-          saveToStorage();
-          didReorder = true;
-        }
-      }
-
-      dragState.sourceCard.style.pointerEvents = "";
-      dragState.sourceCard.classList.remove("dragging");
-      grid
-        .querySelectorAll(".dice-btn")
-        .forEach((el) => el.classList.remove("drag-target"));
-
-      if (dragState.sourceCard.hasPointerCapture(e.pointerId)) {
-        dragState.sourceCard.releasePointerCapture(e.pointerId);
-      }
-    }
-
-    if (didReorder) {
-      renderUI();
-    }
-
-    dragState = null;
-  }
-
-  document.addEventListener("pointermove", onPointerMove);
-  document.addEventListener("pointerup", endDrag);
-  document.addEventListener("pointercancel", endDrag);
-}
-
-// Master coordinator function
-function renderUI() {
-  const t0 = performance.now();
-  ensureCharacterStructure(currentCharacter);
-  renderNotes();
-  renderCharacterSelect();
-  renderVariables();
-  renderDiceGrid();
-  logElapsed("[renderUI]", t0, 50);
-}
-
-// --- VARIABLE MANAGEMENT SUB-ROUTINES ---
-function addVariable() {
+DiceApp.addVariable = function () {
   const nameInput = document.getElementById("newVarName");
-  const valInput = document.getElementById("newVarValue"); // Ensure this is also type="text" in your HTML!
+  const valInput = document.getElementById("newVarValue");
 
   const rawName = nameInput.value.trim().toUpperCase();
-  const cleanName = rawName.replace(/[^A-Z_-]/g, ""); //allow uppercase letters, underscore and dashes
+  const cleanName = rawName.replace(/[^A-Z_-]/g, "");
   const valueStr = valInput.value.trim();
 
   if (!cleanName) {
@@ -1340,81 +31,77 @@ function addVariable() {
   const finalValue =
     !isNaN(cleanVal) && cleanVal.toString() === valueStr ? cleanVal : valueStr;
 
-  database[currentCharacter].variables[cleanName] = finalValue;
-  saveToStorage();
-  renderUI();
+  DiceApp.database[DiceApp.currentCharacter].variables[cleanName] = finalValue;
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
 
   nameInput.value = "";
   valInput.value = "";
   showStatus(`Variable "${cleanName}" added!`);
-}
+};
 
-function updateVariableValue(name, val) {
+DiceApp.updateVariableValue = function (name, val) {
   const valueStr = val.trim();
   const cleanVal = parseFloat(valueStr);
 
-  // Store as a strict number if it is one, otherwise store the raw text formula string
-  database[currentCharacter].variables[name] =
+  DiceApp.database[DiceApp.currentCharacter].variables[name] =
     !isNaN(cleanVal) && cleanVal.toString() === valueStr ? cleanVal : valueStr;
 
-  saveToStorage();
-  renderUI();
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
   showStatus(`Updated variable "${name}"`);
-}
+};
 
-function updateNotes(text) {
-  database[currentCharacter].notes = text;
-  saveToStorage();
-}
-
-function removeVariable(name) {
+DiceApp.removeVariable = function (name) {
   if (confirm(`Delete character variable "${name}"?`)) {
-    delete database[currentCharacter].variables[name];
-    saveToStorage();
-    renderUI();
+    delete DiceApp.database[DiceApp.currentCharacter].variables[name];
+    DiceApp.saveToStorage();
+    DiceApp.renderUI();
     showStatus(`Deleted variable "${name}".`);
   }
-}
+};
 
-// --- GENERAL MANAGEMENT ---
-function switchCharacter() {
-  currentCharacter = document.getElementById("charSelect").value;
-  saveToStorage();
-  renderUI();
-  rollBuffer = [];
+DiceApp.switchCharacter = function () {
+  DiceApp.currentCharacter = document.getElementById("charSelect").value;
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+  DiceApp.rollBuffer = [];
+  DiceApp.lastRollTime = 0;
   document.getElementById("resTitle").innerText = "No dice rolled yet...";
   document.getElementById("resRaw").innerText =
     "Click a custom action button above to calculate a formula string.";
   document.getElementById("bufferTimer").style.display = "none";
-}
+};
 
-function createCharacter() {
+DiceApp.createCharacter = function () {
   const name = document.getElementById("newCharName").value.trim();
   if (!name) return;
-  if (!database[name])
-    database[name] = { buttons: [], variables: {}, notes: "" }; // Updated line
-  currentCharacter = name;
+  if (!DiceApp.database[name])
+    DiceApp.database[name] = { buttons: [], variables: {}, notes: "" };
+  DiceApp.currentCharacter = name;
   document.getElementById("newCharName").value = "";
-  saveToStorage();
-  renderUI();
-}
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+};
 
-function deleteCharacter() {
+DiceApp.deleteCharacter = function () {
   if (
     confirm(
-      `Are you sure you want to delete all profiles/buttons for ${currentCharacter}?`,
+      `Are you sure you want to delete all profiles/buttons for ${DiceApp.currentCharacter}?`,
     )
   ) {
-    delete database[currentCharacter];
-    const remaining = Object.keys(database);
-    currentCharacter = remaining.length ? remaining[0] : "Example Paladin";
-    ensureCharacterStructure(currentCharacter);
-    saveToStorage();
-    renderUI();
+    delete DiceApp.database[DiceApp.currentCharacter];
+    const remaining = Object.keys(DiceApp.database);
+    DiceApp.currentCharacter = remaining.length
+      ? remaining[0]
+      : "Example Paladin";
+    DiceApp.ensureCharacterStructure(DiceApp.currentCharacter);
+    DiceApp.saveToStorage();
+    DiceApp.renderUI();
   }
-}
+};
 
-function addButton() {
+DiceApp.addButton = function () {
   const label = document.getElementById("btnLabel").value.trim();
   const formula = document.getElementById("btnFormula").value.trim();
   const note = document.getElementById("btnNote").value.trim();
@@ -1424,243 +111,122 @@ function addButton() {
     return;
   }
 
-  database[currentCharacter].buttons.push({ label, formula, note });
-  saveToStorage();
-  renderUI();
+  DiceApp.database[DiceApp.currentCharacter].buttons.push({
+    label,
+    formula,
+    note,
+  });
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
 
   document.getElementById("btnLabel").value = "";
   document.getElementById("btnFormula").value = "";
   document.getElementById("btnNote").value = "";
-}
+};
 
-function removeButton(index, label) {
+DiceApp.removeButton = function (index, label) {
   if (confirm(`Delete the "${label}" macro button?`)) {
-    database[currentCharacter].buttons.splice(index, 1);
-    saveToStorage();
-    renderUI();
+    DiceApp.database[DiceApp.currentCharacter].buttons.splice(index, 1);
+    DiceApp.saveToStorage();
+    DiceApp.renderUI();
     showStatus(`Deleted "${label}" macro.`);
   }
-}
+};
 
-// --- DATA IMPORT / EXPORT DATA LOGIC ---
-function exportCharacter() {
-  ensureCharacterStructure(currentCharacter);
-  const exportPack = {
-    characterName: currentCharacter,
-    buttons: database[currentCharacter].buttons,
-    variables: database[currentCharacter].variables,
-    notes: database[currentCharacter].notes, // Added notes property
-  };
-  document.getElementById("ioJson").value = JSON.stringify(exportPack);
-  showStatus("JSON package generated! Copy it from the text block below.");
-}
+DiceApp.updateNotes = function (text) {
+  DiceApp.database[DiceApp.currentCharacter].notes = text;
+  DiceApp.saveToStorage();
+};
 
-function importCharacter() {
-  const rawJson = document.getElementById("ioJson").value.trim();
-  try {
-    const parsed = JSON.parse(rawJson);
-    if (parsed.characterName && Array.isArray(parsed.buttons)) {
-      database[parsed.characterName] = {
-        buttons: parsed.buttons,
-        variables: parsed.variables || {},
-        notes: parsed.notes || "", // Added fallback parsing for notes
-      };
-      currentCharacter = parsed.characterName;
-      saveToStorage();
-      renderUI();
-      showStatus(
-        `Successfully imported ${parsed.characterName} with variables!`,
-      );
-      document.getElementById("ioJson").value = "";
-    } else {
-      showStatus("Invalid JSON structure format.", true);
-    }
-  } catch (e) {
-    showStatus("Failed to parse JSON string config pack.", true);
-  }
-}
+DiceApp.clearFeed = function () {
+  DiceApp.rollBuffer = [];
+  DiceApp.lastRollTime = 0;
 
-function showStatus(msg, isError = false) {
-  const el = document.getElementById("status");
-  el.style.color = isError ? "#f38ba8" : "#a6e3a1";
-  el.innerText = msg;
-  setTimeout(() => {
-    el.innerText = "";
-  }, 4000);
-}
-
-function factoryResetDatabase() {
-  const firstConfirmation = confirm(
-    "WARNING: This will permanently delete ALL characters, custom buttons, and variables from this browser's local storage.\n\nAre you sure you want to proceed?",
-  );
-
-  if (firstConfirmation) {
-    // Double-check confirmation to prevent accidental multi-clicks or rapid confirmation bypassing
-    const secondConfirmation = confirm(
-      "FINAL CONFIRMATION:\n\nThis action is irreversible. Press OK to completely wipe the application data and reload the page.",
-    );
-
-    if (secondConfirmation) {
-      // Clear out all versions of app keys tracked in localStorage
-      localStorage.removeItem("dice_profiles_v2");
-      localStorage.removeItem("dice_profiles");
-      localStorage.removeItem("current_dice_char");
-
-      // Reload the window to re-trigger the default state architecture setup
-      window.location.reload();
-    }
-  }
-}
-
-function clearFeed() {
-  // Clear buffer memory
-  rollBuffer = [];
-  lastRollTime = 0;
-
-  // Clear system clipboard content
   navigator.clipboard.writeText("").catch(() => {});
 
-  // Reset UI elements
   document.getElementById("resTitle").innerText = "No dice rolled yet...";
   document.getElementById("resRaw").innerText =
     "Click a custom action button above to calculate a formula string.";
   document.getElementById("bufferTimer").style.display = "none";
 
   showStatus("Clipboard feed cleared!");
-}
+};
 
-// --- SORTING MANAGEMENT ---
-function alphabetizeVariables() {
+DiceApp.alphabetizeVariables = function () {
   if (
     confirm(
       "Are you sure you want to sort all variables alphabetically? This will change their current visual order.",
     )
   ) {
-    const vars = database[currentCharacter].variables;
-    // Extract keys, sort them alphabetically
+    const vars = DiceApp.database[DiceApp.currentCharacter].variables;
     const sortedKeys = Object.keys(vars).sort((a, b) => a.localeCompare(b));
-
-    // Create a new object with the sorted keys
     const newVars = {};
     sortedKeys.forEach((key) => {
       newVars[key] = vars[key];
     });
 
-    // Save back to state and re-render
-    database[currentCharacter].variables = newVars;
-    saveToStorage();
-    renderUI();
+    DiceApp.database[DiceApp.currentCharacter].variables = newVars;
+    DiceApp.saveToStorage();
+    DiceApp.renderUI();
     showStatus("Variables sorted alphabetically.");
   }
-}
+};
 
-function alphabetizeButtons() {
+DiceApp.alphabetizeButtons = function () {
   if (
     confirm(
       "Are you sure you want to sort all macro buttons alphabetically? This will change their current visual order.",
     )
   ) {
-    // Sort the buttons array in place based on the label string
-    database[currentCharacter].buttons.sort((a, b) =>
+    DiceApp.database[DiceApp.currentCharacter].buttons.sort((a, b) =>
       a.label.localeCompare(b.label),
     );
-
-    // Save back to state and re-render
-    saveToStorage();
-    renderUI();
+    DiceApp.saveToStorage();
+    DiceApp.renderUI();
     showStatus("Buttons sorted alphabetically.");
   }
-}
+};
 
-// =========================================================================
-// CRIT VISUAL EFFECTS ENGINE
-// =========================================================================
-
-function triggerCritSuccessVisuals() {
-  triggerBackgroundFlash(success_color, success_fail_flash_duration); // Theme green
-  createParticleExplosion(["✨", "🟩"], 45, success_fail_flash_duration);
-}
-
-function triggerCritFailVisuals() {
-  triggerBackgroundFlash(fail_color, success_fail_flash_duration); // Theme red
-  createParticleExplosion(["💀", "💥"], 45, success_fail_flash_duration);
-}
-
-function triggerBackgroundFlash(color, duration = 0.5) {
-  const body = document.body;
-
-  // Spam resistance: clear any existing reset timers if clicked rapidly
-  if (body._flashTimeout) {
-    clearTimeout(body._flashTimeout);
-  }
-
-  // Instantly apply the flash color
-  body.style.transition = "none";
-  body.style.backgroundColor = color;
-
-  // Force a browser reflow to register the instant color change
-  void body.offsetWidth;
-
-  // Apply a smooth half-second fade out back to the default CSS background
-  body.style.transition = `background-color ${duration}s ease-out`;
-  body.style.backgroundColor = ""; // Empty string forces it to fall back to style.css
-
-  // Clean up the inline transition style after it finishes so it doesn't linger
-  body._flashTimeout = setTimeout(
-    () => {
-      body.style.transition = "";
-      body._flashTimeout = null;
-    },
-    duration * 1000 + 100,
+DiceApp.factoryResetDatabase = function () {
+  const firstConfirmation = confirm(
+    "WARNING: This will permanently delete ALL characters, custom buttons, and variables from this browser's local storage.\n\nAre you sure you want to proceed?",
   );
-}
 
-function createParticleExplosion(emojis, count, duration = 0.5) {
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.top = "50%";
-  container.style.left = "50%";
-  container.style.pointerEvents = "none";
-  container.style.zIndex = "10000";
-  document.body.appendChild(container);
+  if (firstConfirmation) {
+    const secondConfirmation = confirm(
+      "FINAL CONFIRMATION:\n\nThis action is irreversible. Press OK to completely wipe the application data and reload the page.",
+    );
 
-  for (let i = 0; i < count; i++) {
-    const particle = document.createElement("div");
-    particle.innerText = emojis[Math.floor(Math.random() * emojis.length)];
-    particle.style.position = "absolute";
-    particle.style.fontSize = Math.random() * 1.5 + 1.2 + "rem";
-    particle.style.userSelect = "none";
-
-    // Calculate random radial scatter directions
-    const angle = Math.random() * Math.PI * 2;
-    // Scale the explosion to browser viewport size so it always looks proportional
-    const tx =
-      Math.cos(angle) * (window.innerWidth * (Math.random() * 0.3 + 0.05));
-    const ty =
-      Math.sin(angle) * (window.innerHeight * (Math.random() * 0.3 + 0.05));
-    const rot = Math.random() * 720 - 360;
-
-    // Start small and in the dead center
-    particle.style.transform = `translate(-50%, -50%) scale(0.1)`;
-    particle.style.transition = `transform ${duration}s cubic-bezier(0.25, 1, 0.5, 1), opacity ${duration}s ease-in`;
-
-    container.appendChild(particle);
-
-    // Apply layout trigger so CSS processes the difference between start and end states
-    requestAnimationFrame(() => {
-      particle.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(${rot}deg) scale(1)`;
-      particle.style.opacity = "0";
-    });
+    if (secondConfirmation) {
+      localStorage.removeItem("dice_profiles_v2");
+      localStorage.removeItem("dice_profiles");
+      localStorage.removeItem("current_dice_char");
+      window.location.reload();
+    }
   }
+};
 
-  // Self-cleanup the DOM elements when the animation concludes
-  setTimeout(
-    () => {
-      container.remove();
-    },
-    duration * 1000 + 100,
-  );
-}
+// Wire up drag-and-drop
+DiceApp.setupVariableDragAndDrop(DiceApp.renderUI);
+DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
 
-// Initialize on execution
-renderUI();
+// Expose handlers for inline HTML onclick attributes
+window.switchCharacter = DiceApp.switchCharacter;
+window.createCharacter = DiceApp.createCharacter;
+window.deleteCharacter = DiceApp.deleteCharacter;
+window.addVariable = DiceApp.addVariable;
+window.updateVariableValue = DiceApp.updateVariableValue;
+window.removeVariable = DiceApp.removeVariable;
+window.addButton = DiceApp.addButton;
+window.removeButton = DiceApp.removeButton;
+window.alphabetizeVariables = DiceApp.alphabetizeVariables;
+window.alphabetizeButtons = DiceApp.alphabetizeButtons;
+window.updateNotes = DiceApp.updateNotes;
+window.clearFeed = DiceApp.clearFeed;
+window.importCharacter = function () {
+  DiceApp.importCharacter(DiceApp.renderUI);
+};
+window.factoryResetDatabase = DiceApp.factoryResetDatabase;
+
+// Initialize
+DiceApp.renderUI();
