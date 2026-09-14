@@ -1,3 +1,17 @@
+window.onerror = function (msg, url, line, col, err) {
+  console.error("GLOBAL ERROR:", msg, "line:", line, "err:", err);
+};
+window.addEventListener("unhandledrejection", function (e) {
+  console.error("UNHANDLED PROMISE REJECTION:", e.reason);
+});
+
+function logElapsed(name, startMs, thresholdMs = 5) {
+  const elapsed = performance.now() - startMs;
+  if (elapsed > thresholdMs) {
+    console.warn(`${name} took ${elapsed.toFixed(1)}ms`);
+  }
+}
+
 let success_color = "#0b7002"; // Theme green
 let fail_color = "#8b0229"; // Theme red
 let success_fail_flash_duration = 1; // seconds
@@ -154,8 +168,8 @@ let draggedIndex = null; // Drag and drop helper tracking state for buttons
 let draggedVarName = null; // Drag and drop helper tracking state for variables
 
 // --- FORMULA VARIABLE VALIDATION CHECKER ---
-// --- FORMULA VARIABLE VALIDATION CHECKER ---
 function getMissingVariables(formula, checkedVars = new Set()) {
+  const t0 = performance.now();
   ensureCharacterStructure(currentCharacter);
   const activeVars = database[currentCharacter].variables || {};
 
@@ -242,6 +256,7 @@ function getMissingVariables(formula, checkedVars = new Set()) {
     }
   }
 
+  logElapsed("getMissingVariables", t0, 10);
   return [...new Set(missing)];
 }
 
@@ -999,19 +1014,33 @@ function renderVariables() {
     badge.style.cursor = "grab";
 
     badge.ondragstart = function (e) {
-      // If the user started the drag from the input/delete button,
-      // remove focus so the browser doesn't try to drag a focused control.
-      if (document.activeElement) document.activeElement.blur();
-
-      draggedVarName = varName;
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", varName);
-      e.stopPropagation();
-
-      this.classList.add("dragging");
+      const t0 = performance.now();
+      console.log(
+        `[VAR DRAGSTART] "${varName}"`,
+        "target:",
+        e.target.tagName,
+        "activeElement:",
+        document.activeElement?.tagName,
+      );
+      try {
+        if (document.activeElement) {
+          console.log("[VAR DRAGSTART] blurring activeElement");
+          document.activeElement.blur();
+        }
+        draggedVarName = varName;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", varName);
+        e.stopPropagation();
+        this.classList.add("dragging");
+        console.log(`[VAR DRAGSTART] "${varName}" complete`);
+      } catch (err) {
+        console.error("[VAR DRAGSTART] error:", err);
+      }
+      logElapsed(`[VAR DRAGSTART] "${varName}"`, t0);
     };
 
     badge.ondragend = function () {
+      console.log(`[VAR DRAGEND] "${varName}"`);
       this.classList.remove("dragging");
       draggedVarName = null;
       document
@@ -1042,6 +1071,7 @@ function renderVariables() {
     };
 
     badge.ondrop = function (e) {
+      console.log(`[VAR DROP] "${varName}"`);
       e.preventDefault();
       const targetBadge = e.target.closest(".var-badge");
       if (targetBadge) targetBadge.classList.remove("drag-target");
@@ -1121,18 +1151,33 @@ function renderDiceGrid() {
     }
 
     wrapper.ondragstart = function (e) {
-      // Remove focus from the roll button/delete button before starting the drag.
-      if (document.activeElement) document.activeElement.blur();
-
-      draggedIndex = index;
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", index.toString());
-      e.stopPropagation();
-
-      this.classList.add("dragging");
+      const t0 = performance.now();
+      console.log(
+        `[BTN DRAGSTART] #${index} "${btn.label}"`,
+        "target:",
+        e.target.tagName,
+        "activeElement:",
+        document.activeElement?.tagName,
+      );
+      try {
+        if (document.activeElement) {
+          console.log("[BTN DRAGSTART] blurring activeElement");
+          document.activeElement.blur();
+        }
+        draggedIndex = index;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", index.toString());
+        e.stopPropagation();
+        this.classList.add("dragging");
+        console.log(`[BTN DRAGSTART] #${index} "${btn.label}" complete`);
+      } catch (err) {
+        console.error("[BTN DRAGSTART] error:", err);
+      }
+      logElapsed(`[BTN DRAGSTART] #${index}`, t0);
     };
 
     wrapper.ondragend = function () {
+      console.log(`[BTN DRAGEND] #${index}`);
       this.classList.remove("dragging");
       draggedIndex = null;
       document
@@ -1163,6 +1208,7 @@ function renderDiceGrid() {
     };
 
     wrapper.ondrop = function (e) {
+      console.log(`[BTN DROP] #${index}`);
       e.preventDefault();
       const targetCard = e.target.closest(".dice-btn");
       if (targetCard) targetCard.classList.remove("drag-target");
@@ -1175,7 +1221,6 @@ function renderDiceGrid() {
         database[currentCharacter].buttons.splice(index, 0, movedItem);
         saveToStorage();
 
-        // Defer re-render so the browser finishes the drag operation first
         setTimeout(() => {
           draggedIndex = null;
           renderUI();
@@ -1223,11 +1268,13 @@ function renderDiceGrid() {
 
 // Master coordinator function
 function renderUI() {
+  const t0 = performance.now();
   ensureCharacterStructure(currentCharacter);
   renderNotes();
   renderCharacterSelect();
   renderVariables();
   renderDiceGrid();
+  logElapsed("[renderUI]", t0, 50);
 }
 
 // --- VARIABLE MANAGEMENT SUB-ROUTINES ---
