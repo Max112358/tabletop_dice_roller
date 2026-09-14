@@ -1010,96 +1010,8 @@ function renderVariables() {
   Object.keys(variables).forEach((varName) => {
     const badge = document.createElement("div");
     badge.className = "var-badge";
-    badge.setAttribute("draggable", true);
+    badge.dataset.varname = varName;
     badge.style.cursor = "grab";
-
-    badge.ondragstart = function (e) {
-      const t0 = performance.now();
-      console.log(
-        `[VAR DRAGSTART] "${varName}"`,
-        "target:",
-        e.target.tagName,
-        "activeElement:",
-        document.activeElement?.tagName,
-      );
-      try {
-        if (document.activeElement) {
-          console.log("[VAR DRAGSTART] blurring activeElement");
-          document.activeElement.blur();
-        }
-        draggedVarName = varName;
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", varName);
-        e.stopPropagation();
-        this.classList.add("dragging");
-        console.log(`[VAR DRAGSTART] "${varName}" complete`);
-      } catch (err) {
-        console.error("[VAR DRAGSTART] error:", err);
-      }
-      logElapsed(`[VAR DRAGSTART] "${varName}"`, t0);
-    };
-
-    badge.ondragend = function () {
-      console.log(`[VAR DRAGEND] "${varName}"`);
-      this.classList.remove("dragging");
-      draggedVarName = null;
-      document
-        .querySelectorAll(".var-badge")
-        .forEach((el) => el.classList.remove("drag-target"));
-    };
-
-    badge.ondragover = function (e) {
-      e.preventDefault();
-      return false;
-    };
-
-    badge.ondragenter = function (e) {
-      const targetBadge = e.target.closest(".var-badge");
-      if (targetBadge && varName !== draggedVarName) {
-        targetBadge.classList.add("drag-target");
-      }
-    };
-
-    badge.ondragleave = function (e) {
-      const relatedTargetBadge = e.relatedTarget
-        ? e.relatedTarget.closest(".var-badge")
-        : null;
-      const thisBadge = e.target.closest(".var-badge");
-      if (relatedTargetBadge !== thisBadge && thisBadge) {
-        thisBadge.classList.remove("drag-target");
-      }
-    };
-
-    badge.ondrop = function (e) {
-      console.log(`[VAR DROP] "${varName}"`);
-      e.preventDefault();
-      const targetBadge = e.target.closest(".var-badge");
-      if (targetBadge) targetBadge.classList.remove("drag-target");
-
-      if (draggedVarName !== null && draggedVarName !== varName) {
-        const varKeys = Object.keys(variables);
-        const sourceIndex = varKeys.indexOf(draggedVarName);
-        const targetIndex = varKeys.indexOf(varName);
-
-        if (sourceIndex !== -1 && targetIndex !== -1) {
-          varKeys.splice(sourceIndex, 1);
-          varKeys.splice(targetIndex, 0, draggedVarName);
-
-          const newVariables = {};
-          varKeys.forEach((k) => {
-            newVariables[k] = variables[k];
-          });
-
-          database[currentCharacter].variables = newVariables;
-          saveToStorage();
-
-          setTimeout(() => {
-            draggedVarName = null;
-            renderVariables();
-          }, 0);
-        }
-      }
-    };
 
     const label = document.createElement("span");
     label.className = "var-name";
@@ -1111,7 +1023,6 @@ function renderVariables() {
     input.type = isNumeric ? "number" : "text";
     input.className = "var-val-input";
     input.value = variables[varName];
-    input.setAttribute("draggable", false);
     input.onchange = function () {
       updateVariableValue(varName, this.value);
     };
@@ -1120,7 +1031,6 @@ function renderVariables() {
     delBtn.className = "var-del-btn";
     delBtn.innerHTML = "✕";
     delBtn.title = `Delete variable ${varName}`;
-    delBtn.setAttribute("draggable", false);
     delBtn.onclick = function (e) {
       e.stopPropagation();
       removeVariable(varName);
@@ -1130,6 +1040,98 @@ function renderVariables() {
     badge.appendChild(input);
     badge.appendChild(delBtn);
     varContainer.appendChild(badge);
+  });
+
+  setupVariableDragAndDrop();
+}
+
+function setupVariableDragAndDrop() {
+  const container = document.getElementById("varContainer");
+  if (!container || container._customDragSetup) return;
+  container._customDragSetup = true;
+
+  let dragState = null;
+
+  container.addEventListener("mousedown", (e) => {
+    const badge = e.target.closest(".var-badge");
+    if (!badge) return;
+    // Let the input and delete button work normally
+    if (e.target.closest("input, .var-del-btn, button")) return;
+
+    dragState = {
+      name: badge.dataset.varname,
+      sourceBadge: badge,
+      startX: e.clientX,
+      startY: e.clientY,
+      isDragging: false,
+    };
+  });
+
+  container.addEventListener("mousemove", (e) => {
+    if (!dragState || dragState.isDragging) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    if (Math.sqrt(dx * dx + dy * dy) > 5) {
+      dragState.isDragging = true;
+      dragState.sourceBadge.classList.add("dragging");
+      e.preventDefault();
+    }
+  });
+
+  container.addEventListener("mouseover", (e) => {
+    if (!dragState || !dragState.isDragging) return;
+    const badge = e.target.closest(".var-badge");
+    if (!badge || badge.dataset.varname === dragState.name) return;
+    badge.classList.add("drag-target");
+  });
+
+  container.addEventListener("mouseout", (e) => {
+    if (!dragState || !dragState.isDragging) return;
+    const badge = e.target.closest(".var-badge");
+    if (!badge) return;
+    const relatedBadge = e.relatedTarget
+      ? e.relatedTarget.closest(".var-badge")
+      : null;
+    if (relatedBadge === badge) return;
+    badge.classList.remove("drag-target");
+  });
+
+  document.addEventListener("mouseup", (e) => {
+    if (!dragState) return;
+
+    if (dragState.isDragging) {
+      const targetBadge = e.target.closest(".var-badge");
+      let didReorder = false;
+
+      if (targetBadge && targetBadge.dataset.varname !== dragState.name) {
+        const variables = database[currentCharacter].variables;
+        const keys = Object.keys(variables);
+        const sourceIndex = keys.indexOf(dragState.name);
+        const targetIndex = keys.indexOf(targetBadge.dataset.varname);
+
+        if (sourceIndex !== -1 && targetIndex !== -1) {
+          keys.splice(sourceIndex, 1);
+          keys.splice(targetIndex, 0, dragState.name);
+
+          const newVariables = {};
+          keys.forEach((k) => (newVariables[k] = variables[k]));
+          database[currentCharacter].variables = newVariables;
+          saveToStorage();
+          didReorder = true;
+        }
+      }
+
+      if (didReorder) {
+        renderVariables();
+      } else {
+        dragState.sourceBadge.classList.remove("dragging");
+        container
+          .querySelectorAll(".var-badge")
+          .forEach((el) => el.classList.remove("drag-target"));
+      }
+    }
+
+    dragState = null;
   });
 }
 
@@ -1142,91 +1144,13 @@ function renderDiceGrid() {
   buttons.forEach((btn, index) => {
     const wrapper = document.createElement("div");
     wrapper.className = "dice-btn";
-    wrapper.setAttribute("draggable", true);
+    wrapper.dataset.index = index.toString();
     wrapper.style.cursor = "grab";
 
     const missingVars = getMissingVariables(btn.formula);
     if (missingVars.length > 0) {
       wrapper.classList.add("broken");
     }
-
-    wrapper.ondragstart = function (e) {
-      const t0 = performance.now();
-      console.log(
-        `[BTN DRAGSTART] #${index} "${btn.label}"`,
-        "target:",
-        e.target.tagName,
-        "activeElement:",
-        document.activeElement?.tagName,
-      );
-      try {
-        if (document.activeElement) {
-          console.log("[BTN DRAGSTART] blurring activeElement");
-          document.activeElement.blur();
-        }
-        draggedIndex = index;
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", index.toString());
-        e.stopPropagation();
-        this.classList.add("dragging");
-        console.log(`[BTN DRAGSTART] #${index} "${btn.label}" complete`);
-      } catch (err) {
-        console.error("[BTN DRAGSTART] error:", err);
-      }
-      logElapsed(`[BTN DRAGSTART] #${index}`, t0);
-    };
-
-    wrapper.ondragend = function () {
-      console.log(`[BTN DRAGEND] #${index}`);
-      this.classList.remove("dragging");
-      draggedIndex = null;
-      document
-        .querySelectorAll(".dice-btn")
-        .forEach((el) => el.classList.remove("drag-target"));
-    };
-
-    wrapper.ondragover = function (e) {
-      e.preventDefault();
-      return false;
-    };
-
-    wrapper.ondragenter = function (e) {
-      const targetCard = e.target.closest(".dice-btn");
-      if (targetCard && index !== draggedIndex) {
-        targetCard.classList.add("drag-target");
-      }
-    };
-
-    wrapper.ondragleave = function (e) {
-      const relatedTargetCard = e.relatedTarget
-        ? e.relatedTarget.closest(".dice-btn")
-        : null;
-      const thisCard = e.target.closest(".dice-btn");
-      if (relatedTargetCard !== thisCard && thisCard) {
-        thisCard.classList.remove("drag-target");
-      }
-    };
-
-    wrapper.ondrop = function (e) {
-      console.log(`[BTN DROP] #${index}`);
-      e.preventDefault();
-      const targetCard = e.target.closest(".dice-btn");
-      if (targetCard) targetCard.classList.remove("drag-target");
-
-      if (draggedIndex !== null && draggedIndex !== index) {
-        const movedItem = database[currentCharacter].buttons.splice(
-          draggedIndex,
-          1,
-        )[0];
-        database[currentCharacter].buttons.splice(index, 0, movedItem);
-        saveToStorage();
-
-        setTimeout(() => {
-          draggedIndex = null;
-          renderUI();
-        }, 0);
-      }
-    };
 
     const rollBtn = document.createElement("button");
     rollBtn.style.width = "100%";
@@ -1235,15 +1159,12 @@ function renderDiceGrid() {
     rollBtn.innerText = btn.label;
 
     let tooltipText = `Formula: ${btn.formula}`;
-    if (btn.note) {
-      tooltipText += `\nNote: ${btn.note}`;
-    }
+    if (btn.note) tooltipText += `\nNote: ${btn.note}`;
     rollBtn.title = tooltipText;
 
     rollBtn.onclick = function () {
       executeRoll(btn.label, btn.formula, btn.note, this);
     };
-    rollBtn.setAttribute("draggable", false);
 
     const errorBadge = document.createElement("div");
     errorBadge.className = "error-badge";
@@ -1253,7 +1174,6 @@ function renderDiceGrid() {
     delBtn.className = "delete-corner-btn";
     delBtn.innerText = "✕";
     delBtn.title = `Delete ${btn.label}`;
-    delBtn.setAttribute("draggable", false);
     delBtn.onclick = (e) => {
       e.stopPropagation();
       removeButton(index, btn.label);
@@ -1263,6 +1183,93 @@ function renderDiceGrid() {
     wrapper.appendChild(errorBadge);
     wrapper.appendChild(delBtn);
     grid.appendChild(wrapper);
+  });
+
+  setupButtonDragAndDrop();
+}
+
+function setupButtonDragAndDrop() {
+  const grid = document.getElementById("diceGrid");
+  if (!grid || grid._customDragSetup) return;
+  grid._customDragSetup = true;
+
+  let dragState = null;
+
+  grid.addEventListener("mousedown", (e) => {
+    const card = e.target.closest(".dice-btn");
+    if (!card) return;
+    // Always allow dragging the card, but never drag when clicking the delete X
+    if (e.target.closest(".delete-corner-btn")) return;
+
+    dragState = {
+      index: parseInt(card.dataset.index, 10),
+      sourceCard: card,
+      startX: e.clientX,
+      startY: e.clientY,
+      isDragging: false,
+    };
+  });
+
+  grid.addEventListener("mousemove", (e) => {
+    if (!dragState || dragState.isDragging) return;
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+    if (Math.sqrt(dx * dx + dy * dy) > 5) {
+      dragState.isDragging = true;
+      dragState.sourceCard.classList.add("dragging");
+      e.preventDefault();
+    }
+  });
+
+  grid.addEventListener("mouseover", (e) => {
+    if (!dragState || !dragState.isDragging) return;
+    const card = e.target.closest(".dice-btn");
+    if (!card || parseInt(card.dataset.index, 10) === dragState.index) return;
+    card.classList.add("drag-target");
+  });
+
+  grid.addEventListener("mouseout", (e) => {
+    if (!dragState || !dragState.isDragging) return;
+    const card = e.target.closest(".dice-btn");
+    if (!card) return;
+    const relatedCard = e.relatedTarget
+      ? e.relatedTarget.closest(".dice-btn")
+      : null;
+    if (relatedCard === card) return;
+    card.classList.remove("drag-target");
+  });
+
+  document.addEventListener("mouseup", (e) => {
+    if (!dragState) return;
+
+    if (dragState.isDragging) {
+      const targetCard = e.target.closest(".dice-btn");
+      let didReorder = false;
+
+      if (targetCard) {
+        const targetIndex = parseInt(targetCard.dataset.index, 10);
+        if (targetIndex !== dragState.index) {
+          const movedItem = database[currentCharacter].buttons.splice(
+            dragState.index,
+            1,
+          )[0];
+          database[currentCharacter].buttons.splice(targetIndex, 0, movedItem);
+          saveToStorage();
+          didReorder = true;
+        }
+      }
+
+      if (didReorder) {
+        renderUI();
+      } else {
+        dragState.sourceCard.classList.remove("dragging");
+        grid
+          .querySelectorAll(".dice-btn")
+          .forEach((el) => el.classList.remove("drag-target"));
+      }
+    }
+
+    dragState = null;
   });
 }
 

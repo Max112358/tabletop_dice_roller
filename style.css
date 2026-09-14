@@ -411,12 +411,11 @@ textarea {
   -webkit-user-select: none;
 }
 
-/* Applied to the element being dragged */
 .dragging {
   opacity: 0.4;
+  cursor: grabbing !important;
 }
 
-/* Applied to a valid drop target */
 .var-badge.drag-target,
 .dice-btn.drag-target {
   border: 1px dashed #89b4fa !important;
