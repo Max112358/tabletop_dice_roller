@@ -1002,6 +1002,9 @@ function renderVariables() {
       draggedVarName = varName;
       this.style.opacity = "0.4";
       e.dataTransfer.effectAllowed = "move";
+
+      // NEW: Required by HTML5 spec to prevent drag locking
+      e.dataTransfer.setData("text/plain", varName);
     };
     badge.ondragend = function () {
       this.style.opacity = "1";
@@ -1106,6 +1109,9 @@ function renderDiceGrid() {
       draggedIndex = index;
       this.style.opacity = "0.4";
       e.dataTransfer.effectAllowed = "move";
+
+      // NEW: Required by HTML5 spec to prevent drag locking
+      e.dataTransfer.setData("text/plain", index.toString());
     };
     wrapper.ondragend = function () {
       this.style.opacity = "1";
