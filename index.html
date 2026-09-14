@@ -244,17 +244,27 @@
               <span class="code-inline">[PROF]d10</span>
             </li>
             <li>
-              <strong>Advantage:</strong>
+              <strong>Math Functions:</strong> Use
+              <span class="code-inline">max(a, b)</span>,
+              <span class="code-inline">min(a, b)</span>,
+              <span class="code-inline">floor(x)</span>,
+              <span class="code-inline">ceil(x)</span>, or
+              <span class="code-inline">round(x)</span>.<br />
+              <em>Example:</em>
+              <span class="code-inline">max(1, floor([HP_REMAINING]/5))d4</span>
+            </li>
+            <li>
+              <strong>Advantage (Best X of Y):</strong>
               <span class="code-inline">2d20kh1+[STR]</span>
               <em>(Keep Highest 1)</em>
             </li>
             <li>
-              <strong>Disadvantage:</strong>
+              <strong>Disadvantage (Worst X of Y):</strong>
               <span class="code-inline">2d20kl1+[STR]</span>
               <em>(Keep Lowest 1)</em>
             </li>
             <li>
-              <strong>Savage Attacker:</strong>
+              <strong>Savage Attacker (Pool and Keep):</strong>
               <span class="code-inline">2d12p2kh1+[STR]</span>
               <em>(Pool 2 times, Keep Highest 1 total)</em>
             </li>
@@ -292,6 +302,7 @@
               <span class="code-inline"
                 >1d100critsuccess[min]critfail[max]lessthanvs[TARGET_DC]</span
               >
+              Crit mods after a vs change based on success or failure.
               <span class="code-inline"
                 >1d100critsuccess[min]critfail[max]lessthanvs[TARGET_DC]critsuccess[doubles]critfail[doubles]</span
               >

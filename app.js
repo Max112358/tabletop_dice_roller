@@ -317,15 +317,24 @@ function parseAndRoll(label, formula) {
         throw new Error(`Missing variable reference: [${missingVarName}]`);
       }
 
-      // STEP 2: RECURSIVE PARENTHESES RESOLUTION
+      // STEP 2: RECURSIVE PARENTHESES AND MATH FUNCTION RESOLUTION
       // Matches innermost parentheses first and fully evaluates them from the inside out.
-      const parenRegex = /\(([^()]+)\)/;
+      const parenRegex = /(max|min|ceil|floor|round)?\(([^()]+)\)/;
+
       while (parenRegex.test(workingExpr)) {
         workingExpr = workingExpr.replace(
           parenRegex,
-          (fullMatch, innerExpr) => {
-            // Recursively evaluate the inside of the parenthesis
-            return evaluateMathAndDice(innerExpr, depth + 1);
+          (fullMatch, funcName, innerExpr) => {
+            if (funcName) {
+              // It's a math function. Split inner arguments by comma and evaluate each one.
+              let args = innerExpr
+                .split(",")
+                .map((arg) => evaluateMathAndDice(arg, depth + 1));
+              return Math[funcName](...args);
+            } else {
+              // It's a standard parenthesis block. Recursively evaluate the inside.
+              return evaluateMathAndDice(innerExpr, depth + 1);
+            }
           },
         );
       }
