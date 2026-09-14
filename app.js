@@ -999,39 +999,53 @@ function renderVariables() {
     badge.style.cursor = "grab";
 
     badge.ondragstart = function (e) {
+      // If the user started the drag from the input/delete button,
+      // remove focus so the browser doesn't try to drag a focused control.
+      if (document.activeElement) document.activeElement.blur();
+
       draggedVarName = varName;
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", varName);
+      e.stopPropagation();
 
-      requestAnimationFrame(() => {
-        this.style.opacity = "0.4";
-      });
+      this.classList.add("dragging");
     };
+
     badge.ondragend = function () {
-      this.style.opacity = "1";
+      this.classList.remove("dragging");
       draggedVarName = null;
       document
         .querySelectorAll(".var-badge")
-        .forEach((el) => (el.style.border = "1px solid #45475a"));
+        .forEach((el) => el.classList.remove("drag-target"));
     };
+
     badge.ondragover = function (e) {
       e.preventDefault();
       return false;
     };
+
     badge.ondragenter = function (e) {
       const targetBadge = e.target.closest(".var-badge");
-      if (targetBadge && varName !== draggedVarName)
-        targetBadge.style.border = "1px dashed #89b4fa";
+      if (targetBadge && varName !== draggedVarName) {
+        targetBadge.classList.add("drag-target");
+      }
     };
+
     badge.ondragleave = function (e) {
       const relatedTargetBadge = e.relatedTarget
         ? e.relatedTarget.closest(".var-badge")
         : null;
-      if (relatedTargetBadge !== this) this.style.border = "1px solid #45475a";
+      const thisBadge = e.target.closest(".var-badge");
+      if (relatedTargetBadge !== thisBadge && thisBadge) {
+        thisBadge.classList.remove("drag-target");
+      }
     };
+
     badge.ondrop = function (e) {
       e.preventDefault();
-      this.style.border = "1px solid #45475a";
+      const targetBadge = e.target.closest(".var-badge");
+      if (targetBadge) targetBadge.classList.remove("drag-target");
+
       if (draggedVarName !== null && draggedVarName !== varName) {
         const varKeys = Object.keys(variables);
         const sourceIndex = varKeys.indexOf(draggedVarName);
@@ -1049,8 +1063,8 @@ function renderVariables() {
           database[currentCharacter].variables = newVariables;
           saveToStorage();
 
-          // Defer the re-render so the drag event finishes safely
           setTimeout(() => {
+            draggedVarName = null;
             renderVariables();
           }, 0);
         }
@@ -1107,44 +1121,52 @@ function renderDiceGrid() {
     }
 
     wrapper.ondragstart = function (e) {
+      // Remove focus from the roll button/delete button before starting the drag.
+      if (document.activeElement) document.activeElement.blur();
+
       draggedIndex = index;
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", index.toString());
+      e.stopPropagation();
 
-      // Defer the opacity change so it doesn't block the drag snapshot
-      requestAnimationFrame(() => {
-        this.style.opacity = "0.4";
-      });
+      this.classList.add("dragging");
     };
+
     wrapper.ondragend = function () {
-      console.log("DEBUG: ondragend triggered");
-      this.style.opacity = "1";
+      this.classList.remove("dragging");
       draggedIndex = null;
       document
         .querySelectorAll(".dice-btn")
-        .forEach((el) => (el.style.border = "none"));
+        .forEach((el) => el.classList.remove("drag-target"));
     };
+
     wrapper.ondragover = function (e) {
       e.preventDefault();
       return false;
     };
+
     wrapper.ondragenter = function (e) {
-      console.log("DEBUG: ondragenter triggered on target:", e.target);
       const targetCard = e.target.closest(".dice-btn");
-      if (targetCard && index !== draggedIndex)
-        targetCard.style.border = "1px dashed #89b4fa";
+      if (targetCard && index !== draggedIndex) {
+        targetCard.classList.add("drag-target");
+      }
     };
+
     wrapper.ondragleave = function (e) {
-      console.log("DEBUG: ondragleave triggered");
       const relatedTargetCard = e.relatedTarget
         ? e.relatedTarget.closest(".dice-btn")
         : null;
-      if (relatedTargetCard !== this) this.style.border = "none";
+      const thisCard = e.target.closest(".dice-btn");
+      if (relatedTargetCard !== thisCard && thisCard) {
+        thisCard.classList.remove("drag-target");
+      }
     };
+
     wrapper.ondrop = function (e) {
-      console.log("DEBUG: ondrop triggered");
       e.preventDefault();
-      this.style.border = "none";
+      const targetCard = e.target.closest(".dice-btn");
+      if (targetCard) targetCard.classList.remove("drag-target");
+
       if (draggedIndex !== null && draggedIndex !== index) {
         const movedItem = database[currentCharacter].buttons.splice(
           draggedIndex,
@@ -1152,6 +1174,12 @@ function renderDiceGrid() {
         )[0];
         database[currentCharacter].buttons.splice(index, 0, movedItem);
         saveToStorage();
+
+        // Defer re-render so the browser finishes the drag operation first
+        setTimeout(() => {
+          draggedIndex = null;
+          renderUI();
+        }, 0);
       }
     };
 
