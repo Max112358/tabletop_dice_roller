@@ -70,16 +70,34 @@ DiceApp.executeRoll = function (label, formula, note, buttonElement) {
 
         if (!buttonElement.dataset.originalText) {
           buttonElement.dataset.originalText = buttonElement.innerText;
+          buttonElement._flashBaseWidth = buttonElement.offsetWidth;
+          buttonElement._flashBaseHeight = buttonElement.offsetHeight;
         }
 
         const originalText = buttonElement.dataset.originalText;
+
+        // Lock the button's footprint and prevent wrapping so "✓ Added!"
+        // can't reflow the card.
+        buttonElement.style.width = `${buttonElement._flashBaseWidth}px`;
+        buttonElement.style.height = `${buttonElement._flashBaseHeight}px`;
+        buttonElement.style.whiteSpace = "nowrap";
+        buttonElement.style.overflow = "hidden";
+        buttonElement.style.textOverflow = "ellipsis";
+
         buttonElement.innerText = "✓ Added!";
         buttonElement.classList.add("success-flash");
 
         buttonElement._flashTimeout = setTimeout(() => {
           buttonElement.innerText = originalText;
           buttonElement.classList.remove("success-flash");
+          buttonElement.style.width = "";
+          buttonElement.style.height = "";
+          buttonElement.style.whiteSpace = "";
+          buttonElement.style.overflow = "";
+          buttonElement.style.textOverflow = "";
           delete buttonElement.dataset.originalText;
+          buttonElement._flashBaseWidth = null;
+          buttonElement._flashBaseHeight = null;
           buttonElement._flashTimeout = null;
         }, 600);
       }
