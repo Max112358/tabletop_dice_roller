@@ -409,6 +409,7 @@ textarea {
 .dice-btn {
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none;
 }
 
 .dragging {

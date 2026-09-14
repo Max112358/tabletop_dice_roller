@@ -1052,56 +1052,64 @@ function setupVariableDragAndDrop() {
 
   let dragState = null;
 
-  container.addEventListener("mousedown", (e) => {
+  function getBadgeFromPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    return el ? el.closest(".var-badge") : null;
+  }
+
+  container.addEventListener("pointerdown", (e) => {
     const badge = e.target.closest(".var-badge");
     if (!badge) return;
-    // Let the input and delete button work normally
-    if (e.target.closest("input, .var-del-btn, button")) return;
+
+    // Let inputs, buttons, and the delete X work normally
+    if (e.target.closest("input, button, .var-del-btn")) return;
 
     dragState = {
       name: badge.dataset.varname,
       sourceBadge: badge,
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       isDragging: false,
     };
   });
 
-  container.addEventListener("mousemove", (e) => {
-    if (!dragState || dragState.isDragging) return;
-    const dx = e.clientX - dragState.startX;
-    const dy = e.clientY - dragState.startY;
-    if (Math.sqrt(dx * dx + dy * dy) > 5) {
+  function onPointerMove(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+
+    if (!dragState.isDragging) {
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      if (Math.sqrt(dx * dx + dy * dy) <= 5) return;
+
       dragState.isDragging = true;
       dragState.sourceBadge.classList.add("dragging");
-      e.preventDefault();
+      // Make the source invisible to hit-testing so we can detect the target underneath
+      dragState.sourceBadge.style.pointerEvents = "none";
+      dragState.sourceBadge.setPointerCapture(e.pointerId);
     }
-  });
 
-  container.addEventListener("mouseover", (e) => {
-    if (!dragState || !dragState.isDragging) return;
-    const badge = e.target.closest(".var-badge");
-    if (!badge || badge.dataset.varname === dragState.name) return;
-    badge.classList.add("drag-target");
-  });
+    e.preventDefault();
 
-  container.addEventListener("mouseout", (e) => {
-    if (!dragState || !dragState.isDragging) return;
-    const badge = e.target.closest(".var-badge");
-    if (!badge) return;
-    const relatedBadge = e.relatedTarget
-      ? e.relatedTarget.closest(".var-badge")
-      : null;
-    if (relatedBadge === badge) return;
-    badge.classList.remove("drag-target");
-  });
+    const targetBadge = getBadgeFromPoint(e.clientX, e.clientY);
 
-  document.addEventListener("mouseup", (e) => {
-    if (!dragState) return;
+    container.querySelectorAll(".var-badge").forEach((el) => {
+      const isTarget =
+        targetBadge &&
+        targetBadge !== dragState.sourceBadge &&
+        targetBadge.dataset.varname !== dragState.name &&
+        el === targetBadge;
+      el.classList.toggle("drag-target", isTarget);
+    });
+  }
+
+  function endDrag(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+
+    let didReorder = false;
 
     if (dragState.isDragging) {
-      const targetBadge = e.target.closest(".var-badge");
-      let didReorder = false;
+      const targetBadge = getBadgeFromPoint(e.clientX, e.clientY);
 
       if (targetBadge && targetBadge.dataset.varname !== dragState.name) {
         const variables = database[currentCharacter].variables;
@@ -1121,18 +1129,27 @@ function setupVariableDragAndDrop() {
         }
       }
 
-      if (didReorder) {
-        renderVariables();
-      } else {
-        dragState.sourceBadge.classList.remove("dragging");
-        container
-          .querySelectorAll(".var-badge")
-          .forEach((el) => el.classList.remove("drag-target"));
+      dragState.sourceBadge.style.pointerEvents = "";
+      dragState.sourceBadge.classList.remove("dragging");
+      container
+        .querySelectorAll(".var-badge")
+        .forEach((el) => el.classList.remove("drag-target"));
+
+      if (dragState.sourceBadge.hasPointerCapture(e.pointerId)) {
+        dragState.sourceBadge.releasePointerCapture(e.pointerId);
       }
     }
 
+    if (didReorder) {
+      renderVariables();
+    }
+
     dragState = null;
-  });
+  }
+
+  document.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerup", endDrag);
+  document.addEventListener("pointercancel", endDrag);
 }
 
 function renderDiceGrid() {
@@ -1195,56 +1212,63 @@ function setupButtonDragAndDrop() {
 
   let dragState = null;
 
-  grid.addEventListener("mousedown", (e) => {
+  function getCardFromPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    return el ? el.closest(".dice-btn") : null;
+  }
+
+  grid.addEventListener("pointerdown", (e) => {
     const card = e.target.closest(".dice-btn");
     if (!card) return;
-    // Always allow dragging the card, but never drag when clicking the delete X
+
+    // Never drag when clicking the delete X
     if (e.target.closest(".delete-corner-btn")) return;
 
     dragState = {
       index: parseInt(card.dataset.index, 10),
       sourceCard: card,
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       isDragging: false,
     };
   });
 
-  grid.addEventListener("mousemove", (e) => {
-    if (!dragState || dragState.isDragging) return;
-    const dx = e.clientX - dragState.startX;
-    const dy = e.clientY - dragState.startY;
-    if (Math.sqrt(dx * dx + dy * dy) > 5) {
+  function onPointerMove(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+
+    if (!dragState.isDragging) {
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      if (Math.sqrt(dx * dx + dy * dy) <= 5) return;
+
       dragState.isDragging = true;
       dragState.sourceCard.classList.add("dragging");
-      e.preventDefault();
+      dragState.sourceCard.style.pointerEvents = "none";
+      dragState.sourceCard.setPointerCapture(e.pointerId);
     }
-  });
 
-  grid.addEventListener("mouseover", (e) => {
-    if (!dragState || !dragState.isDragging) return;
-    const card = e.target.closest(".dice-btn");
-    if (!card || parseInt(card.dataset.index, 10) === dragState.index) return;
-    card.classList.add("drag-target");
-  });
+    e.preventDefault();
 
-  grid.addEventListener("mouseout", (e) => {
-    if (!dragState || !dragState.isDragging) return;
-    const card = e.target.closest(".dice-btn");
-    if (!card) return;
-    const relatedCard = e.relatedTarget
-      ? e.relatedTarget.closest(".dice-btn")
-      : null;
-    if (relatedCard === card) return;
-    card.classList.remove("drag-target");
-  });
+    const targetCard = getCardFromPoint(e.clientX, e.clientY);
 
-  document.addEventListener("mouseup", (e) => {
-    if (!dragState) return;
+    grid.querySelectorAll(".dice-btn").forEach((el) => {
+      const isTarget =
+        targetCard &&
+        targetCard !== dragState.sourceCard &&
+        parseInt(targetCard.dataset.index, 10) !== dragState.index &&
+        el === targetCard;
+      el.classList.toggle("drag-target", isTarget);
+    });
+  }
+
+  function endDrag(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+
+    let didReorder = false;
 
     if (dragState.isDragging) {
-      const targetCard = e.target.closest(".dice-btn");
-      let didReorder = false;
+      const targetCard = getCardFromPoint(e.clientX, e.clientY);
 
       if (targetCard) {
         const targetIndex = parseInt(targetCard.dataset.index, 10);
@@ -1259,18 +1283,27 @@ function setupButtonDragAndDrop() {
         }
       }
 
-      if (didReorder) {
-        renderUI();
-      } else {
-        dragState.sourceCard.classList.remove("dragging");
-        grid
-          .querySelectorAll(".dice-btn")
-          .forEach((el) => el.classList.remove("drag-target"));
+      dragState.sourceCard.style.pointerEvents = "";
+      dragState.sourceCard.classList.remove("dragging");
+      grid
+        .querySelectorAll(".dice-btn")
+        .forEach((el) => el.classList.remove("drag-target"));
+
+      if (dragState.sourceCard.hasPointerCapture(e.pointerId)) {
+        dragState.sourceCard.releasePointerCapture(e.pointerId);
       }
     }
 
+    if (didReorder) {
+      renderUI();
+    }
+
     dragState = null;
-  });
+  }
+
+  document.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerup", endDrag);
+  document.addEventListener("pointercancel", endDrag);
 }
 
 // Master coordinator function
