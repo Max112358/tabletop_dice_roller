@@ -1000,11 +1000,12 @@ function renderVariables() {
 
     badge.ondragstart = function (e) {
       draggedVarName = varName;
-      this.style.opacity = "0.4";
       e.dataTransfer.effectAllowed = "move";
-
-      // NEW: Required by HTML5 spec to prevent drag locking
       e.dataTransfer.setData("text/plain", varName);
+
+      requestAnimationFrame(() => {
+        this.style.opacity = "0.4";
+      });
     };
     badge.ondragend = function () {
       this.style.opacity = "1";
@@ -1106,12 +1107,14 @@ function renderDiceGrid() {
     }
 
     wrapper.ondragstart = function (e) {
-      console.log("DEBUG: ondragstart triggered for index:", index);
       draggedIndex = index;
-      this.style.opacity = "0.4";
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", index.toString());
-      console.log("DEBUG: ondragstart finished successfully");
+
+      // Defer the opacity change so it doesn't block the drag snapshot
+      requestAnimationFrame(() => {
+        this.style.opacity = "0.4";
+      });
     };
     wrapper.ondragend = function () {
       console.log("DEBUG: ondragend triggered");
