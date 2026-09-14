@@ -1106,14 +1106,15 @@ function renderDiceGrid() {
     }
 
     wrapper.ondragstart = function (e) {
+      console.log("DEBUG: ondragstart triggered for index:", index);
       draggedIndex = index;
       this.style.opacity = "0.4";
       e.dataTransfer.effectAllowed = "move";
-
-      // NEW: Required by HTML5 spec to prevent drag locking
       e.dataTransfer.setData("text/plain", index.toString());
+      console.log("DEBUG: ondragstart finished successfully");
     };
     wrapper.ondragend = function () {
+      console.log("DEBUG: ondragend triggered");
       this.style.opacity = "1";
       draggedIndex = null;
       document
@@ -1125,17 +1126,20 @@ function renderDiceGrid() {
       return false;
     };
     wrapper.ondragenter = function (e) {
+      console.log("DEBUG: ondragenter triggered on target:", e.target);
       const targetCard = e.target.closest(".dice-btn");
       if (targetCard && index !== draggedIndex)
         targetCard.style.border = "1px dashed #89b4fa";
     };
     wrapper.ondragleave = function (e) {
+      console.log("DEBUG: ondragleave triggered");
       const relatedTargetCard = e.relatedTarget
         ? e.relatedTarget.closest(".dice-btn")
         : null;
       if (relatedTargetCard !== this) this.style.border = "none";
     };
     wrapper.ondrop = function (e) {
+      console.log("DEBUG: ondrop triggered");
       e.preventDefault();
       this.style.border = "none";
       if (draggedIndex !== null && draggedIndex !== index) {
@@ -1145,11 +1149,6 @@ function renderDiceGrid() {
         )[0];
         database[currentCharacter].buttons.splice(index, 0, movedItem);
         saveToStorage();
-
-        // Defer the re-render so the drag event finishes safely
-        setTimeout(() => {
-          renderDiceGrid();
-        }, 0);
       }
     };
 
