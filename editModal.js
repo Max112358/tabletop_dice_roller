@@ -14,7 +14,7 @@ window.DiceApp = window.DiceApp || {};
     const cleanName = rawName
       .trim()
       .toUpperCase()
-      .replace(/[^A-Z_-]/g, "");
+      .replace(/[^A-Z0-9_-]/g, "");
     if (!cleanName) {
       showStatus(
         "Variable label must contain uppercase alphabetic characters!",

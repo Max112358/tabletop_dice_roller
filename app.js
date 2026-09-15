@@ -12,7 +12,7 @@ DiceApp.addVariable = function () {
   const valInput = document.getElementById("newVarValue");
 
   const rawName = nameInput.value.trim().toUpperCase();
-  const cleanName = rawName.replace(/[^A-Z_-]/g, "");
+  const cleanName = rawName.replace(/[^A-Z0-9_-]/g, "");
   const valueStr = valInput.value.trim();
 
   if (!cleanName) {
