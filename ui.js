@@ -46,18 +46,43 @@ DiceApp.renderVariables = function () {
       DiceApp.updateVariableValue(varName, this.value);
     };
 
+    const actions = document.createElement("div");
+    actions.className = "var-actions no-drag";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "var-edit-btn no-drag";
+    editBtn.innerHTML = "✎";
+    editBtn.title = `Edit variable ${varName}`;
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.openVariableEditModal(varName);
+    };
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "var-copy-btn no-drag";
+    copyBtn.innerHTML = "⎘";
+    copyBtn.title = `Copy variable ${varName}`;
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.copyVariable(varName);
+    };
+
     const delBtn = document.createElement("button");
-    delBtn.className = "var-del-btn";
+    delBtn.className = "var-delete-btn no-drag";
     delBtn.innerHTML = "✕";
     delBtn.title = `Delete variable ${varName}`;
-    delBtn.onclick = function (e) {
+    delBtn.onclick = (e) => {
       e.stopPropagation();
       DiceApp.removeVariable(varName);
     };
 
+    actions.appendChild(editBtn);
+    actions.appendChild(copyBtn);
+    actions.appendChild(delBtn);
+
     badge.appendChild(label);
     badge.appendChild(input);
-    badge.appendChild(delBtn);
+    badge.appendChild(actions);
     varContainer.appendChild(badge);
   });
 };
@@ -95,8 +120,29 @@ DiceApp.renderDiceGrid = function () {
     errorBadge.className = "error-badge";
     errorBadge.innerText = `⚠️ Missing: ${missingVars.join(", ")}`;
 
+    const actions = document.createElement("div");
+    actions.className = "btn-actions no-drag";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "edit-btn no-drag";
+    editBtn.innerHTML = "✎";
+    editBtn.title = "Edit";
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.openButtonEditModal(index);
+    };
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "copy-btn no-drag";
+    copyBtn.innerHTML = "⎘";
+    copyBtn.title = "Duplicate";
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.copyButton(index);
+    };
+
     const delBtn = document.createElement("button");
-    delBtn.className = "delete-corner-btn";
+    delBtn.className = "delete-btn no-drag";
     delBtn.innerText = "✕";
     delBtn.title = `Delete ${btn.label}`;
     delBtn.onclick = (e) => {
@@ -104,9 +150,13 @@ DiceApp.renderDiceGrid = function () {
       DiceApp.removeButton(index, btn.label);
     };
 
+    actions.appendChild(editBtn);
+    actions.appendChild(copyBtn);
+    actions.appendChild(delBtn);
+
     wrapper.appendChild(rollBtn);
     wrapper.appendChild(errorBadge);
-    wrapper.appendChild(delBtn);
+    wrapper.appendChild(actions);
     grid.appendChild(wrapper);
   });
 };

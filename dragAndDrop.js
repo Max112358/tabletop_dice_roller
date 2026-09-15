@@ -15,7 +15,7 @@ DiceApp.setupVariableDragAndDrop = function (onReorder) {
   container.addEventListener("pointerdown", (e) => {
     const badge = e.target.closest(".var-badge");
     if (!badge) return;
-    if (e.target.closest("input, button, .var-del-btn")) return;
+    if (e.target.closest("input, .no-drag")) return;
 
     dragState = {
       name: badge.dataset.varname,
@@ -115,7 +115,7 @@ DiceApp.setupButtonDragAndDrop = function (onReorder) {
   grid.addEventListener("pointerdown", (e) => {
     const card = e.target.closest(".dice-btn");
     if (!card) return;
-    if (e.target.closest(".delete-corner-btn")) return;
+    if (e.target.closest(".no-drag")) return;
 
     dragState = {
       index: parseInt(card.dataset.index, 10),

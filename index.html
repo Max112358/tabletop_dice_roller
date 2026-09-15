@@ -339,6 +339,79 @@
       </div>
     </div>
 
+    <div
+      id="button-edit-modal"
+      class="modal-overlay modal-hidden"
+      onclick="closeModal('button-edit-modal')"
+    >
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal('button-edit-modal')"
+          >&times;</span
+        >
+        <h3>Edit Roll Button</h3>
+        <input type="hidden" id="btnEditIndex" />
+        <div class="creator-form" style="margin-top: 10px">
+          <input
+            type="text"
+            id="btnEditLabel"
+            placeholder="Button Label (e.g., Greatsword)"
+          />
+          <input
+            type="text"
+            id="btnEditFormula"
+            placeholder="Formula (e.g., 2d6+[STR])"
+          />
+          <input
+            type="text"
+            id="btnEditNote"
+            placeholder="Note/Description (e.g., Slashing)"
+          />
+          <div style="display: flex; gap: 10px; margin-top: 10px">
+            <button onclick="saveButtonEdit()" style="flex: 1">Save</button>
+            <button
+              onclick="closeModal('button-edit-modal')"
+              class="danger"
+              style="flex: 1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="variable-edit-modal"
+      class="modal-overlay modal-hidden"
+      onclick="closeModal('variable-edit-modal')"
+    >
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal('variable-edit-modal')"
+          >&times;</span
+        >
+        <h3>Edit Variable</h3>
+        <input type="hidden" id="varEditOriginalName" />
+        <div class="creator-form" style="margin-top: 10px">
+          <input
+            type="text"
+            id="varEditName"
+            placeholder="Variable Name (e.g., STR)"
+          />
+          <input type="text" id="varEditValue" placeholder="Value (e.g., 3)" />
+          <div style="display: flex; gap: 10px; margin-top: 10px">
+            <button onclick="saveVariableEdit()" style="flex: 1">Save</button>
+            <button
+              onclick="closeModal('variable-edit-modal')"
+              class="danger"
+              style="flex: 1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="state.js"></script>
     <script src="utils.js"></script>
     <script src="diceEngine.js"></script>
@@ -346,6 +419,7 @@
     <script src="rollController.js"></script>
     <script src="dragAndDrop.js"></script>
     <script src="ui.js"></script>
+    <script src="editModal.js"></script>
     <script src="io.js"></script>
     <script src="app.js"></script>
   </body>

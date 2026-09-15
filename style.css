@@ -421,3 +421,72 @@ textarea {
 .dice-btn.drag-target {
   border: 1px dashed #89b4fa !important;
 }
+
+/* Hover-visible corner actions for buttons and variables */
+.btn-actions,
+.var-actions {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 5;
+}
+
+.dice-btn:hover .btn-actions,
+.var-badge:hover .var-actions {
+  opacity: 1;
+}
+
+.btn-actions button,
+.var-actions button {
+  border-radius: 4px;
+  border: none;
+  padding: 0;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+  color: #11111b;
+}
+
+.btn-actions button {
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+}
+
+.var-actions button {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+}
+
+.btn-actions .edit-btn,
+.var-actions .var-edit-btn {
+  background-color: #89b4fa;
+}
+
+.btn-actions .copy-btn,
+.var-actions .var-copy-btn {
+  background-color: #a6e3a1;
+}
+
+.btn-actions .delete-btn,
+.var-actions .var-delete-btn {
+  background-color: #f38ba8;
+}
+
+.btn-actions button:hover,
+.var-actions button:hover {
+  transform: scale(1.1);
+}
+
+.no-drag {
+  /* Marker class used by drag-and-drop to ignore pointer starts */
+}
