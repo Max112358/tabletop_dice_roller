@@ -251,11 +251,6 @@ textarea {
   display: flex;
   align-items: center;
   gap: 4px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.var-badge:hover .var-actions {
   opacity: 1;
 }
 
