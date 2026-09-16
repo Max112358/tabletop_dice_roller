@@ -101,6 +101,42 @@ DiceApp.deleteCharacter = function () {
   }
 };
 
+DiceApp.openRenameCharacterModal = function () {
+  document.getElementById("renameCharOriginalName").value =
+    DiceApp.currentCharacter;
+  document.getElementById("renameCharNewName").value = DiceApp.currentCharacter;
+  openModal("rename-character-modal");
+};
+
+DiceApp.saveRenameCharacter = function () {
+  const oldName = document.getElementById("renameCharOriginalName").value;
+  const newName = document.getElementById("renameCharNewName").value.trim();
+
+  if (!newName) {
+    showStatus("Character name cannot be empty.", true);
+    return;
+  }
+
+  if (newName === oldName) {
+    closeModal("rename-character-modal");
+    return;
+  }
+
+  if (DiceApp.database.hasOwnProperty(newName)) {
+    showStatus(`A character named "${newName}" already exists.`, true);
+    return;
+  }
+
+  DiceApp.database[newName] = DiceApp.database[oldName];
+  delete DiceApp.database[oldName];
+  DiceApp.currentCharacter = newName;
+
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+  closeModal("rename-character-modal");
+  showStatus(`Renamed character to "${newName}".`);
+};
+
 DiceApp.addButton = function () {
   const label = document.getElementById("btnLabel").value.trim();
   const formula = document.getElementById("btnFormula").value.trim();
@@ -214,6 +250,8 @@ DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
 window.switchCharacter = DiceApp.switchCharacter;
 window.createCharacter = DiceApp.createCharacter;
 window.deleteCharacter = DiceApp.deleteCharacter;
+window.openRenameCharacterModal = DiceApp.openRenameCharacterModal;
+window.saveRenameCharacter = DiceApp.saveRenameCharacter;
 window.addVariable = DiceApp.addVariable;
 window.updateVariableValue = DiceApp.updateVariableValue;
 window.removeVariable = DiceApp.removeVariable;
