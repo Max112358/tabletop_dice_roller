@@ -45,7 +45,7 @@ button:hover {
 .grid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   margin-top: 15px;
 }
 .dice-btn {
@@ -445,7 +445,7 @@ textarea {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 2px 8px;
+  padding: 0px 8px;
 }
 
 .dice-roll-btn {
