@@ -125,7 +125,6 @@ DiceApp.database =
   JSON.parse(localStorage.getItem("dice_worlds_v1")) ||
   JSON.parse(JSON.stringify(DEFAULT_DATABASE));
 
-// Guard against an empty database object
 if (!Object.keys(DiceApp.database).length) {
   DiceApp.database = JSON.parse(JSON.stringify(DEFAULT_DATABASE));
 }

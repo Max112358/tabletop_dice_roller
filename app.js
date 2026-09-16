@@ -356,8 +356,6 @@ DiceApp.factoryResetDatabase = function () {
       localStorage.removeItem("dice_worlds_v1");
       localStorage.removeItem("current_dice_world");
       localStorage.removeItem("current_dice_char");
-      localStorage.removeItem("dice_profiles_v2");
-      localStorage.removeItem("dice_profiles");
       window.location.reload();
     }
   }
