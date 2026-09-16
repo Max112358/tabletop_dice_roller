@@ -16,33 +16,38 @@
 
     <div class="section">
       <h3>World & Character Profiles</h3>
-      <div
-        style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px"
-      >
-        <label style="font-weight: bold">World</label>
-        <select id="worldSelect" onchange="switchWorld()"></select>
-        <input type="text" id="newWorldName" placeholder="New World Name" />
-        <button onclick="createWorld()">Create World</button>
-        <button onclick="openRenameWorldModal()">Rename World</button>
-        <button class="danger" onclick="deleteWorld()">Delete World</button>
+      <!-- World -->
+      <div class="profile-block">
+        <div class="profile-select-row">
+          <label style="font-weight: bold">World</label>
+          <select id="worldSelect" onchange="switchWorld()"></select>
+        </div>
+        <div class="profile-actions-row">
+          <input type="text" id="newWorldName" placeholder="New World Name" />
+          <button onclick="createWorld()">Create World</button>
+          <button onclick="openRenameWorldModal()">Rename World</button>
+          <button class="danger" onclick="deleteWorld()">Delete World</button>
+        </div>
       </div>
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 10px;
-        "
-      >
-        <label style="font-weight: bold">Character</label>
-        <select id="charSelect" onchange="switchCharacter()"></select>
-        <input type="text" id="newCharName" placeholder="New Character Name" />
-        <button onclick="createCharacter()">Create Character</button>
-        <button onclick="openRenameCharacterModal()">Rename Character</button>
-        <button class="danger" onclick="deleteCharacter()">
-          Delete Character
-        </button>
+
+      <!-- Character -->
+      <div class="profile-block">
+        <div class="profile-select-row">
+          <label style="font-weight: bold">Character</label>
+          <select id="charSelect" onchange="switchCharacter()"></select>
+        </div>
+        <div class="profile-actions-row">
+          <input
+            type="text"
+            id="newCharName"
+            placeholder="New Character Name"
+          />
+          <button onclick="createCharacter()">Create Character</button>
+          <button onclick="openRenameCharacterModal()">Rename Character</button>
+          <button class="danger" onclick="deleteCharacter()">
+            Delete Character
+          </button>
+        </div>
       </div>
     </div>
 
@@ -80,14 +85,8 @@
           type="text"
           id="newVarName"
           placeholder="Variable Name (e.g., STR)"
-          style="width: 180px"
         />
-        <input
-          type="text"
-          id="newVarValue"
-          placeholder="Value (e.g., 3)"
-          style="width: 90px"
-        />
+        <input type="text" id="newVarValue" placeholder="Value (e.g., 3)" />
         <button onclick="addVariable()">Add Variable</button>
       </div>
       <div class="var-container" id="varContainer"></div>
