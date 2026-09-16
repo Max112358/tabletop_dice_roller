@@ -203,28 +203,27 @@ textarea {
 .var-container {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   margin-top: 15px;
+  width: 100%;
+  max-width: 720px;
 }
-/* Thin full-width row containers */
 .var-badge {
   background-color: #313244;
   border: 1px solid #45475a;
   border-radius: 3px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px !important; /* Strips top/bottom padding */
-  height: 26px; /* Forces a fixed, slim row height */
+  gap: 10px;
+  padding: 6px 10px;
   width: 100%;
-  position: relative;
 }
 .var-name {
   font-family: monospace;
   font-weight: bold;
   color: #f9e2af;
-  min-width: 120px;
-  flex: 1 1 0;
+  flex: 0 0 120px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -245,17 +244,44 @@ textarea {
   line-height: 1.2;
   height: auto;
 }
-.var-del-btn {
-  background: none;
-  border: none;
-  color: #f38ba8;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 0 8px;
-  margin-left: 4px;
+.var-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
-.var-del-btn:hover {
-  color: #f9e2af;
+.var-badge:hover .var-actions {
+  opacity: 1;
+}
+.var-actions button {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+  color: #11111b;
+}
+.var-actions .var-edit-btn {
+  background-color: #89b4fa;
+}
+.var-actions .var-copy-btn {
+  background-color: #a6e3a1;
+}
+.var-actions .var-delete-btn {
+  background-color: #f38ba8;
+}
+.var-actions button:hover {
+  transform: scale(1.1);
 }
 .var-creator {
   display: grid;
@@ -289,55 +315,6 @@ textarea {
 }
 .dice-btn.broken .error-badge {
   display: block;
-}
-
-/* Hover state for variable delete buttons */
-.var-badge {
-  background-color: #313244;
-  border: 1px solid #45475a;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 14px 4px 10px !important;
-  padding-right: 58px !important; /* Reserve space for hover buttons */
-  width: 100%;
-  position: relative;
-}
-
-.var-badge .var-del-btn {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 18px;
-  height: 18px;
-  background-color: #f38ba8;
-  color: #11111b;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  padding: 0;
-  margin: 0;
-}
-
-.var-badge .var-del-btn:hover {
-  background-color: #f9e2af;
-  color: #11111b;
-  transform: scale(1.1);
-}
-
-/* Make the X appear cleanly when hovering over the variable item */
-.var-badge:hover .var-del-btn {
-  opacity: 1;
 }
 
 /* Modal Overlay Styling */
@@ -444,9 +421,8 @@ textarea {
   border: 1px dashed #89b4fa !important;
 }
 
-/* Hover-visible corner actions for buttons and variables */
-.btn-actions,
-.var-actions {
+/* Hover-visible corner actions for dice buttons */
+.btn-actions {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -457,16 +433,17 @@ textarea {
   z-index: 5;
 }
 
-.dice-btn:hover .btn-actions,
-.var-badge:hover .var-actions {
+.dice-btn:hover .btn-actions {
   opacity: 1;
 }
 
-.btn-actions button,
-.var-actions button {
+.btn-actions button {
+  width: 20px;
+  height: 20px;
   border-radius: 4px;
   border: none;
   padding: 0;
+  font-size: 11px;
   font-weight: bold;
   display: flex;
   align-items: center;
@@ -477,35 +454,19 @@ textarea {
   color: #11111b;
 }
 
-.btn-actions button {
-  width: 20px;
-  height: 20px;
-  font-size: 11px;
-}
-
-.var-actions button {
-  width: 18px;
-  height: 18px;
-  font-size: 10px;
-}
-
-.btn-actions .edit-btn,
-.var-actions .var-edit-btn {
+.btn-actions .edit-btn {
   background-color: #89b4fa;
 }
 
-.btn-actions .copy-btn,
-.var-actions .var-copy-btn {
+.btn-actions .copy-btn {
   background-color: #a6e3a1;
 }
 
-.btn-actions .delete-btn,
-.var-actions .var-delete-btn {
+.btn-actions .delete-btn {
   background-color: #f38ba8;
 }
 
-.btn-actions button:hover,
-.var-actions button:hover {
+.btn-actions button:hover {
   transform: scale(1.1);
 }
 
