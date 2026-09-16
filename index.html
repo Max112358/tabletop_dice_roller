@@ -15,12 +15,35 @@
     <div id="status"></div>
 
     <div class="section">
-      <h3>Character Profiles</h3>
-      <select id="charSelect" onchange="switchCharacter()"></select>
-      <input type="text" id="newCharName" placeholder="New Character Name" />
-      <button onclick="createCharacter()">Create</button>
-      <button onclick="openRenameCharacterModal()">Rename</button>
-      <button class="danger" onclick="deleteCharacter()">Delete Current</button>
+      <h3>World & Character Profiles</h3>
+      <div
+        style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px"
+      >
+        <label style="font-weight: bold">World</label>
+        <select id="worldSelect" onchange="switchWorld()"></select>
+        <input type="text" id="newWorldName" placeholder="New World Name" />
+        <button onclick="createWorld()">Create World</button>
+        <button onclick="openRenameWorldModal()">Rename World</button>
+        <button class="danger" onclick="deleteWorld()">Delete World</button>
+      </div>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 10px;
+        "
+      >
+        <label style="font-weight: bold">Character</label>
+        <select id="charSelect" onchange="switchCharacter()"></select>
+        <input type="text" id="newCharName" placeholder="New Character Name" />
+        <button onclick="createCharacter()">Create</button>
+        <button onclick="openRenameCharacterModal()">Rename</button>
+        <button class="danger" onclick="deleteCharacter()">
+          Delete Current
+        </button>
+      </div>
     </div>
 
     <div class="section">
@@ -167,13 +190,18 @@
     <div class="section">
       <h3>Import / Export Profile Data</h3>
       <p style="font-size: 12px; color: #a6adc8">
-        Copy this JSON text to back up this character, or paste a saved
-        character JSON string below and click Import.
+        Export an entire <strong>world</strong> (all characters at once) or just
+        the current <strong>character</strong>. Paste generated JSON below to
+        import.
       </p>
       <textarea id="ioJson" rows="4"></textarea>
       <br /><br />
-      <button onclick="exportCharacter()">Generate Export Code</button>
-      <button onclick="importCharacter()">Import from Code</button>
+      <button onclick="exportWorld()">Generate Export World Code</button>
+      <button onclick="importWorld()">Import World from Code</button>
+      <button onclick="exportCharacter()">
+        Generate Export Character Code
+      </button>
+      <button onclick="importCharacter()">Import Character from Code</button>
 
       <hr style="border: 0; border-top: 1px dashed #45475a; margin: 20px 0" />
       <div style="text-align: right">
@@ -436,6 +464,37 @@
             </button>
             <button
               onclick="closeModal('rename-character-modal')"
+              class="danger"
+              style="flex: 1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="rename-world-modal"
+      class="modal-overlay modal-hidden"
+      onclick="closeModal('rename-world-modal')"
+    >
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal('rename-world-modal')"
+          >&times;</span
+        >
+        <h3>Rename World</h3>
+        <input type="hidden" id="renameWorldOriginalName" />
+        <div class="creator-form" style="margin-top: 10px">
+          <input
+            type="text"
+            id="renameWorldNewName"
+            placeholder="New World Name"
+          />
+          <div style="display: flex; gap: 10px; margin-top: 10px">
+            <button onclick="saveRenameWorld()" style="flex: 1">Save</button>
+            <button
+              onclick="closeModal('rename-world-modal')"
               class="danger"
               style="flex: 1"
             >

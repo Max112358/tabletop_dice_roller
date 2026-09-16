@@ -3,15 +3,29 @@ window.DiceApp = window.DiceApp || {};
 DiceApp.renderNotes = function () {
   const notesArea = document.getElementById("charNotes");
   if (notesArea) {
-    notesArea.value = DiceApp.database[DiceApp.currentCharacter].notes || "";
+    notesArea.value = DiceApp.getCurrentCharacterData().notes || "";
   }
+};
+
+DiceApp.renderWorldSelect = function () {
+  const select = document.getElementById("worldSelect");
+  if (!select) return;
+  select.innerHTML = "";
+  Object.keys(DiceApp.database).forEach((world) => {
+    const opt = document.createElement("option");
+    opt.value = world;
+    opt.innerText = world;
+    if (world === DiceApp.currentWorld) opt.selected = true;
+    select.appendChild(opt);
+  });
 };
 
 DiceApp.renderCharacterSelect = function () {
   const select = document.getElementById("charSelect");
   if (!select) return;
   select.innerHTML = "";
-  Object.keys(DiceApp.database).forEach((char) => {
+  const world = DiceApp.database[DiceApp.currentWorld] || {};
+  Object.keys(world).forEach((char) => {
     const opt = document.createElement("option");
     opt.value = char;
     opt.innerText = char;
@@ -24,7 +38,7 @@ DiceApp.renderVariables = function () {
   const varContainer = document.getElementById("varContainer");
   if (!varContainer) return;
   varContainer.innerHTML = "";
-  const variables = DiceApp.database[DiceApp.currentCharacter].variables || {};
+  const variables = DiceApp.getCurrentCharacterData().variables || {};
 
   Object.keys(variables).forEach((varName) => {
     const badge = document.createElement("div");
@@ -91,7 +105,7 @@ DiceApp.renderDiceGrid = function () {
   const grid = document.getElementById("diceGrid");
   if (!grid) return;
   grid.innerHTML = "";
-  const buttons = DiceApp.database[DiceApp.currentCharacter].buttons || [];
+  const buttons = DiceApp.getCurrentCharacterData().buttons || [];
 
   buttons.forEach((btn, index) => {
     const wrapper = document.createElement("div");
@@ -163,8 +177,9 @@ DiceApp.renderDiceGrid = function () {
 
 DiceApp.renderUI = function () {
   const t0 = performance.now();
-  DiceApp.ensureCharacterStructure(DiceApp.currentCharacter);
+  DiceApp.ensureCharacterStructure();
   DiceApp.renderNotes();
+  DiceApp.renderWorldSelect();
   DiceApp.renderCharacterSelect();
   DiceApp.renderVariables();
   DiceApp.renderDiceGrid();

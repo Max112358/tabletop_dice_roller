@@ -63,7 +63,7 @@ DiceApp.setupVariableDragAndDrop = function (onReorder) {
       const targetBadge = getBadgeFromPoint(e.clientX, e.clientY);
 
       if (targetBadge && targetBadge.dataset.varname !== dragState.name) {
-        const variables = DiceApp.database[DiceApp.currentCharacter].variables;
+        const variables = DiceApp.getCurrentCharacterData().variables;
         const keys = Object.keys(variables);
         const sourceIndex = keys.indexOf(dragState.name);
         const targetIndex = keys.indexOf(targetBadge.dataset.varname);
@@ -74,7 +74,7 @@ DiceApp.setupVariableDragAndDrop = function (onReorder) {
 
           const newVariables = {};
           keys.forEach((k) => (newVariables[k] = variables[k]));
-          DiceApp.database[DiceApp.currentCharacter].variables = newVariables;
+          DiceApp.getCurrentCharacterData().variables = newVariables;
           DiceApp.saveToStorage();
           didReorder = true;
         }
@@ -168,7 +168,7 @@ DiceApp.setupButtonDragAndDrop = function (onReorder) {
           const movedItem = DiceApp.database[
             DiceApp.currentCharacter
           ].buttons.splice(dragState.index, 1)[0];
-          DiceApp.database[DiceApp.currentCharacter].buttons.splice(
+          DiceApp.getCurrentCharacterData().buttons.splice(
             targetIndex,
             0,
             movedItem,

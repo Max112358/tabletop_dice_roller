@@ -27,7 +27,7 @@ window.DiceApp = window.DiceApp || {};
       return null;
     }
 
-    const variables = DiceApp.database[DiceApp.currentCharacter].variables;
+    const variables = DiceApp.getCurrentCharacterData().variables;
     const duplicate = Object.keys(variables).some(
       (k) => k !== originalName && k.toUpperCase() === cleanName,
     );
@@ -40,7 +40,7 @@ window.DiceApp = window.DiceApp || {};
   }
 
   function makeUniqueCopyName(baseName) {
-    const variables = DiceApp.database[DiceApp.currentCharacter].variables;
+    const variables = DiceApp.getCurrentCharacterData().variables;
     let candidate = baseName + "_COPY";
     while (variables.hasOwnProperty(candidate)) {
       candidate += "_COPY";
@@ -53,7 +53,7 @@ window.DiceApp = window.DiceApp || {};
   // ------------------------------------------------------------------
 
   DiceApp.openButtonEditModal = function (index) {
-    const buttons = DiceApp.database[DiceApp.currentCharacter].buttons;
+    const buttons = DiceApp.getCurrentCharacterData().buttons;
     const btn = buttons[index];
     if (!btn) return;
 
@@ -76,7 +76,7 @@ window.DiceApp = window.DiceApp || {};
       return;
     }
 
-    const buttons = DiceApp.database[DiceApp.currentCharacter].buttons;
+    const buttons = DiceApp.getCurrentCharacterData().buttons;
     buttons[index] = { label, formula, note };
     DiceApp.saveToStorage();
     DiceApp.renderUI();
@@ -85,7 +85,7 @@ window.DiceApp = window.DiceApp || {};
   };
 
   DiceApp.copyButton = function (index) {
-    const buttons = DiceApp.database[DiceApp.currentCharacter].buttons;
+    const buttons = DiceApp.getCurrentCharacterData().buttons;
     const original = buttons[index];
     if (!original) return;
 
@@ -106,7 +106,7 @@ window.DiceApp = window.DiceApp || {};
   // ------------------------------------------------------------------
 
   DiceApp.openVariableEditModal = function (name) {
-    const variables = DiceApp.database[DiceApp.currentCharacter].variables;
+    const variables = DiceApp.getCurrentCharacterData().variables;
     if (!variables.hasOwnProperty(name)) return;
 
     document.getElementById("varEditOriginalName").value = name;
@@ -123,7 +123,7 @@ window.DiceApp = window.DiceApp || {};
     const cleanName = validateVarName(rawName, originalName);
     if (!cleanName) return;
 
-    const variables = DiceApp.database[DiceApp.currentCharacter].variables;
+    const variables = DiceApp.getCurrentCharacterData().variables;
 
     if (cleanName !== originalName) {
       const newVars = {};
@@ -134,7 +134,7 @@ window.DiceApp = window.DiceApp || {};
           newVars[key] = variables[key];
         }
       });
-      DiceApp.database[DiceApp.currentCharacter].variables = newVars;
+      DiceApp.getCurrentCharacterData().variables = newVars;
     } else {
       variables[originalName] = parseVariableValue(valueStr);
     }
@@ -146,7 +146,7 @@ window.DiceApp = window.DiceApp || {};
   };
 
   DiceApp.copyVariable = function (name) {
-    const variables = DiceApp.database[DiceApp.currentCharacter].variables;
+    const variables = DiceApp.getCurrentCharacterData().variables;
     if (!variables.hasOwnProperty(name)) return;
 
     const copyName = makeUniqueCopyName(name);
@@ -158,7 +158,7 @@ window.DiceApp = window.DiceApp || {};
       }
     });
 
-    DiceApp.database[DiceApp.currentCharacter].variables = newVars;
+    DiceApp.getCurrentCharacterData().variables = newVars;
     DiceApp.saveToStorage();
     DiceApp.renderUI();
     showStatus(`Copied variable "${name}" to "${copyName}"`);

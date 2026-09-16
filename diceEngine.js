@@ -2,7 +2,7 @@ window.DiceApp = window.DiceApp || {};
 
 DiceApp.getMissingVariables = function (formula, checkedVars = new Set()) {
   const t0 = performance.now();
-  DiceApp.ensureCharacterStructure(DiceApp.currentCharacter);
+  DiceApp.ensureCharacterStructure();
   const activeVars = DiceApp.database[DiceApp.currentCharacter].variables || {};
 
   const lowerVars = {};
@@ -87,7 +87,7 @@ DiceApp.getMissingVariables = function (formula, checkedVars = new Set()) {
 
 DiceApp.parseAndRoll = function (label, formula) {
   try {
-    DiceApp.ensureCharacterStructure(DiceApp.currentCharacter);
+    DiceApp.ensureCharacterStructure();
     let activeVars = DiceApp.database[DiceApp.currentCharacter].variables || {};
 
     let breakdownLogs = [];

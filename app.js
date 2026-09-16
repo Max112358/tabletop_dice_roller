@@ -31,7 +31,7 @@ DiceApp.addVariable = function () {
   const finalValue =
     !isNaN(cleanVal) && cleanVal.toString() === valueStr ? cleanVal : valueStr;
 
-  DiceApp.database[DiceApp.currentCharacter].variables[cleanName] = finalValue;
+  DiceApp.getCurrentCharacterData().variables[cleanName] = finalValue;
   DiceApp.saveToStorage();
   DiceApp.renderUI();
 
@@ -44,7 +44,7 @@ DiceApp.updateVariableValue = function (name, val) {
   const valueStr = val.trim();
   const cleanVal = parseFloat(valueStr);
 
-  DiceApp.database[DiceApp.currentCharacter].variables[name] =
+  DiceApp.getCurrentCharacterData().variables[name] =
     !isNaN(cleanVal) && cleanVal.toString() === valueStr ? cleanVal : valueStr;
 
   DiceApp.saveToStorage();
@@ -54,15 +54,122 @@ DiceApp.updateVariableValue = function (name, val) {
 
 DiceApp.removeVariable = function (name) {
   if (confirm(`Delete character variable "${name}"?`)) {
-    delete DiceApp.database[DiceApp.currentCharacter].variables[name];
+    delete DiceApp.getCurrentCharacterData().variables[name];
     DiceApp.saveToStorage();
     DiceApp.renderUI();
     showStatus(`Deleted variable "${name}".`);
   }
 };
 
+// ------------------------------------------------------------------
+// World management
+// ------------------------------------------------------------------
+
+DiceApp.switchWorld = function () {
+  DiceApp.currentWorld = document.getElementById("worldSelect").value;
+  const characters = DiceApp.database[DiceApp.currentWorld] || {};
+  const remaining = Object.keys(characters);
+  DiceApp.currentCharacter = remaining.length ? remaining[0] : "New Character";
+  DiceApp.ensureCharacterStructure();
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+  DiceApp.rollBuffer = [];
+  DiceApp.lastRollTime = 0;
+  document.getElementById("resTitle").innerText = "No dice rolled yet...";
+  document.getElementById("resRaw").innerText =
+    "Click a custom action button above to calculate a formula string.";
+  document.getElementById("bufferTimer").style.display = "none";
+};
+
+DiceApp.createWorld = function () {
+  const name = document.getElementById("newWorldName").value.trim();
+  if (!name) return;
+  if (DiceApp.database[name]) {
+    showStatus(`A world named "${name}" already exists.`, true);
+    return;
+  }
+  DiceApp.database[name] = {};
+  DiceApp.currentWorld = name;
+  DiceApp.currentCharacter = "New Character";
+  DiceApp.ensureCharacterStructure();
+  document.getElementById("newWorldName").value = "";
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+  showStatus(`Created world "${name}".`);
+};
+
+DiceApp.deleteWorld = function () {
+  if (
+    confirm(
+      `Are you sure you want to delete the entire world "${DiceApp.currentWorld}" and all of its characters?`,
+    )
+  ) {
+    delete DiceApp.database[DiceApp.currentWorld];
+
+    const remainingWorlds = Object.keys(DiceApp.database);
+    if (remainingWorlds.length) {
+      DiceApp.currentWorld = remainingWorlds[0];
+    } else {
+      DiceApp.database["Default World"] = {};
+      DiceApp.currentWorld = "Default World";
+    }
+
+    const characters = DiceApp.database[DiceApp.currentWorld] || {};
+    const remainingChars = Object.keys(characters);
+    DiceApp.currentCharacter = remainingChars.length
+      ? remainingChars[0]
+      : "New Character";
+    DiceApp.ensureCharacterStructure();
+
+    DiceApp.saveToStorage();
+    DiceApp.renderUI();
+    showStatus("World deleted.");
+  }
+};
+
+DiceApp.openRenameWorldModal = function () {
+  document.getElementById("renameWorldOriginalName").value =
+    DiceApp.currentWorld;
+  document.getElementById("renameWorldNewName").value = DiceApp.currentWorld;
+  openModal("rename-world-modal");
+};
+
+DiceApp.saveRenameWorld = function () {
+  const oldName = document.getElementById("renameWorldOriginalName").value;
+  const newName = document.getElementById("renameWorldNewName").value.trim();
+
+  if (!newName) {
+    showStatus("World name cannot be empty.", true);
+    return;
+  }
+
+  if (newName === oldName) {
+    closeModal("rename-world-modal");
+    return;
+  }
+
+  if (DiceApp.database.hasOwnProperty(newName)) {
+    showStatus(`A world named "${newName}" already exists.`, true);
+    return;
+  }
+
+  DiceApp.database[newName] = DiceApp.database[oldName];
+  delete DiceApp.database[oldName];
+  DiceApp.currentWorld = newName;
+
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+  closeModal("rename-world-modal");
+  showStatus(`Renamed world to "${newName}".`);
+};
+
+// ------------------------------------------------------------------
+// Character management
+// ------------------------------------------------------------------
+
 DiceApp.switchCharacter = function () {
   DiceApp.currentCharacter = document.getElementById("charSelect").value;
+  DiceApp.ensureCharacterStructure();
   DiceApp.saveToStorage();
   DiceApp.renderUI();
   DiceApp.rollBuffer = [];
@@ -76,8 +183,14 @@ DiceApp.switchCharacter = function () {
 DiceApp.createCharacter = function () {
   const name = document.getElementById("newCharName").value.trim();
   if (!name) return;
-  if (!DiceApp.database[name])
-    DiceApp.database[name] = { buttons: [], variables: {}, notes: "" };
+  if (!DiceApp.database[DiceApp.currentWorld])
+    DiceApp.database[DiceApp.currentWorld] = {};
+  if (!DiceApp.database[DiceApp.currentWorld][name])
+    DiceApp.database[DiceApp.currentWorld][name] = {
+      buttons: [],
+      variables: {},
+      notes: "",
+    };
   DiceApp.currentCharacter = name;
   document.getElementById("newCharName").value = "";
   DiceApp.saveToStorage();
@@ -90,12 +203,16 @@ DiceApp.deleteCharacter = function () {
       `Are you sure you want to delete all profiles/buttons for ${DiceApp.currentCharacter}?`,
     )
   ) {
-    delete DiceApp.database[DiceApp.currentCharacter];
-    const remaining = Object.keys(DiceApp.database);
+    if (!DiceApp.database[DiceApp.currentWorld])
+      DiceApp.database[DiceApp.currentWorld] = {};
+    delete DiceApp.database[DiceApp.currentWorld][DiceApp.currentCharacter];
+
+    const remaining = Object.keys(DiceApp.database[DiceApp.currentWorld]);
     DiceApp.currentCharacter = remaining.length
       ? remaining[0]
-      : "Example Paladin";
-    DiceApp.ensureCharacterStructure(DiceApp.currentCharacter);
+      : "New Character";
+    DiceApp.ensureCharacterStructure();
+
     DiceApp.saveToStorage();
     DiceApp.renderUI();
   }
@@ -122,13 +239,14 @@ DiceApp.saveRenameCharacter = function () {
     return;
   }
 
-  if (DiceApp.database.hasOwnProperty(newName)) {
+  const world = DiceApp.database[DiceApp.currentWorld];
+  if (world.hasOwnProperty(newName)) {
     showStatus(`A character named "${newName}" already exists.`, true);
     return;
   }
 
-  DiceApp.database[newName] = DiceApp.database[oldName];
-  delete DiceApp.database[oldName];
+  world[newName] = world[oldName];
+  delete world[oldName];
   DiceApp.currentCharacter = newName;
 
   DiceApp.saveToStorage();
@@ -136,6 +254,10 @@ DiceApp.saveRenameCharacter = function () {
   closeModal("rename-character-modal");
   showStatus(`Renamed character to "${newName}".`);
 };
+
+// ------------------------------------------------------------------
+// Buttons
+// ------------------------------------------------------------------
 
 DiceApp.addButton = function () {
   const label = document.getElementById("btnLabel").value.trim();
@@ -147,11 +269,7 @@ DiceApp.addButton = function () {
     return;
   }
 
-  DiceApp.database[DiceApp.currentCharacter].buttons.push({
-    label,
-    formula,
-    note,
-  });
+  DiceApp.getCurrentCharacterData().buttons.push({ label, formula, note });
   DiceApp.saveToStorage();
   DiceApp.renderUI();
 
@@ -162,7 +280,7 @@ DiceApp.addButton = function () {
 
 DiceApp.removeButton = function (index, label) {
   if (confirm(`Delete the "${label}" macro button?`)) {
-    DiceApp.database[DiceApp.currentCharacter].buttons.splice(index, 1);
+    DiceApp.getCurrentCharacterData().buttons.splice(index, 1);
     DiceApp.saveToStorage();
     DiceApp.renderUI();
     showStatus(`Deleted "${label}" macro.`);
@@ -170,7 +288,7 @@ DiceApp.removeButton = function (index, label) {
 };
 
 DiceApp.updateNotes = function (text) {
-  DiceApp.database[DiceApp.currentCharacter].notes = text;
+  DiceApp.getCurrentCharacterData().notes = text;
   DiceApp.saveToStorage();
 };
 
@@ -194,14 +312,15 @@ DiceApp.alphabetizeVariables = function () {
       "Are you sure you want to sort all variables alphabetically? This will change their current visual order.",
     )
   ) {
-    const vars = DiceApp.database[DiceApp.currentCharacter].variables;
+    const charData = DiceApp.getCurrentCharacterData();
+    const vars = charData.variables;
     const sortedKeys = Object.keys(vars).sort((a, b) => a.localeCompare(b));
     const newVars = {};
     sortedKeys.forEach((key) => {
       newVars[key] = vars[key];
     });
 
-    DiceApp.database[DiceApp.currentCharacter].variables = newVars;
+    charData.variables = newVars;
     DiceApp.saveToStorage();
     DiceApp.renderUI();
     showStatus("Variables sorted alphabetically.");
@@ -214,7 +333,7 @@ DiceApp.alphabetizeButtons = function () {
       "Are you sure you want to sort all macro buttons alphabetically? This will change their current visual order.",
     )
   ) {
-    DiceApp.database[DiceApp.currentCharacter].buttons.sort((a, b) =>
+    DiceApp.getCurrentCharacterData().buttons.sort((a, b) =>
       a.label.localeCompare(b.label),
     );
     DiceApp.saveToStorage();
@@ -225,7 +344,7 @@ DiceApp.alphabetizeButtons = function () {
 
 DiceApp.factoryResetDatabase = function () {
   const firstConfirmation = confirm(
-    "WARNING: This will permanently delete ALL characters, custom buttons, and variables from this browser's local storage.\n\nAre you sure you want to proceed?",
+    "WARNING: This will permanently delete ALL worlds, characters, custom buttons, and variables from this browser's local storage.\n\nAre you sure you want to proceed?",
   );
 
   if (firstConfirmation) {
@@ -234,9 +353,11 @@ DiceApp.factoryResetDatabase = function () {
     );
 
     if (secondConfirmation) {
+      localStorage.removeItem("dice_worlds_v1");
+      localStorage.removeItem("current_dice_world");
+      localStorage.removeItem("current_dice_char");
       localStorage.removeItem("dice_profiles_v2");
       localStorage.removeItem("dice_profiles");
-      localStorage.removeItem("current_dice_char");
       window.location.reload();
     }
   }
@@ -247,11 +368,18 @@ DiceApp.setupVariableDragAndDrop(DiceApp.renderUI);
 DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
 
 // Expose handlers for inline HTML onclick attributes
+window.switchWorld = DiceApp.switchWorld;
+window.createWorld = DiceApp.createWorld;
+window.deleteWorld = DiceApp.deleteWorld;
+window.openRenameWorldModal = DiceApp.openRenameWorldModal;
+window.saveRenameWorld = DiceApp.saveRenameWorld;
+
 window.switchCharacter = DiceApp.switchCharacter;
 window.createCharacter = DiceApp.createCharacter;
 window.deleteCharacter = DiceApp.deleteCharacter;
 window.openRenameCharacterModal = DiceApp.openRenameCharacterModal;
 window.saveRenameCharacter = DiceApp.saveRenameCharacter;
+
 window.addVariable = DiceApp.addVariable;
 window.updateVariableValue = DiceApp.updateVariableValue;
 window.removeVariable = DiceApp.removeVariable;
@@ -261,9 +389,6 @@ window.alphabetizeVariables = DiceApp.alphabetizeVariables;
 window.alphabetizeButtons = DiceApp.alphabetizeButtons;
 window.updateNotes = DiceApp.updateNotes;
 window.clearFeed = DiceApp.clearFeed;
-window.importCharacter = function () {
-  DiceApp.importCharacter(DiceApp.renderUI);
-};
 window.factoryResetDatabase = DiceApp.factoryResetDatabase;
 
 // Initialize
