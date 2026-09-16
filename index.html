@@ -101,12 +101,43 @@
         "
       >
         <h3>Roll Actions</h3>
-        <button
-          onclick="alphabetizeButtons()"
-          style="padding: 4px 8px; font-size: 12px; background-color: #89b4fa"
-        >
-          A-Z Sort
-        </button>
+        <div>
+          <button
+            onclick="alphabetizeButtons()"
+            style="
+              padding: 4px 8px;
+              font-size: 12px;
+              background-color: #89b4fa;
+              margin-right: 5px;
+            "
+          >
+            A-Z Sort
+          </button>
+          <button
+            onclick="openModal('button-guide-modal')"
+            style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af"
+          >
+            💡 Button Guide
+          </button>
+        </div>
+      </div>
+      <div class="btn-creator">
+        <input
+          type="text"
+          id="btnLabel"
+          placeholder="Button Label (e.g., Greatsword)"
+        />
+        <input
+          type="text"
+          id="btnFormula"
+          placeholder="Formula (e.g., 2d6+[STR])"
+        />
+        <input
+          type="text"
+          id="btnNote"
+          placeholder="Note/Description (e.g., Slashing)"
+        />
+        <button onclick="addButton()">Add Button</button>
       </div>
       <div class="grid" id="diceGrid"></div>
     </div>
@@ -132,46 +163,6 @@
         </div>
         <div id="resRaw" class="result-raw">
           Click a custom action button above to calculate a formula string.
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div
-        style="
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        "
-      >
-        <h3>Add New Roll Button</h3>
-        <button
-          onclick="openModal('button-guide-modal')"
-          style="padding: 4px 8px; font-size: 12px; background-color: #f9e2af"
-        >
-          💡 Button Guide
-        </button>
-      </div>
-      <div class="creator-container">
-        <div class="creator-form">
-          <input
-            type="text"
-            id="btnLabel"
-            placeholder="Button Label (e.g., Greatsword)"
-          />
-          <input
-            type="text"
-            id="btnFormula"
-            placeholder="Formula (e.g., 2d6+[STR])"
-          />
-          <input
-            type="text"
-            id="btnNote"
-            placeholder="Note/Description (e.g., Slashing)"
-          />
-          <button onclick="addButton()" style="margin-top: 5px">
-            Add Button to Deck
-          </button>
         </div>
       </div>
     </div>

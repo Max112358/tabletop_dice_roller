@@ -238,7 +238,7 @@ textarea {
   background-color: #1e1e2e;
   border: 1px solid #45475a;
   color: #cdd6f4;
-  padding: 2px 6px;
+  padding: 0px 6px;
   border-radius: 4px;
   text-align: left;
   font-weight: bold;
@@ -296,6 +296,19 @@ textarea {
 
 .var-creator input,
 .var-creator button {
+  width: 100%;
+  min-width: 0;
+}
+.btn-creator {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.btn-creator input,
+.btn-creator button {
   width: 100%;
   min-width: 0;
 }
