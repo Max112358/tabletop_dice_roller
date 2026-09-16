@@ -196,12 +196,23 @@
       </p>
       <textarea id="ioJson" rows="4"></textarea>
       <br /><br />
-      <button onclick="exportWorld()">Generate Export World Code</button>
-      <button onclick="importWorld()">Import World from Code</button>
-      <button onclick="exportCharacter()">
-        Generate Export Character Code
-      </button>
-      <button onclick="importCharacter()">Import Character from Code</button>
+
+      <div class="io-columns">
+        <div class="io-column">
+          <h4>World</h4>
+          <button onclick="importWorld()">Import World from Code</button>
+          <button onclick="exportWorld()">Generate Export World Code</button>
+        </div>
+        <div class="io-column">
+          <h4>Character</h4>
+          <button onclick="importCharacter()">
+            Import Character from Code
+          </button>
+          <button onclick="exportCharacter()">
+            Generate Export Character Code
+          </button>
+        </div>
+      </div>
 
       <hr style="border: 0; border-top: 1px dashed #45475a; margin: 20px 0" />
       <div style="text-align: right">

@@ -490,3 +490,27 @@ textarea {
 .no-drag {
   /* Marker class used by drag-and-drop to ignore pointer starts */
 }
+
+.io-columns {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.io-column {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.io-column h4 {
+  margin: 0 0 5px 0;
+  color: #89b4fa;
+  text-align: center;
+}
+
+.io-column button {
+  width: 100%;
+}
