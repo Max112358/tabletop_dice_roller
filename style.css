@@ -203,7 +203,7 @@ textarea {
 .var-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin-top: 15px;
   width: 100%;
   max-width: 720px;
@@ -214,8 +214,8 @@ textarea {
   border-radius: 3px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 2px 8px;
   width: 100%;
 }
 .var-name {
@@ -229,6 +229,7 @@ textarea {
   white-space: nowrap;
   line-height: 1.2;
 }
+
 .var-val-input,
 .var-val-input[type="text"],
 .var-val-input[type="number"] {
@@ -237,13 +238,14 @@ textarea {
   background-color: #1e1e2e;
   border: 1px solid #45475a;
   color: #cdd6f4;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
   text-align: left;
   font-weight: bold;
   line-height: 1.2;
   height: auto;
 }
+
 .var-actions {
   flex: 0 0 auto;
   display: flex;
@@ -252,16 +254,18 @@ textarea {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
+
 .var-badge:hover .var-actions {
   opacity: 1;
 }
+
 .var-actions button {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: 4px;
   border: none;
   padding: 0;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: bold;
   display: flex;
   align-items: center;
@@ -271,15 +275,19 @@ textarea {
   transition: transform 0.15s ease;
   color: #11111b;
 }
+
 .var-actions .var-edit-btn {
   background-color: #89b4fa;
 }
+
 .var-actions .var-copy-btn {
   background-color: #a6e3a1;
 }
+
 .var-actions .var-delete-btn {
   background-color: #f38ba8;
 }
+
 .var-actions button:hover {
   transform: scale(1.1);
 }
