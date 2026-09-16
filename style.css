@@ -222,10 +222,10 @@ textarea {
   font-family: monospace;
   font-weight: bold;
   color: #f9e2af;
-  flex: 0 0 120px;
+  flex: 0 0 auto; /* Let it size itself */
+  max-width: 70%; /* But cap it so some input always shows */
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible; /* Don’t truncate with ... */
   white-space: nowrap;
   line-height: 1.2;
 }
@@ -234,7 +234,7 @@ textarea {
 .var-val-input[type="text"],
 .var-val-input[type="number"] {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: 60px; /* Always leave a usable text box */
   background-color: #1e1e2e;
   border: 1px solid #45475a;
   color: #cdd6f4;
