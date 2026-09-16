@@ -3,7 +3,7 @@ window.DiceApp = window.DiceApp || {};
 DiceApp.getMissingVariables = function (formula, checkedVars = new Set()) {
   const t0 = performance.now();
   DiceApp.ensureCharacterStructure();
-  const activeVars = DiceApp.database[DiceApp.currentCharacter].variables || {};
+  const activeVars = DiceApp.getCurrentCharacterData().variables || {};
 
   const lowerVars = {};
   Object.keys(activeVars).forEach((k) => {
@@ -88,7 +88,7 @@ DiceApp.getMissingVariables = function (formula, checkedVars = new Set()) {
 DiceApp.parseAndRoll = function (label, formula) {
   try {
     DiceApp.ensureCharacterStructure();
-    let activeVars = DiceApp.database[DiceApp.currentCharacter].variables || {};
+    let activeVars = DiceApp.getCurrentCharacterData().variables || {};
 
     let breakdownLogs = [];
     let daggerheartContext = null;
