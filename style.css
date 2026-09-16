@@ -1,93 +1,136 @@
+:root {
+  /* Base */
+  --bg-body: #1e1e2e;
+  --bg-dark: #11111b;
+
+  /* Surfaces */
+  --bg-panel: #252538;
+  --bg-card: #313244;
+  --bg-guide: #181825;
+  --bg-input: #1e1e2e;
+
+  /* Text */
+  --text-main: #cdd6f4;
+  --text-muted: #a6adc8;
+  --text-dark: #11111b;
+
+  /* Accents */
+  --accent-blue: #6c7eab; /* Deep Muted Blue */
+  --accent-blue-light: #8fa1d0; /* Muted Soft Blue Highlight */
+  --accent-green: #5a8e73; /* Desaturated Sage Green */
+  --accent-pink: #a85768; /* Muted Crimson/Rose */
+  --accent-yellow: #f9e2af;
+  --accent-yellow-dark: #b89158; /* Warm Muted Amber */
+
+  /* Shared */
+  --border-color: #45475a;
+  --shadow-soft: 0 2px 5px rgba(0, 0, 0, 0.3);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
+
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #1e1e2e;
-  color: #cdd6f4;
+  background-color: var(--bg-body);
+  color: var(--text-main);
   max-width: 800px;
   margin: 40px auto;
   padding: 20px;
 }
+
 .section {
-  background-color: #252538;
+  background-color: var(--bg-panel);
   padding: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 20px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--border-color);
 }
+
 h3 {
   margin-top: 0;
-  color: #89b4fa;
+  color: var(--accent-blue);
 }
+
 select,
 input,
 button {
-  background-color: #313244;
-  color: #cdd6f4;
-  border: 1px solid #45475a;
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
 }
+
 button {
   cursor: pointer;
-  background-color: #89b4fa;
-  color: #11111b;
+  background-color: var(--accent-blue);
+  color: var(--text-dark);
   font-weight: bold;
   transition: all 0.2s ease;
 }
+
 button:hover {
-  background-color: #b4befe;
+  background-color: var(--accent-blue-light);
 }
+
 .grid {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin-top: 15px;
 }
+
 .dice-btn {
   position: relative;
-  background-color: #313244;
-  color: #cdd6f4;
+  background-color: var(--bg-card);
+  color: var(--text-main);
   padding: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   text-align: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  border: 1px solid #45475a;
+  border: 1px solid var(--border-color);
 }
 
 /* Style the roll buttons inside the dice grid */
 .dice-btn button {
-  background-color: #1e1e2e; /* Darker background */
-  color: #cdd6f4; /* Light text color */
+  background-color: var(--bg-input);
+  color: var(--text-main);
   padding: 2px 2px;
   text-align: left;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
+
 /* Hover state for roll buttons */
 .dice-btn button:hover {
-  background-color: #313244; /* Slightly lighter dark background on hover */
-  border-color: #b4befe; /* Lighter blue border on hover */
+  background-color: var(--bg-card);
+  border-color: var(--accent-blue-light);
 }
+
 .dice-btn button.success-flash {
-  background-color: #a6e3a1 !important;
-  color: #11111b !important;
+  background-color: var(--accent-green) !important;
+  color: var(--text-dark) !important;
   transform: scale(0.98);
 }
+
 .delete-corner-btn {
   position: absolute;
   top: -6px;
   right: -6px;
   width: 20px;
   height: 20px;
-  background-color: #f38ba8;
-  color: #11111b;
-  border-radius: 4px;
+  background-color: var(--accent-pink);
+  color: var(--text-dark);
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: bold;
   display: flex;
@@ -98,72 +141,82 @@ button:hover {
   transition:
     opacity 0.15s ease,
     transform 0.15s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-soft);
   border: none;
   padding: 0;
   z-index: 5;
 }
+
 .delete-corner-btn:hover {
-  background-color: #f9e2af;
+  background-color: var(--accent-yellow);
   transform: scale(1.1);
 }
+
 .dice-btn:hover .delete-corner-btn {
   opacity: 1;
 }
+
 .danger {
-  background-color: #f38ba8;
-  color: #11111b;
+  background-color: var(--accent-pink);
+  color: var(--text-dark);
 }
+
 .danger:hover {
-  background-color: #f9e2af;
+  background-color: var(--accent-yellow);
 }
 
 #status {
-  color: #a6e3a1;
+  color: var(--accent-green);
   font-weight: bold;
   height: 20px;
   margin-top: 10px;
 }
+
 textarea {
   width: 100%;
-  box-sizing: border-box; /* Fixes the padding overflow */
-  background-color: #313244;
-  color: #cdd6f4;
-  border: 1px solid #45475a;
-  border-radius: 4px;
+  box-sizing: border-box;
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   padding: 10px;
   font-family: monospace;
   resize: vertical;
 }
+
 .result-panel {
-  background-color: #11111b;
-  border: 2px solid #89b4fa;
+  background-color: var(--bg-dark);
+  border: 2px solid var(--accent-blue);
   padding: 15px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   min-height: 60px;
   margin-top: 10px;
 }
+
 .result-title {
   font-size: 16px;
-  color: #f9e2af;
+  color: var(--accent-yellow);
   margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .result-raw {
   font-family: "Courier New", Courier, monospace;
   font-size: 14px;
-  color: #a6adc8;
+  color: var(--text-muted);
   white-space: pre-wrap;
   word-break: break-all;
   line-height: 1.5;
 }
+
 .creator-container {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
 }
+
 .creator-form {
   flex: 1;
   min-width: 280px;
@@ -171,37 +224,43 @@ textarea {
   flex-direction: column;
   gap: 10px;
 }
+
 .guide-box {
   flex: 1;
   min-width: 280px;
-  background-color: #181825;
+  background-color: var(--bg-guide);
   padding: 15px;
-  border-radius: 6px;
-  border: 1px dashed #45475a;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-color);
   font-size: 13px;
 }
+
 .guide-box ul {
   margin: 5px 0 0 0;
   padding-left: 20px;
 }
+
 .guide-box li {
   margin-bottom: 6px;
 }
+
 .code-inline {
-  background-color: #313244;
+  background-color: var(--bg-card);
   padding: 2px 5px;
   border-radius: 3px;
   font-family: monospace;
-  color: #f9e2af;
+  color: var(--accent-yellow);
 }
+
 .timer-badge {
   font-size: 12px;
-  background-color: #313244;
-  color: #a6e3a1;
+  background-color: var(--bg-card);
+  color: var(--accent-green);
   padding: 3px 8px;
   border-radius: 12px;
-  border: 1px solid #45475a;
+  border: 1px solid var(--border-color);
 }
+
 .var-container {
   display: flex;
   flex-direction: column;
@@ -210,9 +269,10 @@ textarea {
   width: 100%;
   max-width: 720px;
 }
+
 .var-badge {
-  background-color: #313244;
-  border: 1px solid #45475a;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 3px;
   display: flex;
   align-items: center;
@@ -220,14 +280,15 @@ textarea {
   padding: 2px 8px;
   width: 100%;
 }
+
 .var-name {
   font-family: monospace;
   font-weight: bold;
-  color: #f9e2af;
-  flex: 0 0 auto; /* Let it size itself */
-  max-width: 70%; /* But cap it so some input always shows */
+  color: var(--accent-yellow);
+  flex: 0 0 auto;
+  max-width: 70%;
   min-width: 0;
-  overflow: visible; /* Don’t truncate with ... */
+  overflow: visible;
   white-space: nowrap;
   line-height: 1.2;
 }
@@ -236,12 +297,12 @@ textarea {
 .var-val-input[type="text"],
 .var-val-input[type="number"] {
   flex: 1 1 0;
-  min-width: 60px; /* Always leave a usable text box */
-  background-color: #1e1e2e;
-  border: 1px solid #45475a;
-  color: #cdd6f4;
+  min-width: 60px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
   padding: 0px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   text-align: left;
   font-weight: bold;
   line-height: 1.2;
@@ -259,7 +320,7 @@ textarea {
 .var-actions button {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: none;
   padding: 0;
   font-size: 10px;
@@ -268,26 +329,27 @@ textarea {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-soft);
   transition: transform 0.15s ease;
-  color: #11111b;
+  color: var(--text-dark);
 }
 
 .var-actions .var-edit-btn {
-  background-color: #89b4fa;
+  background-color: var(--accent-blue);
 }
 
 .var-actions .var-copy-btn {
-  background-color: #a6e3a1;
+  background-color: var(--accent-green);
 }
 
 .var-actions .var-delete-btn {
-  background-color: #f38ba8;
+  background-color: var(--accent-pink);
 }
 
 .var-actions button:hover {
   transform: scale(1.1);
 }
+
 .var-creator {
   display: grid;
   grid-template-columns: 2fr 1fr auto;
@@ -301,6 +363,7 @@ textarea {
   width: 100%;
   min-width: 0;
 }
+
 .btn-creator {
   display: grid;
   grid-template-columns: 1fr 1.5fr 1fr auto;
@@ -314,23 +377,27 @@ textarea {
   width: 100%;
   min-width: 0;
 }
+
 /* Broken/Missing Variable Button States */
 .dice-btn.broken button {
-  background-color: #f38ba8 !important;
-  color: #11111b !important;
-  border-color: #f38ba8;
+  background-color: var(--accent-pink) !important;
+  color: var(--text-dark) !important;
+  border-color: var(--accent-pink);
 }
+
 .dice-btn.broken button:hover {
-  background-color: #f9e2af !important;
+  background-color: var(--accent-yellow) !important;
 }
+
 .dice-btn .error-badge {
   display: none;
   font-size: 11px;
-  color: #f9e2af;
+  color: var(--accent-yellow);
   font-weight: bold;
   margin-top: 4px;
   text-align: center;
 }
+
 .dice-btn.broken .error-badge {
   display: block;
 }
@@ -342,7 +409,7 @@ textarea {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(17, 17, 27, 0.8); /* Semi-transparent background */
+  background-color: rgba(17, 17, 27, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -354,17 +421,17 @@ textarea {
 }
 
 .modal-content {
-  background-color: #252538;
-  border: 1px solid #45475a;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
   padding: 25px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   width: min(90%, 34rem);
   position: relative;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-  color: #cdd6f4;
-  max-height: 85dvh; /* cap height at 85% of the viewport */
-  overflow-y: auto; /* scroll when content exceeds that */
-  box-sizing: border-box; /* include padding in the height calc */
+  color: var(--text-main);
+  max-height: 85dvh;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .modal-close {
@@ -373,55 +440,36 @@ textarea {
   right: 16px;
   font-size: 24px;
   cursor: pointer;
-  color: #a6adc8;
+  color: var(--text-muted);
   transition: color 0.15s ease;
 }
 
 .modal-close:hover {
-  color: #f38ba8;
+  color: var(--accent-pink);
 }
 
-.guide-box {
-  background-color: #1e1e2e;
-  border: 1px solid #45475a;
-  padding: 15px;
-  border-radius: 8px;
-  margin-top: 10px;
-}
-
-.code-inline {
-  font-family: monospace;
-  background-color: #313244;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #a6e3a1;
-}
-
-/* Container for top-right actions */
 .result-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* Clear Feed Button styling */
 .clear-feed-btn {
-  background-color: #313244;
-  color: #f38ba8;
-  border: 1px solid #45475a;
+  background-color: var(--bg-card);
+  color: var(--accent-pink);
+  border: 1px solid var(--border-color);
   padding: 2px 8px;
   font-size: 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .clear-feed-btn:hover {
-  background-color: #f38ba8;
-  color: #11111b;
+  background-color: var(--accent-pink);
+  color: var(--text-dark);
 }
 
-/* Prevent text selection inside draggable cards */
 .var-badge,
 .dice-btn {
   user-select: none;
@@ -436,10 +484,9 @@ textarea {
 
 .var-badge.drag-target,
 .dice-btn.drag-target {
-  border: 1px dashed #89b4fa !important;
+  border: 1px dashed var(--accent-blue) !important;
 }
 
-/* Dice card layout: main row + optional error badge below */
 .dice-btn-row {
   display: flex;
   align-items: center;
@@ -451,20 +498,19 @@ textarea {
 .dice-roll-btn {
   flex: 1 1 auto;
   min-width: 0;
-  background-color: #1e1e2e;
-  color: #cdd6f4;
+  background-color: var(--bg-input);
+  color: var(--text-main);
   padding: 2px 2px;
   text-align: left;
-  border-radius: 4px;
-  border: 1px solid #45475a;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
 }
 
 .dice-roll-btn:hover {
-  background-color: #313244;
-  border-color: #b4befe;
+  background-color: var(--bg-card);
+  border-color: var(--accent-blue-light);
 }
 
-/* Permanent, centered action buttons (identical feel to var-actions) */
 .btn-actions {
   flex: 0 0 auto;
   display: flex;
@@ -476,7 +522,7 @@ textarea {
 .btn-actions button {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: none;
   padding: 0;
   font-size: 10px;
@@ -485,21 +531,21 @@ textarea {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-soft);
   transition: transform 0.15s ease;
-  color: #11111b;
+  color: var(--text-dark);
 }
 
 .btn-actions .edit-btn {
-  background-color: #89b4fa;
+  background-color: var(--accent-blue);
 }
 
 .btn-actions .copy-btn {
-  background-color: #a6e3a1;
+  background-color: var(--accent-green);
 }
 
 .btn-actions .delete-btn {
-  background-color: #f38ba8;
+  background-color: var(--accent-pink);
 }
 
 .btn-actions button:hover {
@@ -526,7 +572,7 @@ textarea {
 
 .io-column h4 {
   margin: 0 0 5px 0;
-  color: #89b4fa;
+  color: var(--accent-blue);
   text-align: center;
 }
 
