@@ -117,7 +117,7 @@ DiceApp.renderDiceGrid = function () {
     if (missingVars.length > 0) wrapper.classList.add("broken");
 
     const rollBtn = document.createElement("button");
-    rollBtn.style.width = "100%";
+    rollBtn.className = "dice-roll-btn no-drag";
     rollBtn.style.whiteSpace = "pre-line";
     rollBtn.style.cursor = "pointer";
     rollBtn.innerText = btn.label;
@@ -168,9 +168,14 @@ DiceApp.renderDiceGrid = function () {
     actions.appendChild(copyBtn);
     actions.appendChild(delBtn);
 
-    wrapper.appendChild(rollBtn);
+    // New: row puts the roll button and actions side-by-side
+    const row = document.createElement("div");
+    row.className = "dice-btn-row";
+    row.appendChild(rollBtn);
+    row.appendChild(actions);
+
+    wrapper.appendChild(row);
     wrapper.appendChild(errorBadge);
-    wrapper.appendChild(actions);
     grid.appendChild(wrapper);
   });
 };
