@@ -81,9 +81,17 @@ DiceApp.switchWorld = function () {
   document.getElementById("bufferTimer").style.display = "none";
 };
 
+DiceApp.openCreateWorldModal = function () {
+  document.getElementById("createWorldName").value = "";
+  openModal("create-world-modal");
+};
+
 DiceApp.createWorld = function () {
-  const name = document.getElementById("newWorldName").value.trim();
-  if (!name) return;
+  const name = document.getElementById("createWorldName").value.trim();
+  if (!name) {
+    showStatus("World name cannot be empty.", true);
+    return;
+  }
   if (DiceApp.database[name]) {
     showStatus(`A world named "${name}" already exists.`, true);
     return;
@@ -92,9 +100,10 @@ DiceApp.createWorld = function () {
   DiceApp.currentWorld = name;
   DiceApp.currentCharacter = "New Character";
   DiceApp.ensureCharacterStructure();
-  document.getElementById("newWorldName").value = "";
+  document.getElementById("createWorldName").value = "";
   DiceApp.saveToStorage();
   DiceApp.renderUI();
+  closeModal("create-world-modal");
   showStatus(`Created world "${name}".`);
 };
 
@@ -180,21 +189,34 @@ DiceApp.switchCharacter = function () {
   document.getElementById("bufferTimer").style.display = "none";
 };
 
+DiceApp.openCreateCharacterModal = function () {
+  document.getElementById("createCharName").value = "";
+  openModal("create-character-modal");
+};
+
 DiceApp.createCharacter = function () {
-  const name = document.getElementById("newCharName").value.trim();
-  if (!name) return;
+  const name = document.getElementById("createCharName").value.trim();
+  if (!name) {
+    showStatus("Character name cannot be empty.", true);
+    return;
+  }
   if (!DiceApp.database[DiceApp.currentWorld])
     DiceApp.database[DiceApp.currentWorld] = {};
-  if (!DiceApp.database[DiceApp.currentWorld][name])
-    DiceApp.database[DiceApp.currentWorld][name] = {
-      buttons: [],
-      variables: {},
-      notes: "",
-    };
+  if (DiceApp.database[DiceApp.currentWorld][name]) {
+    showStatus(`A character named "${name}" already exists.`, true);
+    return;
+  }
+  DiceApp.database[DiceApp.currentWorld][name] = {
+    buttons: [],
+    variables: {},
+    notes: "",
+  };
   DiceApp.currentCharacter = name;
-  document.getElementById("newCharName").value = "";
+  document.getElementById("createCharName").value = "";
   DiceApp.saveToStorage();
   DiceApp.renderUI();
+  closeModal("create-character-modal");
+  showStatus(`Created character "${name}".`);
 };
 
 DiceApp.deleteCharacter = function () {
@@ -367,12 +389,14 @@ DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
 
 // Expose handlers for inline HTML onclick attributes
 window.switchWorld = DiceApp.switchWorld;
+window.openCreateWorldModal = DiceApp.openCreateWorldModal;
 window.createWorld = DiceApp.createWorld;
 window.deleteWorld = DiceApp.deleteWorld;
 window.openRenameWorldModal = DiceApp.openRenameWorldModal;
 window.saveRenameWorld = DiceApp.saveRenameWorld;
 
 window.switchCharacter = DiceApp.switchCharacter;
+window.openCreateCharacterModal = DiceApp.openCreateCharacterModal;
 window.createCharacter = DiceApp.createCharacter;
 window.deleteCharacter = DiceApp.deleteCharacter;
 window.openRenameCharacterModal = DiceApp.openRenameCharacterModal;

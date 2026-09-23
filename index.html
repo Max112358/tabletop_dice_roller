@@ -23,8 +23,7 @@
           <select id="worldSelect" onchange="switchWorld()"></select>
         </div>
         <div class="profile-actions-row">
-          <input type="text" id="newWorldName" placeholder="New World Name" />
-          <button onclick="createWorld()">Create World</button>
+          <button onclick="openCreateWorldModal()">Create World</button>
           <button onclick="openRenameWorldModal()">Rename World</button>
           <button class="danger" onclick="deleteWorld()">Delete World</button>
         </div>
@@ -37,12 +36,7 @@
           <select id="charSelect" onchange="switchCharacter()"></select>
         </div>
         <div class="profile-actions-row">
-          <input
-            type="text"
-            id="newCharName"
-            placeholder="New Character Name"
-          />
-          <button onclick="createCharacter()">Create Character</button>
+          <button onclick="openCreateCharacterModal()">Create Character</button>
           <button onclick="openRenameCharacterModal()">Rename Character</button>
           <button class="danger" onclick="deleteCharacter()">
             Delete Character
@@ -440,6 +434,58 @@
             <button onclick="saveVariableEdit()" style="flex: 1">Save</button>
             <button
               onclick="closeModal('variable-edit-modal')"
+              class="danger"
+              style="flex: 1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="create-world-modal"
+      class="modal-overlay modal-hidden"
+      onclick="closeModal('create-world-modal')"
+    >
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal('create-world-modal')"
+          >&times;</span
+        >
+        <h3>Create World</h3>
+        <div class="creator-form" style="margin-top: 10px">
+          <input type="text" id="createWorldName" placeholder="World Name" />
+          <div style="display: flex; gap: 10px; margin-top: 10px">
+            <button onclick="createWorld()" style="flex: 1">Create</button>
+            <button
+              onclick="closeModal('create-world-modal')"
+              class="danger"
+              style="flex: 1"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="create-character-modal"
+      class="modal-overlay modal-hidden"
+      onclick="closeModal('create-character-modal')"
+    >
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal('create-character-modal')"
+          >&times;</span
+        >
+        <h3>Create Character</h3>
+        <div class="creator-form" style="margin-top: 10px">
+          <input type="text" id="createCharName" placeholder="Character Name" />
+          <div style="display: flex; gap: 10px; margin-top: 10px">
+            <button onclick="createCharacter()" style="flex: 1">Create</button>
+            <button
+              onclick="closeModal('create-character-modal')"
               class="danger"
               style="flex: 1"
             >
