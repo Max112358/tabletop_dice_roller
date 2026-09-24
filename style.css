@@ -1,30 +1,57 @@
 :root {
   /* Base */
-  --bg-body: #1e1e2e;
-  --bg-dark: #11111b;
+  --bg-body: #0f1115;
+  --bg-dark: #07080a;
 
   /* Surfaces */
-  --bg-panel: #252538;
-  --bg-card: #313244;
-  --bg-guide: #181825;
-  --bg-input: #1e1e2e;
+  --bg-panel: #16191f;
+  --bg-card: #1f222a;
+  --bg-guide: #13161b;
+  --bg-input: #11131a;
 
   /* Text */
-  --text-main: #cdd6f4;
-  --text-muted: #a6adc8;
-  --text-dark: #11111b;
+  --text-main: #e8eaed;
+  --text-muted: #9aa0a6;
+  --text-dark: #0f1115;
 
-  /* Accents */
-  --accent-blue: #6c7eab; /* Deep Muted Blue */
-  --accent-blue-light: #8fa1d0; /* Muted Soft Blue Highlight */
-  --accent-green: #5a8e73; /* Desaturated Sage Green */
-  --accent-pink: #a85768; /* Muted Crimson/Rose */
+  /* Amazon-inspired accents */
+  --accent-orange: #ff9900;
+  --accent-orange-soft: #cc7a00;
+  --accent-orange-dim: #8a5400;
+  --accent-orange-hard: #ff6200;
+
+  /* Muted button palette */
+  --button-bg: #2a2118;
+  --button-bg-hover: #3b2e1f;
+  --button-bg-active: #4a3b26;
+  --button-border: #5c401f;
+  --button-text: #ffb84d;
+
+  /* Muted danger palette */
+  --danger-bg: #3a1e22;
+  --danger-bg-hover: #4f282e;
+  --danger-bg-active: #63333a;
+  --danger-border: #7a3a42;
+  --danger-text: #ff8a95;
+
+  /* Muted success palette */
+  --success-bg: #1e3326;
+  --success-bg-hover: #2a4634;
+  --success-bg-active: #365a41;
+  --success-border: #3d6b4b;
+  --success-text: #7ee092;
+
+  /* Aliases so existing rules keep working */
+  --accent-blue: var(--accent-orange);
+  --accent-blue-light: var(--accent-orange-hard);
+
+  --accent-green: #2ecc71;
+  --accent-pink: #ff4d6d;
   --accent-yellow: #f9e2af;
-  --accent-yellow-dark: #b89158; /* Warm Muted Amber */
 
   /* Shared */
-  --border-color: #45475a;
-  --shadow-soft: 0 2px 5px rgba(0, 0, 0, 0.3);
+  --border-color: #2e333b;
+  --shadow-soft: 0 2px 5px rgba(0, 0, 0, 0.4);
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -76,7 +103,7 @@ body {
 
 h3 {
   margin-top: 0;
-  color: var(--accent-blue);
+  color: var(--accent-orange);
 }
 
 select,
@@ -92,14 +119,22 @@ button {
 
 button {
   cursor: pointer;
-  background-color: var(--accent-blue);
-  color: var(--text-dark);
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: 1px solid var(--button-border);
   font-weight: bold;
   transition: all 0.2s ease;
 }
 
 button:hover {
-  background-color: var(--accent-blue-light);
+  background-color: var(--button-bg-hover);
+  border-color: var(--accent-orange-hard);
+  color: var(--accent-orange);
+}
+
+button:active {
+  background-color: var(--button-bg-active);
+  border-color: var(--accent-orange);
 }
 
 .grid {
@@ -129,16 +164,18 @@ button:hover {
   padding: 2px 2px;
   text-align: left;
   border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
 }
 
 /* Hover state for roll buttons */
 .dice-btn button:hover {
   background-color: var(--bg-card);
-  border-color: var(--accent-blue-light);
+  border-color: var(--accent-orange-hard);
+  color: var(--text-main);
 }
 
 .dice-btn button.success-flash {
-  background-color: var(--accent-green) !important;
+  background-color: var(--success-text) !important;
   color: var(--text-dark) !important;
   transform: scale(0.98);
 }
@@ -149,8 +186,9 @@ button:hover {
   right: -6px;
   width: 20px;
   height: 20px;
-  background-color: var(--accent-pink);
-  color: var(--text-dark);
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: bold;
@@ -163,14 +201,19 @@ button:hover {
     opacity 0.15s ease,
     transform 0.15s ease;
   box-shadow: var(--shadow-soft);
-  border: none;
   padding: 0;
   z-index: 5;
 }
 
 .delete-corner-btn:hover {
-  background-color: var(--accent-yellow);
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
   transform: scale(1.1);
+}
+
+.delete-corner-btn:active {
+  background-color: var(--danger-bg-active);
 }
 
 .dice-btn:hover .delete-corner-btn {
@@ -178,16 +221,23 @@ button:hover {
 }
 
 .danger {
-  background-color: var(--accent-pink);
-  color: var(--text-dark);
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
 }
 
 .danger:hover {
-  background-color: var(--accent-yellow);
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+}
+
+.danger:active {
+  background-color: var(--danger-bg-active);
 }
 
 #status {
-  color: var(--accent-green);
+  color: var(--success-text);
   font-weight: bold;
   height: 20px;
   margin-top: 10px;
@@ -207,7 +257,7 @@ textarea {
 
 .result-panel {
   background-color: var(--bg-dark);
-  border: 2px solid var(--accent-blue);
+  border: 2px solid var(--accent-orange-hard);
   padding: 15px;
   border-radius: var(--radius-md);
   min-height: 60px;
@@ -276,7 +326,7 @@ textarea {
 .timer-badge {
   font-size: 12px;
   background-color: var(--bg-card);
-  color: var(--accent-green);
+  color: var(--success-text);
   padding: 3px 8px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -352,23 +402,58 @@ textarea {
   cursor: pointer;
   box-shadow: var(--shadow-soft);
   transition: transform 0.15s ease;
-  color: var(--text-dark);
 }
 
 .var-actions .var-edit-btn {
-  background-color: var(--accent-blue);
+  background-color: var(--button-bg);
+  border: 1px solid var(--button-border);
+  color: var(--button-text);
+}
+
+.var-actions .var-edit-btn:hover {
+  background-color: var(--button-bg-hover);
+  border-color: var(--accent-orange-hard);
+  color: var(--accent-orange);
+  transform: scale(1.1);
+}
+
+.var-actions .var-edit-btn:active {
+  background-color: var(--button-bg-active);
+  border-color: var(--accent-orange);
 }
 
 .var-actions .var-copy-btn {
-  background-color: var(--accent-green);
+  background-color: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+}
+
+.var-actions .var-copy-btn:hover {
+  background-color: var(--success-bg-hover);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  transform: scale(1.1);
+}
+
+.var-actions .var-copy-btn:active {
+  background-color: var(--success-bg-active);
 }
 
 .var-actions .var-delete-btn {
-  background-color: var(--accent-pink);
+  background-color: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
 }
 
-.var-actions button:hover {
+.var-actions .var-delete-btn:hover {
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
   transform: scale(1.1);
+}
+
+.var-actions .var-delete-btn:active {
+  background-color: var(--danger-bg-active);
 }
 
 .var-creator {
@@ -401,13 +486,14 @@ textarea {
 
 /* Broken/Missing Variable Button States */
 .dice-btn.broken button {
-  background-color: var(--accent-pink) !important;
-  color: var(--text-dark) !important;
-  border-color: var(--accent-pink);
+  background-color: var(--danger-bg) !important;
+  color: var(--danger-text) !important;
+  border-color: var(--danger-border);
 }
 
 .dice-btn.broken button:hover {
-  background-color: var(--accent-yellow) !important;
+  background-color: var(--danger-bg-hover) !important;
+  border-color: var(--accent-pink) !important;
 }
 
 .dice-btn .error-badge {
@@ -430,7 +516,7 @@ textarea {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(17, 17, 27, 0.8);
+  background-color: rgba(7, 8, 10, 0.85);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -448,7 +534,7 @@ textarea {
   border-radius: var(--radius-lg);
   width: min(90%, 34rem);
   position: relative;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
   color: var(--text-main);
   max-height: 85dvh;
   overflow-y: auto;
@@ -476,9 +562,9 @@ textarea {
 }
 
 .clear-feed-btn {
-  background-color: var(--bg-card);
-  color: var(--accent-pink);
-  border: 1px solid var(--border-color);
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   padding: 2px 8px;
   font-size: 12px;
   border-radius: var(--radius-sm);
@@ -487,8 +573,13 @@ textarea {
 }
 
 .clear-feed-btn:hover {
-  background-color: var(--accent-pink);
-  color: var(--text-dark);
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+}
+
+.result-actions .clear-feed-btn:active {
+  background-color: var(--danger-bg-active);
 }
 
 .var-badge,
@@ -505,7 +596,7 @@ textarea {
 
 .var-badge.drag-target,
 .dice-btn.drag-target {
-  border: 1px dashed var(--accent-blue) !important;
+  border: 1px dashed var(--accent-orange-hard) !important;
 }
 
 .dice-btn-row {
@@ -529,7 +620,8 @@ textarea {
 
 .dice-roll-btn:hover {
   background-color: var(--bg-card);
-  border-color: var(--accent-blue-light);
+  border-color: var(--accent-orange-hard);
+  color: var(--text-main);
 }
 
 .btn-actions {
@@ -554,23 +646,58 @@ textarea {
   cursor: pointer;
   box-shadow: var(--shadow-soft);
   transition: transform 0.15s ease;
-  color: var(--text-dark);
 }
 
 .btn-actions .edit-btn {
-  background-color: var(--accent-blue);
+  background-color: var(--button-bg);
+  border: 1px solid var(--button-border);
+  color: var(--button-text);
+}
+
+.btn-actions .edit-btn:hover {
+  background-color: var(--button-bg-hover);
+  border-color: var(--accent-orange-hard);
+  color: var(--accent-orange);
+  transform: scale(1.1);
+}
+
+.btn-actions .edit-btn:active {
+  background-color: var(--button-bg-active);
+  border-color: var(--accent-orange);
 }
 
 .btn-actions .copy-btn {
-  background-color: var(--accent-green);
+  background-color: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+}
+
+.btn-actions .copy-btn:hover {
+  background-color: var(--success-bg-hover);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  transform: scale(1.1);
+}
+
+.btn-actions .copy-btn:active {
+  background-color: var(--success-bg-active);
 }
 
 .btn-actions .delete-btn {
-  background-color: var(--accent-pink);
+  background-color: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
 }
 
-.btn-actions button:hover {
+.btn-actions .delete-btn:hover {
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
   transform: scale(1.1);
+}
+
+.btn-actions .delete-btn:active {
+  background-color: var(--danger-bg-active);
 }
 
 .no-drag {
@@ -593,7 +720,7 @@ textarea {
 
 .io-column h4 {
   margin: 0 0 5px 0;
-  color: var(--accent-blue);
+  color: var(--accent-orange);
   text-align: center;
 }
 
