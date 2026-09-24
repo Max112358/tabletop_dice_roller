@@ -180,6 +180,13 @@ DiceApp.renderDiceGrid = function () {
   });
 };
 
+DiceApp.renderActiveCharacterBadge = function () {
+  const nameEl = document.getElementById("activeCharName");
+  if (nameEl) {
+    nameEl.innerText = DiceApp.currentCharacter || "-";
+  }
+};
+
 DiceApp.renderUI = function () {
   const t0 = performance.now();
   DiceApp.ensureCharacterStructure();
@@ -188,5 +195,6 @@ DiceApp.renderUI = function () {
   DiceApp.renderCharacterSelect();
   DiceApp.renderVariables();
   DiceApp.renderDiceGrid();
+  DiceApp.renderActiveCharacterBadge();
   DiceApp.logElapsed("[renderUI]", t0, 50);
 };

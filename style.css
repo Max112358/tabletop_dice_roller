@@ -45,6 +45,27 @@ body {
   padding: 20px;
 }
 
+.active-char-badge {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  background-color: var(--bg-panel);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: var(--shadow-soft);
+  opacity: 0.9;
+  pointer-events: none;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .section {
   background-color: var(--bg-panel);
   padding: 20px;
