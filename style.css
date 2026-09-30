@@ -88,9 +88,8 @@ body {
   opacity: 0.9;
   pointer-events: none;
   max-width: 220px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
 }
 
 .section {
