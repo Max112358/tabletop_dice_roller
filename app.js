@@ -176,8 +176,9 @@ DiceApp.saveRenameWorld = function () {
 // Character management
 // ------------------------------------------------------------------
 
-DiceApp.switchCharacter = function () {
-  DiceApp.currentCharacter = document.getElementById("charSelect").value;
+DiceApp.switchCharacter = function (sourceSelect) {
+  const select = sourceSelect || document.getElementById("charSelect");
+  DiceApp.currentCharacter = select.value;
   DiceApp.ensureCharacterStructure();
   DiceApp.saveToStorage();
   DiceApp.renderUI();

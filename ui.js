@@ -22,16 +22,21 @@ DiceApp.renderWorldSelect = function () {
 
 DiceApp.renderCharacterSelect = function () {
   const select = document.getElementById("charSelect");
-  if (!select) return;
-  select.innerHTML = "";
-  const world = DiceApp.database[DiceApp.currentWorld] || {};
-  Object.keys(world).forEach((char) => {
-    const opt = document.createElement("option");
-    opt.value = char;
-    opt.innerText = char;
-    if (char === DiceApp.currentCharacter) opt.selected = true;
-    select.appendChild(opt);
-  });
+  const badgeSelect = document.getElementById("activeCharSelect");
+  if (select) populateSelect(select);
+  if (badgeSelect) populateSelect(badgeSelect);
+
+  function populateSelect(el) {
+    el.innerHTML = "";
+    const world = DiceApp.database[DiceApp.currentWorld] || {};
+    Object.keys(world).forEach((char) => {
+      const opt = document.createElement("option");
+      opt.value = char;
+      opt.innerText = char;
+      if (char === DiceApp.currentCharacter) opt.selected = true;
+      el.appendChild(opt);
+    });
+  }
 };
 
 DiceApp.renderVariables = function () {
@@ -181,10 +186,18 @@ DiceApp.renderDiceGrid = function () {
 };
 
 DiceApp.renderActiveCharacterBadge = function () {
-  const nameEl = document.getElementById("activeCharName");
-  if (nameEl) {
-    nameEl.innerText = DiceApp.currentCharacter || "-";
-  }
+  const badgeSelect = document.getElementById("activeCharSelect");
+  if (!badgeSelect) return;
+
+  badgeSelect.innerHTML = "";
+  const world = DiceApp.database[DiceApp.currentWorld] || {};
+  Object.keys(world).forEach((char) => {
+    const opt = document.createElement("option");
+    opt.value = char;
+    opt.innerText = char;
+    if (char === DiceApp.currentCharacter) opt.selected = true;
+    badgeSelect.appendChild(opt);
+  });
 };
 
 DiceApp.renderUI = function () {

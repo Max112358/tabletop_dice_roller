@@ -12,7 +12,7 @@
   </head>
   <body>
     <div id="activeCharBadge" class="active-char-badge">
-      <span id="activeCharName">-</span>
+      <select id="activeCharSelect" onchange="switchCharacter(this)"></select>
     </div>
 
     <h2>🎲 Tabletop Dice Deck</h2>
@@ -37,7 +37,7 @@
       <div class="profile-block">
         <div class="profile-select-row">
           <label style="font-weight: bold">Character</label>
-          <select id="charSelect" onchange="switchCharacter()"></select>
+          <select id="charSelect" onchange="switchCharacter(this)"></select>
         </div>
         <div class="profile-actions-row">
           <button onclick="openCreateCharacterModal()">Create Character</button>
