@@ -122,9 +122,9 @@ DiceApp.renderDiceGrid = function () {
     if (missingVars.length > 0) wrapper.classList.add("broken");
 
     const rollBtn = document.createElement("button");
-    rollBtn.className = "dice-roll-btn no-drag";
+    rollBtn.className = "dice-roll-btn";
     rollBtn.style.whiteSpace = "pre-line";
-    rollBtn.style.cursor = "pointer";
+    rollBtn.style.cursor = "grab"; // whole card is draggable
     rollBtn.innerText = btn.label;
 
     let tooltipText = `Formula: ${btn.formula}`;

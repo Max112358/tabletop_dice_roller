@@ -15,7 +15,7 @@ DiceApp.setupVariableDragAndDrop = function (onReorder) {
   container.addEventListener("pointerdown", (e) => {
     const badge = e.target.closest(".var-badge");
     if (!badge) return;
-    if (e.target.closest("input, .no-drag")) return;
+    if (e.target.closest(".no-drag")) return; // was "input, .no-drag"
 
     dragState = {
       name: badge.dataset.varname,
@@ -60,6 +60,8 @@ DiceApp.setupVariableDragAndDrop = function (onReorder) {
     let didReorder = false;
 
     if (dragState.isDragging) {
+      e.preventDefault(); // stop click/focus on the input/name
+
       const targetBadge = getBadgeFromPoint(e.clientX, e.clientY);
 
       if (targetBadge && targetBadge.dataset.varname !== dragState.name) {
@@ -160,6 +162,8 @@ DiceApp.setupButtonDragAndDrop = function (onReorder) {
     let didReorder = false;
 
     if (dragState.isDragging) {
+      e.preventDefault(); // stop the roll button's click
+
       const targetCard = getCardFromPoint(e.clientX, e.clientY);
 
       if (targetCard) {
