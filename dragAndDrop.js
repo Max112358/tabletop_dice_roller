@@ -165,9 +165,10 @@ DiceApp.setupButtonDragAndDrop = function (onReorder) {
       if (targetCard) {
         const targetIndex = parseInt(targetCard.dataset.index, 10);
         if (targetIndex !== dragState.index) {
-          const movedItem = DiceApp.database[
-            DiceApp.currentCharacter
-          ].buttons.splice(dragState.index, 1)[0];
+          const movedItem = DiceApp.getCurrentCharacterData().buttons.splice(
+            dragState.index,
+            1,
+          )[0];
           DiceApp.getCurrentCharacterData().buttons.splice(
             targetIndex,
             0,
