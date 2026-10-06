@@ -124,7 +124,7 @@ DiceApp.renderDiceGrid = function () {
     const rollBtn = document.createElement("button");
     rollBtn.className = "dice-roll-btn";
     rollBtn.style.whiteSpace = "pre-line";
-    rollBtn.style.cursor = "grab"; // whole card is draggable
+    rollBtn.style.cursor = "grab";
     rollBtn.innerText = btn.label;
 
     let tooltipText = `Formula: ${btn.formula}`;
@@ -173,13 +173,8 @@ DiceApp.renderDiceGrid = function () {
     actions.appendChild(copyBtn);
     actions.appendChild(delBtn);
 
-    // New: row puts the roll button and actions side-by-side
-    const row = document.createElement("div");
-    row.className = "dice-btn-row";
-    row.appendChild(rollBtn);
-    row.appendChild(actions);
-
-    wrapper.appendChild(row);
+    wrapper.appendChild(rollBtn);
+    wrapper.appendChild(actions);
     wrapper.appendChild(errorBadge);
     grid.appendChild(wrapper);
   });

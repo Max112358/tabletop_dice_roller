@@ -77,18 +77,16 @@ body {
   top: 10px;
   left: 10px;
   z-index: 100;
-  background-color: var(--bg-panel);
+  background-color: var(--bg-card);
   color: var(--text-main);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: bold;
-  box-shadow: var(--shadow-soft);
-  opacity: 0.9;
   max-width: 220px;
-  white-space: normal;
-  overflow: visible;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
 }
 
 .active-char-badge select {
@@ -156,15 +154,7 @@ button:active {
 
 .dice-btn {
   position: relative;
-  background-color: var(--bg-card);
-  color: var(--text-main);
-  padding: 2px;
   border-radius: var(--radius-md);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  border: 1px solid var(--border-color);
 }
 
 /* Style the roll buttons inside the dice grid */
@@ -184,7 +174,7 @@ button:active {
   color: var(--text-main);
 }
 
-.dice-btn button.success-flash {
+.dice-roll-btn.success-flash {
   background-color: var(--success-text) !important;
   color: var(--text-dark) !important;
   transform: scale(0.98);
@@ -495,13 +485,13 @@ textarea {
 }
 
 /* Broken/Missing Variable Button States */
-.dice-btn.broken button {
+.dice-btn.broken .dice-roll-btn {
   background-color: var(--danger-bg) !important;
   color: var(--danger-text) !important;
   border-color: var(--danger-border);
 }
 
-.dice-btn.broken button:hover {
+.dice-btn.broken .dice-roll-btn:hover {
   background-color: var(--danger-bg-hover) !important;
   border-color: var(--accent-pink) !important;
 }
@@ -609,20 +599,11 @@ textarea {
   border: 1px dashed var(--accent-orange-hard) !important;
 }
 
-.dice-btn-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 0px 8px;
-}
-
 .dice-roll-btn {
-  flex: 1 1 auto;
-  min-width: 0;
+  width: 100%;
   background-color: var(--bg-input);
   color: var(--text-main);
-  padding: 2px 2px;
+  padding: 6px 72px 6px 12px;
   text-align: left;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
@@ -635,11 +616,13 @@ textarea {
 }
 
 .btn-actions {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 4px;
+  right: 4px;
   display: flex;
   align-items: center;
   gap: 4px;
-  opacity: 1;
+  z-index: 5;
 }
 
 .btn-actions button {
