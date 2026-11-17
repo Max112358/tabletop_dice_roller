@@ -159,25 +159,8 @@ DiceApp.parseAndRoll = function (label, formula) {
         throw new Error(`Missing variable reference: [${missingVarName}]`);
       }
 
-      // Parentheses / math functions
-      const parenRegex = /(max|min|ceil|floor|round)?\(([^()]+)\)/;
-      while (parenRegex.test(workingExpr)) {
-        workingExpr = workingExpr.replace(
-          parenRegex,
-          (fullMatch, funcName, innerExpr) => {
-            if (funcName) {
-              let args = innerExpr
-                .split(",")
-                .map((arg) => evaluateMathAndDice(arg, depth + 1, silent));
-              return Math[funcName](...args);
-            } else {
-              return evaluateMathAndDice(innerExpr, depth + 1, silent);
-            }
-          },
-        );
-      }
-
-      // Roll-until-target: evaluate a batch expression repeatedly.
+      // Roll-until-target: process BEFORE parentheses so the batch
+      // expression can include dice, modifiers, and variables.
       const targetRegex =
         /(\([^()]+\)|\d+d\d+(?:(?!rolluntiltarget)[\w+\-*/.\[\]()])+?)rolluntiltarget(?:\[([^\]]+)\]|(\d+))/gi;
 
@@ -197,8 +180,12 @@ DiceApp.parseAndRoll = function (label, formula) {
             }
 
             let targetNum = parseInt(targetRaw, 10);
-            if (isNaN(targetNum) || targetNum < 0) {
+            if (isNaN(targetNum)) {
               throw new Error(`Invalid rolluntiltarget value: ${targetRaw}`);
+            }
+
+            if (targetNum <= 0) {
+              return 0;
             }
 
             let cumulative = 0;
@@ -227,6 +214,24 @@ DiceApp.parseAndRoll = function (label, formula) {
             if (!silent) breakdownLogs.push(logString);
 
             return cumulative;
+          },
+        );
+      }
+
+      // Parentheses / math functions
+      const parenRegex = /(max|min|ceil|floor|round)?\(([^()]+)\)/;
+      while (parenRegex.test(workingExpr)) {
+        workingExpr = workingExpr.replace(
+          parenRegex,
+          (fullMatch, funcName, innerExpr) => {
+            if (funcName) {
+              let args = innerExpr
+                .split(",")
+                .map((arg) => evaluateMathAndDice(arg, depth + 1, silent));
+              return Math[funcName](...args);
+            } else {
+              return evaluateMathAndDice(innerExpr, depth + 1, silent);
+            }
           },
         );
       }
