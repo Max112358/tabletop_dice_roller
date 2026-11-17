@@ -146,6 +146,62 @@ DiceApp.parseAndRoll = function (label, formula) {
 
       let workingExpr = String(expr).trim().toLowerCase();
 
+      // Pre-evaluate rolluntiltarget/limit bracket arguments so variables
+      // are resolved without collapsing the brackets. This prevents two
+      // consecutive numeric arguments from merging (e.g. [66][12] -> 6612).
+      function preProcessRollUntilTargets(input) {
+        let result = "";
+        let i = 0;
+        while (i < input.length) {
+          let keywordMatch = input
+            .slice(i)
+            .match(/rolluntiltargetlimit|rolluntiltarget/i);
+          if (!keywordMatch) {
+            result += input.slice(i);
+            break;
+          }
+
+          let keyword = keywordMatch[0].toLowerCase();
+          let keywordStart = i + keywordMatch.index;
+          result += input.slice(i, keywordStart);
+          i = keywordStart + keyword.length;
+
+          if (input[i] !== "[") {
+            result += keyword;
+            continue;
+          }
+
+          let parseBracket = () => {
+            let bracketDepth = 0;
+            let j = i;
+            while (j < input.length) {
+              if (input[j] === "[") bracketDepth++;
+              else if (input[j] === "]") bracketDepth--;
+              j++;
+              if (bracketDepth === 0) break;
+            }
+            let bracket = input.slice(i, j);
+            i = j;
+            return bracket;
+          };
+
+          let targetBracket = parseBracket();
+          let targetExpr = targetBracket.slice(1, -1);
+          let targetVal = evaluateMathAndDice(targetExpr, depth + 1, true);
+          result += `${keyword}[${targetVal}]`;
+
+          if (keyword === "rolluntiltargetlimit" && input[i] === "[") {
+            let limitBracket = parseBracket();
+            let limitExpr = limitBracket.slice(1, -1);
+            let limitVal = evaluateMathAndDice(limitExpr, depth + 1, true);
+            result += `[${limitVal}]`;
+          }
+        }
+        return result;
+      }
+
+      workingExpr = preProcessRollUntilTargets(workingExpr);
+
       // Variable substitution
       const bracketRegex = /\[([^\]]+)\]/g;
       let hasMissingVar = false;
@@ -228,27 +284,17 @@ DiceApp.parseAndRoll = function (label, formula) {
 
       // Roll-until-target-limit: process BEFORE parentheses.
       const targetLimitRegex =
-        /(\{[^{}]+\}|\d+d\d+(?:(?!rolluntiltargetlimit)[\w+\-*/.\[\]()])+?)rolluntiltargetlimit(?:\[([^\]]+)\]|(\d+))(?:\[([^\]]+)\]|(\d+))/gi;
+        /(\{[^{}]+\}|\d+d\d+(?:(?!rolluntiltargetlimit)[\w+\-*/.\[\]()])+?)rolluntiltargetlimit\[([^\]]+)\]\[([^\]]+)\]/gi;
 
       while (targetLimitRegex.test(workingExpr)) {
         targetLimitRegex.lastIndex = 0;
         workingExpr = workingExpr.replace(
           targetLimitRegex,
-          (
-            match,
-            expr,
-            targetBracketed,
-            targetBare,
-            limitBracketed,
-            limitBare,
-          ) => {
+          (match, expr, targetRaw, limitRaw) => {
             let batchExpr = expr;
             if (batchExpr.startsWith("{") && batchExpr.endsWith("}")) {
               batchExpr = batchExpr.slice(1, -1);
             }
-
-            let targetRaw = targetBracketed || targetBare;
-            let limitRaw = limitBracketed || limitBare;
 
             if (!targetRaw) {
               throw new Error("rolluntiltargetlimit missing target value");
@@ -265,7 +311,7 @@ DiceApp.parseAndRoll = function (label, formula) {
             }
 
             let limitNum = parseInt(limitRaw, 10);
-            if (isNaN(limitNum)) {
+            if (isNaN(targetNum)) {
               throw new Error(
                 `Invalid rolluntiltargetlimit limit: ${limitRaw}`,
               );
