@@ -58,6 +58,21 @@ DiceApp.getMissingVariables = function (formula, checkedVars = new Set()) {
   );
 
   workingFormula = workingFormula.replace(
+    /rolluntiltargetlimit\[([^\]]+)\]\[([^\]]+)\]/gi,
+    (match, targetVal, limitVal) => {
+      let t = targetVal.trim().toLowerCase();
+      if (t !== "max" && t !== "min" && !/^\d+$/.test(t)) {
+        critVars.push(t);
+      }
+      let l = limitVal.trim().toLowerCase();
+      if (l !== "max" && l !== "min" && !/^\d+$/.test(l)) {
+        critVars.push(l);
+      }
+      return "";
+    },
+  );
+
+  workingFormula = workingFormula.replace(
     /rolluntiltarget\[([^\]]+)\]/gi,
     (match, val) => {
       let v = val.trim().toLowerCase();
@@ -159,8 +174,87 @@ DiceApp.parseAndRoll = function (label, formula) {
         throw new Error(`Missing variable reference: [${missingVarName}]`);
       }
 
-      // Roll-until-target: process BEFORE parentheses so the batch
-      // expression can include dice, modifiers, and variables.
+      // Roll-until-target-limit: process BEFORE parentheses.
+      const targetLimitRegex =
+        /(\([^()]+\)|\d+d\d+(?:(?!rolluntiltargetlimit)[\w+\-*/.\[\]()])+?)rolluntiltargetlimit(?:\[([^\]]+)\]|(\d+))(?:\[([^\]]+)\]|(\d+))/gi;
+
+      while (targetLimitRegex.test(workingExpr)) {
+        targetLimitRegex.lastIndex = 0;
+        workingExpr = workingExpr.replace(
+          targetLimitRegex,
+          (
+            match,
+            expr,
+            targetBracketed,
+            targetBare,
+            limitBracketed,
+            limitBare,
+          ) => {
+            let batchExpr = expr;
+            if (batchExpr.startsWith("(") && batchExpr.endsWith(")")) {
+              batchExpr = batchExpr.slice(1, -1);
+            }
+
+            let targetRaw = targetBracketed || targetBare;
+            let limitRaw = limitBracketed || limitBare;
+
+            if (!targetRaw) {
+              throw new Error("rolluntiltargetlimit missing target value");
+            }
+            if (!limitRaw) {
+              throw new Error("rolluntiltargetlimit missing limit value");
+            }
+
+            let targetNum = parseInt(targetRaw, 10);
+            if (isNaN(targetNum)) {
+              throw new Error(
+                `Invalid rolluntiltargetlimit target: ${targetRaw}`,
+              );
+            }
+
+            let limitNum = parseInt(limitRaw, 10);
+            if (isNaN(limitNum) || limitNum < 1) {
+              throw new Error(
+                `Invalid rolluntiltargetlimit limit: ${limitRaw}`,
+              );
+            }
+
+            if (targetNum <= 0) {
+              return 0;
+            }
+
+            let cumulative = 0;
+            let batchTotals = [];
+            let safety = 0;
+
+            while (
+              cumulative < targetNum &&
+              safety < limitNum &&
+              safety < 10000
+            ) {
+              safety++;
+              let batchValue = evaluateMathAndDice(batchExpr, depth + 1, true);
+              cumulative += batchValue;
+              batchTotals.push(batchValue);
+              if (batchValue === 0) break;
+            }
+
+            let displayExpr = expr.replace(/^\(|\)$/g, "");
+            let reachedTarget = cumulative >= targetNum;
+            let logString =
+              `${displayExpr} [Target: ${targetNum}, Limit: ${limitNum}, ` +
+              `${reachedTarget ? "reached" : "not reached"}, ` +
+              `${batchTotals.length} roll(s)] ` +
+              `Batch totals: ${batchTotals.join(", ")} = ${cumulative}`;
+
+            if (!silent) breakdownLogs.push(logString);
+
+            return cumulative;
+          },
+        );
+      }
+
+      // Roll-until-target: process BEFORE parentheses.
       const targetRegex =
         /(\([^()]+\)|\d+d\d+(?:(?!rolluntiltarget)[\w+\-*/.\[\]()])+?)rolluntiltarget(?:\[([^\]]+)\]|(\d+))/gi;
 
