@@ -265,13 +265,23 @@ DiceApp.parseAndRoll = function (label, formula) {
             }
 
             let limitNum = parseInt(limitRaw, 10);
-            if (isNaN(limitNum) || limitNum < 1) {
+            if (isNaN(limitNum)) {
               throw new Error(
                 `Invalid rolluntiltargetlimit limit: ${limitRaw}`,
               );
             }
+            if (limitNum < 0) {
+              throw new Error(
+                `rolluntiltargetlimit limit cannot be negative: ${limitRaw}`,
+              );
+            }
 
-            if (targetNum <= 0) {
+            if (targetNum <= 0 || limitNum === 0) {
+              let displayExpr = expr.replace(/^\{|\}$/g, "");
+              let logString =
+                `${displayExpr} [Target: ${targetNum}, Limit: ${limitNum}, ` +
+                `not reached, 0 roll(s)] = 0`;
+              if (!silent) breakdownLogs.push(logString);
               return 0;
             }
 
