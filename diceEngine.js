@@ -174,9 +174,61 @@ DiceApp.parseAndRoll = function (label, formula) {
         throw new Error(`Missing variable reference: [${missingVarName}]`);
       }
 
+      // Grouped pool keep: {expr}pNkhM / {expr}pNklM
+      const poolBatchRegex = /\{([^{}]+)\}p(\d+)(kh|kl)(\d+)/gi;
+
+      while (poolBatchRegex.test(workingExpr)) {
+        poolBatchRegex.lastIndex = 0;
+        workingExpr = workingExpr.replace(
+          poolBatchRegex,
+          (match, batchExpr, poolCountRaw, keepMode, keepCountRaw) => {
+            let poolCount = parseInt(poolCountRaw, 10);
+            let keepCount = parseInt(keepCountRaw, 10);
+
+            if (poolCount < 1 || keepCount < 1) {
+              throw new Error("Pool count and keep count must be at least 1");
+            }
+            if (keepCount > poolCount) {
+              keepCount = poolCount;
+            }
+
+            let poolTotals = [];
+            let poolDetails = [];
+
+            for (let i = 0; i < poolCount; i++) {
+              let batchValue = evaluateMathAndDice(batchExpr, depth + 1, true);
+              poolTotals.push(batchValue);
+              poolDetails.push(String(batchValue));
+            }
+
+            let keptPools = [];
+            if (keepMode === "h") {
+              keptPools = [...poolTotals]
+                .sort((a, b) => b - a)
+                .slice(0, keepCount);
+            } else {
+              keptPools = [...poolTotals]
+                .sort((a, b) => a - b)
+                .slice(0, keepCount);
+            }
+
+            let total = keptPools.reduce((sum, val) => sum + val, 0);
+            let modeLabel = keepMode === "h" ? "Highest" : "Lowest";
+            let logString =
+              `{${batchExpr}}p${poolCount}k${keepMode}${keepCount} ` +
+              `Pool totals: ${poolDetails.join(", ")} -> ` +
+              `Kept ${modeLabel} ${keepCount}: (${keptPools.join("+")}) = ${total}`;
+
+            if (!silent) breakdownLogs.push(logString);
+
+            return total;
+          },
+        );
+      }
+
       // Roll-until-target-limit: process BEFORE parentheses.
       const targetLimitRegex =
-        /(\([^()]+\)|\d+d\d+(?:(?!rolluntiltargetlimit)[\w+\-*/.\[\]()])+?)rolluntiltargetlimit(?:\[([^\]]+)\]|(\d+))(?:\[([^\]]+)\]|(\d+))/gi;
+        /(\{[^{}]+\}|\d+d\d+(?:(?!rolluntiltargetlimit)[\w+\-*/.\[\]()])+?)rolluntiltargetlimit(?:\[([^\]]+)\]|(\d+))(?:\[([^\]]+)\]|(\d+))/gi;
 
       while (targetLimitRegex.test(workingExpr)) {
         targetLimitRegex.lastIndex = 0;
@@ -191,7 +243,7 @@ DiceApp.parseAndRoll = function (label, formula) {
             limitBare,
           ) => {
             let batchExpr = expr;
-            if (batchExpr.startsWith("(") && batchExpr.endsWith(")")) {
+            if (batchExpr.startsWith("{") && batchExpr.endsWith("}")) {
               batchExpr = batchExpr.slice(1, -1);
             }
 
@@ -239,7 +291,7 @@ DiceApp.parseAndRoll = function (label, formula) {
               if (batchValue === 0) break;
             }
 
-            let displayExpr = expr.replace(/^\(|\)$/g, "");
+            let displayExpr = expr.replace(/^\{|\}$/g, "");
             let reachedTarget = cumulative >= targetNum;
             let logString =
               `${displayExpr} [Target: ${targetNum}, Limit: ${limitNum}, ` +
@@ -256,7 +308,7 @@ DiceApp.parseAndRoll = function (label, formula) {
 
       // Roll-until-target: process BEFORE parentheses.
       const targetRegex =
-        /(\([^()]+\)|\d+d\d+(?:(?!rolluntiltarget)[\w+\-*/.\[\]()])+?)rolluntiltarget(?:\[([^\]]+)\]|(\d+))/gi;
+        /(\{[^{}]+\}|\d+d\d+(?:(?!rolluntiltarget)[\w+\-*/.\[\]()])+?)rolluntiltarget(?:\[([^\]]+)\]|(\d+))/gi;
 
       while (targetRegex.test(workingExpr)) {
         targetRegex.lastIndex = 0;
@@ -264,7 +316,7 @@ DiceApp.parseAndRoll = function (label, formula) {
           targetRegex,
           (match, expr, targetBracketed, targetBare) => {
             let batchExpr = expr;
-            if (batchExpr.startsWith("(") && batchExpr.endsWith(")")) {
+            if (batchExpr.startsWith("{") && batchExpr.endsWith("}")) {
               batchExpr = batchExpr.slice(1, -1);
             }
 
@@ -300,7 +352,7 @@ DiceApp.parseAndRoll = function (label, formula) {
               );
             }
 
-            let displayExpr = expr.replace(/^\(|\)$/g, "");
+            let displayExpr = expr.replace(/^\{|\}$/g, "");
             let logString =
               `${displayExpr} [Target: ${targetNum}, reached in ${batchTotals.length} roll(s)] ` +
               `Batch totals: ${batchTotals.join(", ")} = ${cumulative}`;

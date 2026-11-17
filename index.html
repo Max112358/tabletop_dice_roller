@@ -273,6 +273,23 @@
               <span class="code-inline">1d20+[PROF]+[DEX]</span>
             </li>
             <li>
+              <strong>Math Grouping (resolves first):</strong>
+              <span class="code-inline">(1d10+[STR])</span>
+              <em
+                >(Resolves to a single number before surrounding math
+                continues.)</em
+              >
+            </li>
+            <li>
+              <strong>Batch Grouping (repeatable):</strong>
+              <span class="code-inline">{1d8+[CON]}</span>
+              <em
+                >(Preserves the expression as a batch for trailing modifiers
+                like pool keep or roll-until-target.)</em
+              >
+            </li>
+
+            <li>
               <strong>Complex Multiplication:</strong>
               <span class="code-inline">[PROF]*(1d10)</span> or
               <span class="code-inline">([STR]*2)+1d4</span>
@@ -305,7 +322,22 @@
               <strong>Savage Attacker (Pool and Keep):</strong>
               <span class="code-inline">2d12p2kh1+[STR]</span>
               <em>(Pool 2 times, Keep Highest 1 total)</em>
+              <span class="code-inline">2d12p3kl2+[STR]</span>
+              <em>(Pool 3 times, Keep Lowest 2 total)</em>
+              <span class="code-inline">{2d10+4d6}p2kh1</span>
+              <em>(Pool group 2 times, Keep Highest 1 total)</em>
             </li>
+
+            <li>
+              <strong>Nested Batches:</strong>
+              <span class="code-inline">{{2d6+1d4}p2kh1+[STR]}p3kh1</span><br />
+              <em
+                >(Pool inside a pool — evaluate the inner batch twice, keep
+                highest, add STR, then repeat that whole batch three times and
+                keep highest.)</em
+              >
+            </li>
+
             <li>
               <strong>Daggerheart Check:</strong>
               <span class="code-inline">2d12daggerheart+2</span>
@@ -374,21 +406,25 @@
             </li>
 
             <li>
-              <strong>Roll Until Target (healing, etc.):</strong>
+              <strong>Roll Until Target:</strong>
               <span class="code-inline">1d8rolluntiltarget40</span> or
               <span class="code-inline"
-                >(1d8rerollonce[min]+[CON])rolluntiltarget[MAX_HEALTH]</span
+                >{1d8+[CON]}rolluntiltarget[MISSING_HP]</span
+              >
+              or
+              <span class="code-inline"
+                >{1d8rerollonce[min]+[CON]}rolluntiltarget[MISSING_HP]</span
               ><br />
               <em
-                >(Rolls repeatedly until the cumulative total reaches the
-                target. The breakdown shows how many rolls it took.)</em
+                >(Rolls the batch repeatedly until the cumulative total reaches
+                the target. Breakdown shows how many rolls it took.)</em
               >
             </li>
 
             <li>
               <strong>Roll Until Target With Limit:</strong>
               <span class="code-inline"
-                >(1d8+[CON])rolluntiltargetlimit[MISSING_HP][HIT_DICE_REMAINING]</span
+                >{1d8+[CON]}rolluntiltargetlimit[MISSING_HP][HIT_DICE_REMAINING]</span
               ><br />
               <em
                 >(Rolls the batch repeatedly until the target is reached, but
