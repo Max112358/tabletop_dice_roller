@@ -150,6 +150,30 @@ DiceApp.parseAndRoll = function (label, formula) {
       // are resolved without collapsing the brackets. This prevents two
       // consecutive numeric arguments from merging (e.g. [66][12] -> 6612).
       function preProcessRollUntilTargets(input) {
+        function parseBracket() {
+          let bracketDepth = 0;
+          let j = i;
+          while (j < input.length) {
+            if (input[j] === "[") bracketDepth++;
+            else if (input[j] === "]") bracketDepth--;
+            j++;
+            if (bracketDepth === 0) break;
+          }
+          let bracket = input.slice(i, j);
+          i = j;
+          return bracket;
+        }
+
+        function evalContent(content) {
+          let trimmed = content.trim();
+          // Simple identifier: treat as a bracketed variable reference.
+          if (/^[a-z_][a-z0-9_]*$/i.test(trimmed)) {
+            return evaluateMathAndDice("[" + trimmed + "]", depth + 1, true);
+          }
+          // Otherwise evaluate as-is (assumes inner variables are bracketed).
+          return evaluateMathAndDice(trimmed, depth + 1, true);
+        }
+
         let result = "";
         let i = 0;
         while (i < input.length) {
@@ -171,29 +195,15 @@ DiceApp.parseAndRoll = function (label, formula) {
             continue;
           }
 
-          let parseBracket = () => {
-            let bracketDepth = 0;
-            let j = i;
-            while (j < input.length) {
-              if (input[j] === "[") bracketDepth++;
-              else if (input[j] === "]") bracketDepth--;
-              j++;
-              if (bracketDepth === 0) break;
-            }
-            let bracket = input.slice(i, j);
-            i = j;
-            return bracket;
-          };
-
           let targetBracket = parseBracket();
-          let targetExpr = targetBracket.slice(1, -1);
-          let targetVal = evaluateMathAndDice(targetExpr, depth + 1, true);
+          let targetContent = targetBracket.slice(1, -1);
+          let targetVal = evalContent(targetContent);
           result += `${keyword}[${targetVal}]`;
 
           if (keyword === "rolluntiltargetlimit" && input[i] === "[") {
             let limitBracket = parseBracket();
-            let limitExpr = limitBracket.slice(1, -1);
-            let limitVal = evaluateMathAndDice(limitExpr, depth + 1, true);
+            let limitContent = limitBracket.slice(1, -1);
+            let limitVal = evalContent(limitContent);
             result += `[${limitVal}]`;
           }
         }
@@ -311,7 +321,7 @@ DiceApp.parseAndRoll = function (label, formula) {
             }
 
             let limitNum = parseInt(limitRaw, 10);
-            if (isNaN(targetNum)) {
+            if (isNaN(limitNum)) {
               throw new Error(
                 `Invalid rolluntiltargetlimit limit: ${limitRaw}`,
               );
