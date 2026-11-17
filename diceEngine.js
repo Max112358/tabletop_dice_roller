@@ -125,17 +125,11 @@ DiceApp.parseAndRoll = function (label, formula) {
       return "";
     });
 
-    function evaluateMathAndDice(expr, depth = 0) {
+    function evaluateMathAndDice(expr, depth = 0, silent = false) {
       if (depth > 50)
         throw new Error("Infinite loop detected in variable resolution!");
 
       let workingExpr = String(expr).trim().toLowerCase();
-
-      // Let parenthesized dice roll into rolluntiltarget match normally.
-      workingExpr = workingExpr.replace(
-        /\(([^()]+)\)(?=rolluntiltarget)/g,
-        "$1",
-      );
 
       // Variable substitution
       const bracketRegex = /\[([^\]]+)\]/g;
@@ -147,7 +141,7 @@ DiceApp.parseAndRoll = function (label, formula) {
           (k) => k.toLowerCase() === varName.trim(),
         );
         if (foundKey !== undefined) {
-          return evaluateMathAndDice(activeVars[foundKey], depth + 1);
+          return evaluateMathAndDice(activeVars[foundKey], depth + 1, silent);
         } else {
           if (
             /^(min|max)$/i.test(varName.trim()) ||
@@ -174,18 +168,72 @@ DiceApp.parseAndRoll = function (label, formula) {
             if (funcName) {
               let args = innerExpr
                 .split(",")
-                .map((arg) => evaluateMathAndDice(arg, depth + 1));
+                .map((arg) => evaluateMathAndDice(arg, depth + 1, silent));
               return Math[funcName](...args);
             } else {
-              return evaluateMathAndDice(innerExpr, depth + 1);
+              return evaluateMathAndDice(innerExpr, depth + 1, silent);
             }
+          },
+        );
+      }
+
+      // Roll-until-target: evaluate a batch expression repeatedly.
+      const targetRegex =
+        /(\([^()]+\)|\d+d\d+(?:(?!rolluntiltarget)[\w+\-*/.\[\]()])+?)rolluntiltarget(?:\[([^\]]+)\]|(\d+))/gi;
+
+      while (targetRegex.test(workingExpr)) {
+        targetRegex.lastIndex = 0;
+        workingExpr = workingExpr.replace(
+          targetRegex,
+          (match, expr, targetBracketed, targetBare) => {
+            let batchExpr = expr;
+            if (batchExpr.startsWith("(") && batchExpr.endsWith(")")) {
+              batchExpr = batchExpr.slice(1, -1);
+            }
+
+            let targetRaw = targetBracketed || targetBare;
+            if (!targetRaw) {
+              throw new Error("rolluntiltarget missing target value");
+            }
+
+            let targetNum = parseInt(targetRaw, 10);
+            if (isNaN(targetNum) || targetNum < 0) {
+              throw new Error(`Invalid rolluntiltarget value: ${targetRaw}`);
+            }
+
+            let cumulative = 0;
+            let batchTotals = [];
+            let safety = 0;
+
+            while (cumulative < targetNum && safety < 10000) {
+              safety++;
+              let batchValue = evaluateMathAndDice(batchExpr, depth + 1, true);
+              cumulative += batchValue;
+              batchTotals.push(batchValue);
+              if (batchValue === 0) break;
+            }
+
+            if (safety >= 10000) {
+              throw new Error(
+                `rolluntiltarget stopped after safety limit (${targetRaw})`,
+              );
+            }
+
+            let displayExpr = expr.replace(/^\(|\)$/g, "");
+            let logString =
+              `${displayExpr} [Target: ${targetNum}, reached in ${batchTotals.length} roll(s)] ` +
+              `Batch totals: ${batchTotals.join(", ")} = ${cumulative}`;
+
+            if (!silent) breakdownLogs.push(logString);
+
+            return cumulative;
           },
         );
       }
 
       // Dice evaluation loop
       const diceRegex =
-        /(\d+)d(\d+)(?:replace\[(\d+)(?:-(\d+))?\]\[(\d+)\])?(?:(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|reroll(?:once|repeating|additively|additivelyrepeating)\[[^\]]+\]))?(?:rolluntiltarget(?:\[([^\]]+)\]|(\d+)))?/i;
+        /(\d+)d(\d+)(?:replace\[(\d+)(?:-(\d+))?\]\[(\d+)\])?(p\d+kh\d+|p\d+kl\d+|kh\d+|kl\d+|daggerheart|reroll(?:once|repeating|additively|additivelyrepeating)\[[^\]]+\])?/i;
 
       while (diceRegex.test(workingExpr)) {
         let matchInstance = workingExpr.match(diceRegex);
@@ -197,10 +245,7 @@ DiceApp.parseAndRoll = function (label, formula) {
         let repMin = hasReplace ? parseInt(matchInstance[3], 10) : null;
         let repMax = matchInstance[4] ? parseInt(matchInstance[4], 10) : repMin;
         let repTarget = hasReplace ? parseInt(matchInstance[5], 10) : null;
-
-        let baseModifier = matchInstance[6] || "";
-        let targetRaw = matchInstance[7] || matchInstance[8] || "";
-        let targetNum = targetRaw ? parseInt(targetRaw, 10) : null;
+        let modifier = matchInstance[6] || "";
 
         const getRoll = () => {
           let r = Math.floor(Math.random() * sides) + 1;
@@ -211,265 +256,204 @@ DiceApp.parseAndRoll = function (label, formula) {
         let logString = "";
         let finalRollsArray = [];
 
-        let baseExpression = fullDiceExpression.replace(
-          /rolluntiltarget.*/i,
-          "",
-        );
+        if (modifier === "daggerheart") {
+          let hopeRoll = getRoll();
+          let fearRoll = getRoll();
+          evaluatedNumericValue = hopeRoll + fearRoll;
+          finalRollsArray = [hopeRoll, fearRoll];
 
-        const runBatch = () => {
-          let batchValue = 0;
-          let rolls = [];
-          let detail = "";
-          let batchLog = "";
+          let outcome =
+            hopeRoll === fearRoll
+              ? "CRITICAL SUCCESS! ✨"
+              : hopeRoll > fearRoll
+                ? "Roll with HOPE ☀️"
+                : "Roll with FEAR 🌙";
 
-          if (baseModifier === "daggerheart") {
-            let hopeRoll = getRoll();
-            let fearRoll = getRoll();
-            batchValue = hopeRoll + fearRoll;
-            rolls = [hopeRoll, fearRoll];
-
-            let outcome =
-              hopeRoll === fearRoll
-                ? "CRITICAL SUCCESS! ✨"
-                : hopeRoll > fearRoll
-                  ? "Roll with HOPE ☀️"
-                  : "Roll with FEAR 🌙";
-
+          if (!silent) {
             daggerheartContext = `[Hope: ${hopeRoll} | Fear: ${fearRoll}] -> ${outcome}`;
-            batchLog = `${baseExpression} (${hopeRoll} hope, ${fearRoll} fear)`;
-            detail = batchLog;
-          } else if (
-            baseModifier.startsWith("p") &&
-            (baseModifier.includes("kh") || baseModifier.includes("kl"))
-          ) {
-            let isHighest = baseModifier.includes("kh");
-            let poolMatch = baseModifier.match(/p(\d+)(kh|kl)(\d+)/);
-            let poolIterations = parseInt(poolMatch[1], 10);
-            let keepCount = parseInt(poolMatch[3], 10);
+            logString = `${fullDiceExpression} (${hopeRoll} hope, ${fearRoll} fear)`;
+          }
+        } else if (
+          modifier.startsWith("p") &&
+          (modifier.includes("kh") || modifier.includes("kl"))
+        ) {
+          let isHighest = modifier.includes("kh");
+          let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
+          let poolIterations = parseInt(poolMatch[1], 10);
+          let keepCount = parseInt(poolMatch[3], 10);
 
-            let poolTotals = [];
-            let poolDetails = [];
+          let poolTotals = [];
+          let poolDetails = [];
 
-            for (let i = 0; i < poolIterations; i++) {
-              let currentIterationRolls = [];
-              for (let j = 0; j < count; j++) {
-                currentIterationRolls.push(getRoll());
-              }
-              let currentIterationTotal = currentIterationRolls.reduce(
-                (sum, val) => sum + val,
-                0,
-              );
-              poolTotals.push(currentIterationTotal);
-              poolDetails.push(
-                `[${currentIterationRolls.join("+")} = ${currentIterationTotal}]`,
-              );
+          for (let i = 0; i < poolIterations; i++) {
+            let currentIterationRolls = [];
+            for (let j = 0; j < count; j++) {
+              currentIterationRolls.push(getRoll());
             }
-
-            let keptPools = [];
-            if (isHighest) {
-              keptPools = [...poolTotals]
-                .sort((a, b) => b - a)
-                .slice(0, keepCount);
-              batchLog = `${baseExpression} Pool Sets: { ${poolDetails.join(" vs ")} } -> Kept Highest ${keepCount}: (${keptPools.join("+")})`;
-            } else {
-              keptPools = [...poolTotals]
-                .sort((a, b) => a - b)
-                .slice(0, keepCount);
-              batchLog = `${baseExpression} Pool Sets: { ${poolDetails.join(" vs ")} } -> Kept Lowest ${keepCount}: (${keptPools.join("+")})`;
-            }
-
-            batchValue = keptPools.reduce((sum, val) => sum + val, 0);
-            rolls = keptPools;
-            detail = batchLog;
-          } else if (baseModifier.startsWith("kh")) {
-            let keepCount = parseInt(baseModifier.replace("kh", ""), 10);
-            let rollsAll = [];
-            for (let i = 0; i < count; i++) rollsAll.push(getRoll());
-            let kept = [...rollsAll].sort((a, b) => b - a).slice(0, keepCount);
-            batchValue = kept.reduce((sum, val) => sum + val, 0);
-            batchLog = `${baseExpression} [Rolls: ${rollsAll.join(", ")}] Kept: (${kept.join("+")})`;
-            rolls = kept;
-            detail = batchLog;
-          } else if (baseModifier.startsWith("kl")) {
-            let keepCount = parseInt(baseModifier.replace("kl", ""), 10);
-            let rollsAll = [];
-            for (let i = 0; i < count; i++) rollsAll.push(getRoll());
-            let kept = [...rollsAll].sort((a, b) => a - b).slice(0, keepCount);
-            batchValue = kept.reduce((sum, val) => sum + val, 0);
-            batchLog = `${baseExpression} [Rolls: ${rollsAll.join(", ")}] Kept: (${kept.join("+")})`;
-            rolls = kept;
-            detail = batchLog;
-          } else if (baseModifier.startsWith("reroll")) {
-            let rerollMatch = baseModifier.match(
-              /reroll(once|repeating|additively|additivelyrepeating)\[([^\]]+)\]/,
+            let currentIterationTotal = currentIterationRolls.reduce(
+              (sum, val) => sum + val,
+              0,
             );
-            let mode = rerollMatch[1];
-            let rerollTargetRaw = rerollMatch[2];
+            poolTotals.push(currentIterationTotal);
+            poolDetails.push(
+              `[${currentIterationRolls.join("+")} = ${currentIterationTotal}]`,
+            );
+          }
 
-            if (
-              Object.keys(activeVars).some(
-                (k) => k.toLowerCase() === rerollTargetRaw,
-              )
-            ) {
-              let key = Object.keys(activeVars).find(
-                (k) => k.toLowerCase() === rerollTargetRaw,
-              );
-              rerollTargetRaw = String(activeVars[key]).trim().toLowerCase();
-            }
-            let targetNumReroll =
-              rerollTargetRaw === "max"
-                ? sides
-                : rerollTargetRaw === "min"
-                  ? 1
-                  : parseInt(rerollTargetRaw, 10);
-
-            let rollsDisplay = [];
-            let cumulativeSumsArray = [];
-            let cumulativeSum = 0;
-
-            for (let i = 0; i < count; i++) {
-              let currentRoll = getRoll();
-              let singleDieLogs = [];
-              let dieTotal = currentRoll;
-              let iterations = 0;
-
-              if (mode === "once" || mode === "repeating") {
-                if (currentRoll === targetNumReroll && sides > 1) {
-                  singleDieLogs.push(`~~${currentRoll}~~`);
-                  let maxIter = mode === "once" ? 1 : 50;
-                  while (
-                    currentRoll === targetNumReroll &&
-                    iterations < maxIter &&
-                    sides > 1
-                  ) {
-                    currentRoll = getRoll();
-                    iterations++;
-                    if (
-                      currentRoll === targetNumReroll &&
-                      iterations < maxIter
-                    ) {
-                      singleDieLogs.push(`~~${currentRoll}~~`);
-                    }
-                  }
-                  singleDieLogs.push(`${currentRoll}`);
-                  dieTotal = currentRoll;
-                } else {
-                  singleDieLogs.push(`${currentRoll}`);
-                }
-                cumulativeSum += dieTotal;
-                cumulativeSumsArray.push(dieTotal);
-              } else if (
-                mode === "additively" ||
-                mode === "additivelyrepeating"
-              ) {
-                singleDieLogs.push(`${currentRoll}`);
-                if (currentRoll === targetNumReroll && sides > 1) {
-                  let maxIter = mode === "additively" ? 1 : 50;
-                  while (
-                    currentRoll === targetNumReroll &&
-                    iterations < maxIter &&
-                    sides > 1
-                  ) {
-                    currentRoll = getRoll();
-                    singleDieLogs.push(`${currentRoll}`);
-                    dieTotal += currentRoll;
-                    iterations++;
-                  }
-                }
-                cumulativeSum += dieTotal;
-                cumulativeSumsArray.push(dieTotal);
-              }
-
-              if (singleDieLogs.length > 1) {
-                rollsDisplay.push(
-                  `(${singleDieLogs.join(mode.includes("additively") ? "+" : " -> ")})`,
-                );
-              } else {
-                rollsDisplay.push(singleDieLogs[0]);
-              }
-            }
-
-            batchValue = cumulativeSum;
-            batchLog = `${baseExpression} [Dice: ${rollsDisplay.join(", ")}] Total: ${batchValue}`;
-            rolls = cumulativeSumsArray;
-            detail = batchLog;
+          let keptPools = [];
+          if (isHighest) {
+            keptPools = [...poolTotals]
+              .sort((a, b) => b - a)
+              .slice(0, keepCount);
+            logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(" vs ")} } -> Kept Highest ${keepCount}: (${keptPools.join("+")})`;
           } else {
-            let rollsAll = [];
-            for (let i = 0; i < count; i++) rollsAll.push(getRoll());
-            batchValue = rollsAll.reduce((sum, val) => sum + val, 0);
-            batchLog = `${baseExpression} (${rollsAll.join("+")}=${batchValue})`;
-            rolls = rollsAll;
-            detail = batchLog;
+            keptPools = [...poolTotals]
+              .sort((a, b) => a - b)
+              .slice(0, keepCount);
+            logString = `${count}d${sides} Pool Sets: { ${poolDetails.join(" vs ")} } -> Kept Lowest ${keepCount}: (${keptPools.join("+")})`;
           }
 
-          return { value: batchValue, rolls, logString: batchLog, detail };
-        };
+          evaluatedNumericValue = keptPools.reduce((sum, val) => sum + val, 0);
+          finalRollsArray = keptPools;
+        } else if (modifier.startsWith("kh")) {
+          let keepCount = parseInt(modifier.replace("kh", ""), 10);
+          let rolls = [];
+          for (let i = 0; i < count; i++) rolls.push(getRoll());
+          let kept = [...rolls].sort((a, b) => b - a).slice(0, keepCount);
+          evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
+          logString = `${fullDiceExpression} [Rolls: ${rolls.join(", ")}] Kept: (${kept.join("+")})`;
+          finalRollsArray = kept;
+        } else if (modifier.startsWith("kl")) {
+          let keepCount = parseInt(modifier.replace("kl", ""), 10);
+          let rolls = [];
+          for (let i = 0; i < count; i++) rolls.push(getRoll());
+          let kept = [...rolls].sort((a, b) => a - b).slice(0, keepCount);
+          evaluatedNumericValue = kept.reduce((sum, val) => sum + val, 0);
+          logString = `${fullDiceExpression} [Rolls: ${rolls.join(", ")}] Kept: (${kept.join("+")})`;
+          finalRollsArray = kept;
+        } else if (modifier.startsWith("reroll")) {
+          let rerollMatch = modifier.match(
+            /reroll(once|repeating|additively|additivelyrepeating)\[([^\]]+)\]/,
+          );
+          let mode = rerollMatch[1];
+          let targetRaw = rerollMatch[2];
 
-        if (targetNum === null) {
-          let batch = runBatch();
-          evaluatedNumericValue = batch.value;
-          finalRollsArray = batch.rolls;
-          logString = batch.logString;
-        } else {
-          if (isNaN(targetNum) || targetNum < 0) {
-            throw new Error(`Invalid rolluntiltarget value: ${targetRaw}`);
-          }
-
-          let cumulative = 0;
-          let batchDetails = [];
-          let safety = 0;
-
-          while (cumulative < targetNum && safety < 10000) {
-            safety++;
-            let batch = runBatch();
-            cumulative += batch.value;
-            finalRollsArray = finalRollsArray.concat(batch.rolls);
-            batchDetails.push(batch.detail);
-            if (batch.value === 0) break;
-          }
-
-          if (safety >= 10000) {
-            throw new Error(
-              `rolluntiltarget stopped after safety limit (${targetRaw})`,
+          if (
+            Object.keys(activeVars).some((k) => k.toLowerCase() === targetRaw)
+          ) {
+            let key = Object.keys(activeVars).find(
+              (k) => k.toLowerCase() === targetRaw,
             );
+            targetRaw = String(activeVars[key]).trim().toLowerCase();
+          }
+          let targetNum =
+            targetRaw === "max"
+              ? sides
+              : targetRaw === "min"
+                ? 1
+                : parseInt(targetRaw, 10);
+
+          let rollsDisplay = [];
+          let cumulativeSumsArray = [];
+          let cumulativeSum = 0;
+
+          for (let i = 0; i < count; i++) {
+            let currentRoll = getRoll();
+            let singleDieLogs = [];
+            let dieTotal = currentRoll;
+            let iterations = 0;
+
+            if (mode === "once" || mode === "repeating") {
+              if (currentRoll === targetNum && sides > 1) {
+                singleDieLogs.push(`~~${currentRoll}~~`);
+                let maxIter = mode === "once" ? 1 : 50;
+                while (
+                  currentRoll === targetNum &&
+                  iterations < maxIter &&
+                  sides > 1
+                ) {
+                  currentRoll = getRoll();
+                  iterations++;
+                  if (currentRoll === targetNum && iterations < maxIter) {
+                    singleDieLogs.push(`~~${currentRoll}~~`);
+                  }
+                }
+                singleDieLogs.push(`${currentRoll}`);
+                dieTotal = currentRoll;
+              } else {
+                singleDieLogs.push(`${currentRoll}`);
+              }
+              cumulativeSum += dieTotal;
+              cumulativeSumsArray.push(dieTotal);
+            } else if (
+              mode === "additively" ||
+              mode === "additivelyrepeating"
+            ) {
+              singleDieLogs.push(`${currentRoll}`);
+              if (currentRoll === targetNum && sides > 1) {
+                let maxIter = mode === "additively" ? 1 : 50;
+                while (
+                  currentRoll === targetNum &&
+                  iterations < maxIter &&
+                  sides > 1
+                ) {
+                  currentRoll = getRoll();
+                  singleDieLogs.push(`${currentRoll}`);
+                  dieTotal += currentRoll;
+                  iterations++;
+                }
+              }
+              cumulativeSum += dieTotal;
+              cumulativeSumsArray.push(dieTotal);
+            }
+
+            if (singleDieLogs.length > 1) {
+              rollsDisplay.push(
+                `(${singleDieLogs.join(mode.includes("additively") ? "+" : " -> ")})`,
+              );
+            } else {
+              rollsDisplay.push(singleDieLogs[0]);
+            }
           }
 
-          evaluatedNumericValue = cumulative;
-          logString =
-            `${baseExpression} [Target: ${targetNum}, ` +
-            `reached in ${batchDetails.length} roll(s)] ` +
-            `${batchDetails
-              .map((d, i) => `Roll ${i + 1}: ${d}`)
-              .join(" | ")} ` +
-            `Total: ${evaluatedNumericValue}`;
+          evaluatedNumericValue = cumulativeSum;
+          logString = `${fullDiceExpression} [Dice: ${rollsDisplay.join(", ")}] Total: ${evaluatedNumericValue}`;
+          finalRollsArray = cumulativeSumsArray;
+        } else {
+          let rolls = [];
+          for (let i = 0; i < count; i++) rolls.push(getRoll());
+          evaluatedNumericValue = rolls.reduce((sum, val) => sum + val, 0);
+          logString = `${fullDiceExpression} (${rolls.join("+")}=${evaluatedNumericValue})`;
+          finalRollsArray = rolls;
         }
 
+        if (!silent) breakdownLogs.push(logString);
+
         let keptCount = count;
-        if (baseModifier) {
-          if (baseModifier.startsWith("kh") || baseModifier.startsWith("kl")) {
-            keptCount = parseInt(baseModifier.replace(/k[hl]/, ""), 10);
+        if (modifier) {
+          if (modifier.startsWith("kh") || modifier.startsWith("kl")) {
+            keptCount = parseInt(modifier.replace(/k[hl]/, ""), 10);
           } else if (
-            baseModifier.startsWith("p") &&
-            (baseModifier.includes("kh") || baseModifier.includes("kl"))
+            modifier.startsWith("p") &&
+            (modifier.includes("kh") || modifier.includes("kl"))
           ) {
-            let poolMatch = baseModifier.match(/p(\d+)(kh|kl)(\d+)/);
+            let poolMatch = modifier.match(/p(\d+)(kh|kl)(\d+)/);
             let poolKeep = parseInt(poolMatch[3], 10);
             keptCount = poolKeep * count;
-          } else if (baseModifier === "daggerheart") {
+          } else if (modifier === "daggerheart") {
             keptCount = 2;
           }
         }
 
-        if (!primaryRoll && count > 0) {
+        if (!silent && !primaryRoll && count > 0) {
           primaryRoll = {
-            count: targetNum !== null ? finalRollsArray.length : keptCount,
+            count: keptCount,
             sides: sides,
             total: evaluatedNumericValue,
             rolls: finalRollsArray,
           };
         }
 
-        breakdownLogs.push(logString);
         workingExpr = workingExpr.replace(
           fullDiceExpression,
           evaluatedNumericValue,
