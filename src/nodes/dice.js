@@ -101,8 +101,8 @@ export default function register() {
       );
       countRow.appendChild(document.createTextNode(" d "));
       countRow.appendChild(
-        renderGenericEditor(node.count, (next) =>
-          update({ ...node, count: next }),
+        renderGenericEditor(node.sides, (next) =>
+          update({ ...node, sides: next }),
         ),
       );
       root.appendChild(countRow);

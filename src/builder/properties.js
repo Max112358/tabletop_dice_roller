@@ -348,9 +348,11 @@ function createPropertyEditor(builder, node, update) {
     const batchRow = document.createElement("div");
     batchRow.appendChild(document.createTextNode("Batch: "));
     batchRow.appendChild(
-      createInlineNodeSummary(node.batch, (next) =>
-        update({ ...node, batch: next }),
-      ),
+      createInlineNodeSummary(node.operands[0], (next) => {
+        const operands = [...node.operands];
+        operands[0] = next;
+        update({ ...node, operands });
+      }),
     );
     box.appendChild(batchRow);
 
@@ -385,6 +387,14 @@ function createPropertyEditor(builder, node, update) {
       );
     }
     box.appendChild(limitRow);
+
+    const note = document.createElement("p");
+    note.style.marginTop = "10px";
+    note.style.fontSize = "12px";
+    note.style.color = "var(--text-muted)";
+    note.innerText =
+      "Drag dice, variables, and other nodes into the roll-until batch workspace inside the builder.";
+    box.appendChild(note);
   }
 
   if (node.type === "table") {

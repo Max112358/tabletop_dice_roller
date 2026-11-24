@@ -11,13 +11,15 @@ export default function register() {
     create() {
       return {
         type: "rollUntilTarget",
-        batch: { type: "dice", count: 1, sides: 8, modifiers: [] },
+        operands: [{ type: "group", op: "add", operands: [] }],
         target: { type: "number", value: 10 },
         limit: null,
       };
     },
 
     evaluate(node, ctx) {
+      const batchNode = node.operands[0];
+
       const target = ctx.evaluate(node.target).value;
       const limit =
         node.limit != null ? ctx.evaluate(node.limit).value : Infinity;
@@ -26,7 +28,7 @@ export default function register() {
         return {
           value: 0,
           breakdown: [
-            `${nodeToString(node.batch)} [Target ${target}, stopped] = 0`,
+            `${nodeToString(batchNode)} [Target ${target}, stopped] = 0`,
           ],
           rolls: [],
         };
@@ -38,7 +40,7 @@ export default function register() {
 
       while (cumulative < target && safety < limit && safety < 10000) {
         safety++;
-        const batch = ctx.evaluate(node.batch);
+        const batch = ctx.evaluate(batchNode);
         cumulative += batch.value;
         batchTotals.push(batch.value);
         if (batch.value === 0) break;
@@ -47,7 +49,7 @@ export default function register() {
       const limitText = node.limit != null ? `, Limit ${limit}` : "";
       const reached = cumulative >= target;
       const breakdown =
-        `${nodeToString(node.batch)} [Target ${target}${limitText}, ` +
+        `${nodeToString(batchNode)} [Target ${target}${limitText}, ` +
         `${reached ? "reached" : "not reached"}, ${batchTotals.length} roll(s)] ` +
         `Batch totals: ${batchTotals.join(", ")} = ${cumulative}`;
 
@@ -55,32 +57,29 @@ export default function register() {
     },
 
     collectVariables(node, out) {
-      collectVariableRefs(node.batch, out);
+      collectVariableRefs(node.operands[0], out);
       collectVariableRefs(node.target, out);
       if (node.limit) collectVariableRefs(node.limit, out);
     },
 
     toDisplayString(node) {
-      const base = `${nodeToString(node.batch)} rolluntiltarget${nodeToString(
-        node.target,
-      )}`;
-      return node.limit ? `${base}${nodeToString(node.limit)}` : base;
+      const batchStr = nodeToString(node.operands[0]);
+      return `{${batchStr}}rolluntiltarget${nodeToString(node.target)}${
+        node.limit ? nodeToString(node.limit) : ""
+      }`;
     },
 
     renderEditor(node, update) {
       const root = document.createElement("div");
       root.className = "builder-roll-until";
 
-      const batchRow = document.createElement("div");
-      batchRow.appendChild(document.createTextNode("Batch: "));
-      batchRow.appendChild(
-        renderGenericEditor(node.count, (next) =>
-          update({ ...node, count: next }),
-        ),
-      );
-      root.appendChild(batchRow);
+      const summary = document.createElement("div");
+      summary.innerText = `Batch: ${nodeToString(node.operands[0])}`;
+      root.appendChild(summary);
 
       const targetRow = document.createElement("div");
+      targetRow.className = "builder-operand-row";
+      targetRow.style.marginTop = "8px";
       targetRow.appendChild(document.createTextNode("Target: "));
       targetRow.appendChild(
         renderGenericEditor(node.target, (next) =>
@@ -90,6 +89,9 @@ export default function register() {
       root.appendChild(targetRow);
 
       const limitRow = document.createElement("div");
+      limitRow.className = "builder-operand-row";
+      limitRow.style.marginTop = "8px";
+
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = node.limit != null;
@@ -101,6 +103,7 @@ export default function register() {
       });
       limitRow.appendChild(cb);
       limitRow.appendChild(document.createTextNode(" Limit "));
+
       if (node.limit) {
         limitRow.appendChild(
           renderGenericEditor(node.limit, (next) =>
@@ -109,6 +112,14 @@ export default function register() {
         );
       }
       root.appendChild(limitRow);
+
+      const note = document.createElement("p");
+      note.style.marginTop = "8px";
+      note.style.fontSize = "12px";
+      note.style.color = "var(--text-muted)";
+      note.innerText =
+        "Edit the batch by dragging nodes into the roll-until workspace.";
+      root.appendChild(note);
 
       return root;
     },

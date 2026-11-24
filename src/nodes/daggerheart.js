@@ -45,8 +45,8 @@ export default function register() {
       const root = document.createElement("div");
       root.appendChild(document.createTextNode("d"));
       root.appendChild(
-        renderGenericEditor(node.count, (next) =>
-          update({ ...node, count: next }),
+        renderGenericEditor(node.sides, (next) =>
+          update({ ...node, sides: next }),
         ),
       );
       root.appendChild(document.createTextNode(" daggerheart"));

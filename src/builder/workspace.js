@@ -19,6 +19,11 @@ export function renderWorkspace(builder, parentPath, containerEl) {
     return;
   }
 
+  if (parentNode.type === "rollUntilTarget") {
+    renderRollUntilTargetWorkspace(builder, parentPath, containerEl);
+    return;
+  }
+
   if (!parentNode?.operands || parentNode.operands.length === 0) {
     containerEl.appendChild(createEmptyDropZone(builder, parentPath));
     return;
@@ -51,6 +56,24 @@ function renderPoolWorkspace(builder, parentPath, containerEl, node) {
   const header = document.createElement("div");
   header.className = "builder-check-header";
   header.innerText = "Pool Batch — drag nodes here";
+  header.addEventListener("click", (e) => {
+    e.stopPropagation();
+    builder.selectedPath = parentPath;
+    builder.render();
+  });
+  containerEl.appendChild(header);
+
+  const nested = document.createElement("div");
+  nested.className = "builder-workspace-nested";
+  containerEl.appendChild(nested);
+
+  renderWorkspace(builder, [...parentPath, 0], nested);
+}
+
+function renderRollUntilTargetWorkspace(builder, parentPath, containerEl) {
+  const header = document.createElement("div");
+  header.className = "builder-check-header";
+  header.innerText = "Roll Until Batch — drag nodes here";
   header.addEventListener("click", (e) => {
     e.stopPropagation();
     builder.selectedPath = parentPath;
@@ -228,12 +251,12 @@ function createChip(builder, node, path) {
     renderWorkspace(builder, path, nested);
   }
 
-  if (node.type === "pool") {
-    const poolContainer = document.createElement("div");
-    poolContainer.style.width = "100%";
-    poolContainer.style.marginTop = "6px";
-    chip.appendChild(poolContainer);
-    renderWorkspace(builder, path, poolContainer);
+  if (node.type === "pool" || node.type === "rollUntilTarget") {
+    const container = document.createElement("div");
+    container.style.width = "100%";
+    container.style.marginTop = "6px";
+    chip.appendChild(container);
+    renderWorkspace(builder, path, container);
   }
 
   return chip;
@@ -380,6 +403,14 @@ function removeNodeAtPath(builder, path) {
 
   // Inside a pool: replace the batch with an empty math workspace.
   if (parent.type === "pool") {
+    parent.operands[index] = { type: "math", op: "add", operands: [] };
+    builder.selectedPath = null;
+    builder.render();
+    return;
+  }
+
+  // Inside a roll-until: replace the batch with an empty math workspace.
+  if (parent.type === "rollUntilTarget") {
     parent.operands[index] = { type: "math", op: "add", operands: [] };
     builder.selectedPath = null;
     builder.render();
