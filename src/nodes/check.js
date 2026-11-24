@@ -83,10 +83,10 @@ export default function register() {
       } else {
         if (compare(left, node.sign, right)) {
           checkResult = "success";
-          context = `[${node.sign} ${right}] -> SUCCESS ✓`;
+          context = `[${node.sign} ${right}] -> SUCCESS ✨`;
         } else {
           checkResult = "failure";
-          context = `[${node.sign} ${right}] -> FAILURE ✗`;
+          context = `[${node.sign} ${right}] -> FAILURE ❌`;
         }
       }
 

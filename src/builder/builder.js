@@ -29,11 +29,13 @@ export class FormulaBuilder {
 
   open({ label = "", note = "", ast = null, index = null }) {
     this._editingIndex = index;
-    this.currentAst = ast || {
-      root: { type: "math", op: "add", operands: [] },
-      critSuccess: [],
-      critFail: [],
-    };
+    this.currentAst = ast
+      ? JSON.parse(JSON.stringify(ast))
+      : {
+          root: { type: "math", op: "add", operands: [] },
+          critSuccess: [],
+          critFail: [],
+        };
 
     if (!this.currentAst.root?.operands) {
       this.currentAst.root = {
