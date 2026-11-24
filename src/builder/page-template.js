@@ -2,7 +2,10 @@ export const PAGE_HTML = `
 <div id="formula-builder-page" class="builder-page hidden">
   <div class="builder-page-header">
     <h3>Build Formula</h3>
-    <button class="danger" onclick="DiceApp.closeFormulaBuilder()" type="button">Cancel</button>
+    <div class="builder-page-actions">
+      <button id="builder-save" type="button">Save</button>
+      <button class="danger" onclick="DiceApp.closeFormulaBuilder()" type="button">Cancel</button>
+    </div>
   </div>
 
   <div class="builder-page-form">
@@ -24,11 +27,6 @@ export const PAGE_HTML = `
 
   <div class="builder-page-properties" id="builder-properties">
     Drag a node type onto the workspace above.
-  </div>
-
-  <div class="builder-page-footer">
-    <button id="builder-preview" type="button">Preview Roll</button>
-    <button id="builder-save" type="button">Save</button>
   </div>
 
   <pre id="builder-preview-output"></pre>

@@ -25,9 +25,6 @@ export class FormulaBuilder {
     document
       .getElementById("builder-save")
       .addEventListener("click", () => this.save());
-    document
-      .getElementById("builder-preview")
-      .addEventListener("click", () => this.preview());
   }
 
   open({ label = "", note = "", ast = null, index = null }) {
@@ -38,7 +35,6 @@ export class FormulaBuilder {
       critFail: [],
     };
 
-    // Ensure the root is a container so drops always work.
     if (!this.currentAst.root?.operands) {
       this.currentAst.root = {
         type: "math",
@@ -74,6 +70,7 @@ export class FormulaBuilder {
     renderProperties(this);
     this.renderDisplay();
     this.renderCritRules();
+    this.preview();
   }
 
   renderDisplay() {
@@ -89,20 +86,29 @@ export class FormulaBuilder {
   }
 
   preview() {
+    const root = this.currentAst.root;
+    const output = document.getElementById("builder-preview-output");
+
+    if (root.type === "math" && root.operands.length === 0) {
+      output.innerText = "";
+      return;
+    }
+
     const variables = DiceApp.getCurrentCharacterData().variables || {};
     try {
       const result = executeAST(this.currentAst, variables);
-      document.getElementById("builder-preview-output").innerText =
-        JSON.stringify(result, null, 2);
+      output.innerText = JSON.stringify(result, null, 2);
     } catch (err) {
-      document.getElementById("builder-preview-output").innerText =
-        "Error: " + err.message;
+      output.innerText = "Error: " + err.message;
     }
   }
 
   save() {
-    const label = document.getElementById("builder-label").value.trim();
+    const labelInput = document.getElementById("builder-label");
+    const label = labelInput.value.trim();
     if (!label) {
+      labelInput.classList.add("builder-label-error");
+      setTimeout(() => labelInput.classList.remove("builder-label-error"), 800);
       showStatus("Button label is required.", true);
       return;
     }
