@@ -28,30 +28,31 @@ export class EvalContext {
   }
 }
 
-function checkCritRule(rule, primaryRoll, checkResult) {
+export function checkCritRule(rule, primaryRoll, ctx) {
   if (!primaryRoll) return false;
 
-  if (rule.type === "max") {
+  const trigger = rule.trigger;
+
+  if (trigger === "max") {
     return primaryRoll.total === primaryRoll.count * primaryRoll.sides;
   }
-  if (rule.type === "min") {
+  if (trigger === "min") {
     return primaryRoll.total === primaryRoll.count;
   }
-  if (rule.type === "value") {
-    return primaryRoll.total === rule.value;
+  if (trigger === "value") {
+    const target = ctx.evaluate(rule.value).value;
+    return primaryRoll.total === target;
   }
-  if (rule.type === "range") {
-    return primaryRoll.total >= rule.min && primaryRoll.total <= rule.max;
+  if (trigger === "range") {
+    const min = ctx.evaluate(rule.min).value;
+    const max = ctx.evaluate(rule.max).value;
+    return primaryRoll.total >= min && primaryRoll.total <= max;
   }
-  if (rule.type === "doubles") {
+  if (trigger === "doubles") {
     const totalStr = String(primaryRoll.total);
-    return (
-      totalStr.length > 1 &&
-      /^(\d)\1+$/.test(totalStr) &&
-      ["success", "mixed", "strong", "failure"].includes(checkResult)
-    );
+    return totalStr.length > 1 && /^(\d)\1+$/.test(totalStr);
   }
-  if (rule.type === "yahtzee") {
+  if (trigger === "yahtzee") {
     return (
       primaryRoll.rolls.length > 1 &&
       primaryRoll.rolls.every((r) => r === primaryRoll.rolls[0])
@@ -66,15 +67,33 @@ export function executeAST(ast, variables = {}) {
   migrateCheckNode(root);
   const rollResult = ctx.evaluate(root);
 
-  const critSuccessRules = ast.critSuccess || [];
-  const critFailRules = ast.critFail || [];
+  const primary = ctx.primaryRoll;
+  const checkResult = rollResult.checkResult || null;
 
-  const gotCritSuccess = critSuccessRules.some((rule) =>
-    checkCritRule(rule, ctx.primaryRoll, rollResult.checkResult),
-  );
-  const gotCritFail = critFailRules.some((rule) =>
-    checkCritRule(rule, ctx.primaryRoll, rollResult.checkResult),
-  );
+  let gotCritSuccess = primary?.isCritSuccess || false;
+  let gotCritFail = primary?.isCritFail || false;
+
+  if (primary && checkResult) {
+    for (const mod of primary.sourceMods || []) {
+      if (mod.trigger !== "checkRelative") continue;
+
+      const isDoubles =
+        String(primary.total).length > 1 &&
+        /^(\d)\1+$/.test(String(primary.total));
+
+      if (!isDoubles) continue;
+
+      if (
+        mod.mode === "successesDoubles" &&
+        ["success", "strong"].includes(checkResult)
+      ) {
+        gotCritSuccess = true;
+      }
+      if (mod.mode === "failuresDoubles" && checkResult === "failure") {
+        gotCritFail = true;
+      }
+    }
+  }
 
   const dhContext = [
     rollResult.daggerheartContext,

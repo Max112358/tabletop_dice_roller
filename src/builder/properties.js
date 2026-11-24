@@ -56,97 +56,16 @@ function createPropertyEditor(builder, node, update) {
       const row = document.createElement("div");
       row.className = "builder-mod-row";
 
-      if (mod.type === "keep") {
-        row.appendChild(document.createTextNode("Keep "));
-        const mode = document.createElement("select");
-        ["highest", "lowest"].forEach((m) => {
-          const opt = document.createElement("option");
-          opt.value = m;
-          opt.innerText = m;
-          if (mod.mode === m) opt.selected = true;
-          mode.appendChild(opt);
-        });
-        mode.addEventListener("change", () => {
-          const nextMods = [...node.modifiers];
-          nextMods[idx] = { ...mod, mode: mode.value };
-          update({ ...node, modifiers: nextMods });
-        });
-        row.appendChild(mode);
-        row.appendChild(document.createTextNode(" "));
-        row.appendChild(
-          createValueEditor(mod.count, (next) => {
-            const nextMods = [...node.modifiers];
-            nextMods[idx] = { ...mod, count: next };
-            update({ ...node, modifiers: nextMods });
-          }),
-        );
-      } else if (mod.type === "reroll") {
-        row.appendChild(document.createTextNode("Reroll "));
-        const mode = document.createElement("select");
-        [
-          ["once", "Once"],
-          ["repeating", "Repeating"],
-          ["additively", "Additively"],
-          ["additivelyrepeating", "Additively Repeating"],
-        ].forEach(([v, l]) => {
-          const opt = document.createElement("option");
-          opt.value = v;
-          opt.innerText = l;
-          if (mod.mode === v) opt.selected = true;
-          mode.appendChild(opt);
-        });
-        mode.addEventListener("change", () => {
-          const nextMods = [...node.modifiers];
-          nextMods[idx] = { ...mod, mode: mode.value };
-          update({ ...node, modifiers: nextMods });
-        });
-        row.appendChild(mode);
-        row.appendChild(document.createTextNode(" on "));
-        const target = document.createElement("input");
-        target.type = "text";
-        target.value = mod.target;
-        target.style.width = "4rem";
-        target.addEventListener("change", () => {
-          const nextMods = [...node.modifiers];
-          nextMods[idx] = { ...mod, target: target.value.trim() };
-          update({ ...node, modifiers: nextMods });
-        });
-        row.appendChild(target);
-      } else if (mod.type === "replace") {
-        row.appendChild(document.createTextNode("Replace "));
-        const min = document.createElement("input");
-        min.type = "number";
-        min.value = mod.min;
-        min.style.width = "3rem";
-        const max = document.createElement("input");
-        max.type = "number";
-        max.value = mod.max;
-        max.style.width = "3rem";
-        const withVal = document.createElement("input");
-        withVal.type = "number";
-        withVal.value = mod.with;
-        withVal.style.width = "3rem";
-
-        const emit = () => {
-          const nextMods = [...node.modifiers];
-          nextMods[idx] = {
-            ...mod,
-            min: Number(min.value) || 0,
-            max: Number(max.value) || 0,
-            with: Number(withVal.value) || 0,
-          };
-          update({ ...node, modifiers: nextMods });
-        };
-        min.addEventListener("change", emit);
-        max.addEventListener("change", emit);
-        withVal.addEventListener("change", emit);
-
-        row.appendChild(min);
-        row.appendChild(document.createTextNode("-"));
-        row.appendChild(max);
-        row.appendChild(document.createTextNode(" with "));
-        row.appendChild(withVal);
-      }
+      const def = registry.get(mod.type);
+      row.appendChild(
+        def?.renderEditor
+          ? def.renderEditor(mod, (next) => {
+              const nextMods = [...node.modifiers];
+              nextMods[idx] = next;
+              update({ ...node, modifiers: nextMods });
+            })
+          : document.createTextNode(mod.type),
+      );
 
       const del = document.createElement("button");
       del.innerText = "×";

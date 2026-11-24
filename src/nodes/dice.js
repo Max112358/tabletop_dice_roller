@@ -1,5 +1,5 @@
 import { registry } from "../engine/nodeRegistry.js";
-import { collectVariableRefs } from "../engine/evaluator.js";
+import { collectVariableRefs, checkCritRule } from "../engine/evaluator.js";
 import { nodeToString, renderGenericEditor } from "../shared.js";
 import { rollDie } from "./nodesShared.js";
 
@@ -63,14 +63,34 @@ export default function register() {
         }
       }
 
+      const critResult = checkDiceCrits(
+        node.modifiers || [],
+        {
+          count: keptRolls.length,
+          sides,
+          total,
+          rolls: keptRolls,
+        },
+        ctx,
+      );
+
       ctx.trackPrimaryRoll({
         count: keptRolls.length,
         sides,
         total,
         rolls: keptRolls,
+        isCritSuccess: critResult.isCritSuccess,
+        isCritFail: critResult.isCritFail,
+        sourceMods: node.modifiers || [],
       });
 
-      return { value: total, breakdown: [breakdown], rolls: keptRolls };
+      return {
+        value: total,
+        breakdown: [breakdown],
+        rolls: keptRolls,
+        isCritSuccess: critResult.isCritSuccess,
+        isCritFail: critResult.isCritFail,
+      };
     },
 
     collectVariables(node, out) {
@@ -185,4 +205,22 @@ function applyReroll(rolls, mod, rollFn, sides) {
 
     rolls[i] = total;
   }
+}
+
+function checkDiceCrits(mods, primaryRoll, ctx) {
+  let isCritSuccess = false;
+  let isCritFail = false;
+
+  for (const mod of mods) {
+    if (mod.type === "critSuccess" && checkCritRule(mod, primaryRoll, ctx)) {
+      isCritSuccess = true;
+    } else if (
+      mod.type === "critFail" &&
+      checkCritRule(mod, primaryRoll, ctx)
+    ) {
+      isCritFail = true;
+    }
+  }
+
+  return { isCritSuccess, isCritFail };
 }

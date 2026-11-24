@@ -96,6 +96,8 @@ export default function register() {
         rolls: leftResult.rolls || [],
         checkResult,
         checkContext: context,
+        isCritSuccess: leftResult.isCritSuccess,
+        isCritFail: leftResult.isCritFail,
       };
     },
 

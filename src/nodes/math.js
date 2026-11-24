@@ -45,10 +45,15 @@ export default function register() {
 
       const rollParts = results.flatMap((r) => r.rolls || []);
 
+      const isCritSuccess = results.some((r) => r.isCritSuccess);
+      const isCritFail = results.some((r) => r.isCritFail);
+
       return {
         value,
         breakdown: [`${expression} = ${value}`],
         rolls: rollParts,
+        isCritSuccess,
+        isCritFail,
       };
     },
 

@@ -43,6 +43,8 @@ export default function register() {
           `Table lookup ${rollValue}: ${result.breakdown?.[0] ?? result.value}`,
         ],
         rolls: rollResult.rolls || [],
+        isCritSuccess: rollResult.isCritSuccess,
+        isCritFail: rollResult.isCritFail,
       };
     },
 
