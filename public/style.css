@@ -983,3 +983,26 @@ textarea {
   border-right: 3px solid var(--accent-orange);
   padding-right: 6px;
 }
+
+.builder-workspace {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-height: 3rem;
+}
+
+.builder-reorder-zone {
+  width: 8px;
+  min-height: 24px;
+  border-radius: 2px;
+  transition:
+    background 0.1s,
+    width 0.1s;
+  align-self: stretch;
+}
+
+.builder-reorder-zone.drop-active {
+  background: var(--accent-orange);
+  width: 16px;
+}
