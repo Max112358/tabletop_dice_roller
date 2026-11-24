@@ -1,7 +1,18 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { collectVariableRefs } from "../engine/evaluator.js";
-import { nodeToString, renderGenericEditor } from "../shared.js";
+import { nodeToString } from "../shared.js";
 import { sortNumbers, sum } from "./nodesShared.js";
+
+export function migratePoolNode(node) {
+  if (node.batch) {
+    const batch = node.batch;
+    node.operands =
+      batch && Array.isArray(batch.operands)
+        ? [batch]
+        : [{ type: "math", op: "add", operands: [batch] }];
+    delete node.batch;
+  }
+}
 
 export default function register() {
   registry.register({
@@ -12,13 +23,20 @@ export default function register() {
     create() {
       return {
         type: "pool",
-        batch: { type: "dice", count: 1, sides: 6, modifiers: [] },
+        operands: [{ type: "group", op: "add", operands: [] }],
         iterations: { type: "number", value: 2 },
         keep: { mode: "highest", count: { type: "number", value: 1 } },
       };
     },
 
     evaluate(node, ctx) {
+      migratePoolNode(node);
+
+      if (!node.operands?.length) {
+        return { value: 0, breakdown: ["pool (empty) = 0"], rolls: [] };
+      }
+
+      const batchNode = node.operands[0];
       const iterations = Math.max(
         1,
         Math.floor(ctx.evaluate(node.iterations).value),
@@ -28,7 +46,7 @@ export default function register() {
       const batchBreakdowns = [];
 
       for (let i = 0; i < iterations; i++) {
-        const res = ctx.evaluate(node.batch);
+        const res = ctx.evaluate(batchNode);
         batchResults.push(res.value);
         batchBreakdowns.push(
           res.breakdown?.[0] ? `[${res.breakdown[0]}]` : String(res.value),
@@ -47,72 +65,44 @@ export default function register() {
 
       const modeLabel = node.keep.mode === "highest" ? "Highest" : "Lowest";
       const breakdown =
-        `Pool ${iterations}×{${nodeToString(node.batch)}} -> Kept ${modeLabel} ${keepCount}: ` +
+        `Pool ${iterations}×{${nodeToString(batchNode)}} -> Kept ${modeLabel} ${keepCount}: ` +
         `(${kept.join("+")}=${total}) [${batchBreakdowns.join(", ")}]`;
 
       return { value: total, breakdown: [breakdown], rolls: [] };
     },
 
     collectVariables(node, out) {
-      collectVariableRefs(node.batch, out);
+      migratePoolNode(node);
+      if (node.operands?.[0]) collectVariableRefs(node.operands[0], out);
       collectVariableRefs(node.iterations, out);
       collectVariableRefs(node.keep.count, out);
     },
 
     toDisplayString(node) {
-      return `{${nodeToString(node.batch)}}p${nodeToString(
-        node.iterations,
-      )}k${node.keep.mode === "highest" ? "h" : "l"}${nodeToString(
-        node.keep.count,
-      )}`;
+      migratePoolNode(node);
+      const batch = node.operands?.[0];
+      const batchStr = batch ? nodeToString(batch) : "";
+      return `{${batchStr}}p${nodeToString(node.iterations)}k${
+        node.keep.mode === "highest" ? "h" : "l"
+      }${nodeToString(node.keep.count)}`;
     },
 
     renderEditor(node, update) {
+      migratePoolNode(node);
       const root = document.createElement("div");
       root.className = "builder-pool";
 
-      const batchRow = document.createElement("div");
-      batchRow.appendChild(document.createTextNode("Batch: "));
-      batchRow.appendChild(
-        renderGenericEditor(node.count, (next) =>
-          update({ ...node, count: next }),
-        ),
-      );
-      root.appendChild(batchRow);
+      const summary = document.createElement("div");
+      summary.innerText = `Batch: ${nodeToString(node.operands[0])}`;
+      root.appendChild(summary);
 
-      const iterRow = document.createElement("div");
-      iterRow.appendChild(document.createTextNode("Iterations: "));
-      iterRow.appendChild(
-        renderGenericEditor(node.iterations, (next) =>
-          update({ ...node, iterations: next }),
-        ),
-      );
-      root.appendChild(iterRow);
-
-      const keepRow = document.createElement("div");
-      keepRow.appendChild(document.createTextNode("Keep "));
-      const mode = document.createElement("select");
-      [
-        ["highest", "Highest"],
-        ["lowest", "Lowest"],
-      ].forEach(([value, label]) => {
-        const opt = document.createElement("option");
-        opt.value = value;
-        opt.innerText = label;
-        if (node.keep.mode === value) opt.selected = true;
-        mode.appendChild(opt);
-      });
-      mode.addEventListener("change", () =>
-        update({ ...node, keep: { ...node.keep, mode: mode.value } }),
-      );
-      keepRow.appendChild(mode);
-      keepRow.appendChild(document.createTextNode(" "));
-      keepRow.appendChild(
-        renderGenericEditor(node.keep.count, (next) =>
-          update({ ...node, keep: { ...node.keep, count: next } }),
-        ),
-      );
-      root.appendChild(keepRow);
+      const note = document.createElement("p");
+      note.style.marginTop = "8px";
+      note.style.fontSize = "12px";
+      note.style.color = "var(--text-muted)";
+      note.innerText =
+        "Edit the pool batch by dragging nodes into the pool workspace.";
+      root.appendChild(note);
 
       return root;
     },

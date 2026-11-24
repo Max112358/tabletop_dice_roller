@@ -219,4 +219,3 @@ DiceApp.renderUI = function () {
 
 DiceApp.setupVariableDragAndDrop(DiceApp.renderUI);
 DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
-DiceApp.renderUI();

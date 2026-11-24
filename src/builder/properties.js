@@ -1,6 +1,7 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { nodeToString, renderGenericEditor } from "../shared.js";
 import { getNodeAtPath, setNodeAtPath } from "./workspace.js";
+import { migratePoolNode } from "../nodes/pool.js";
 
 export function renderProperties(builder) {
   const panel = document.getElementById("builder-properties");
@@ -19,7 +20,12 @@ export function renderProperties(builder) {
   panel.appendChild(title);
 
   const update = (nextNode) => {
-    setNodeAtPath(builder.currentAst.root, builder.selectedPath, nextNode);
+    const newRoot = setNodeAtPath(
+      builder.currentAst.root,
+      builder.selectedPath,
+      nextNode,
+    );
+    if (builder.selectedPath.length === 0) builder.currentAst.root = newRoot;
     builder.render();
   };
 
@@ -287,17 +293,9 @@ function createPropertyEditor(builder, node, update) {
   }
 
   if (node.type === "pool") {
-    const batchRow = document.createElement("div");
-    batchRow.appendChild(document.createTextNode("Batch: "));
-    batchRow.appendChild(
-      createInlineNodeSummary(node.batch, (next) =>
-        update({ ...node, batch: next }),
-      ),
-    );
-    box.appendChild(batchRow);
+    migratePoolNode(node);
 
     const iterRow = document.createElement("div");
-    iterRow.style.marginTop = "8px";
     iterRow.appendChild(document.createTextNode("Iterations: "));
     iterRow.appendChild(
       createValueEditor(node.iterations, (next) =>
@@ -307,6 +305,7 @@ function createPropertyEditor(builder, node, update) {
     box.appendChild(iterRow);
 
     const keepRow = document.createElement("div");
+    keepRow.className = "builder-operand-row";
     keepRow.style.marginTop = "8px";
     keepRow.appendChild(document.createTextNode("Keep "));
     const mode = document.createElement("select");
@@ -328,6 +327,14 @@ function createPropertyEditor(builder, node, update) {
       ),
     );
     box.appendChild(keepRow);
+
+    const note = document.createElement("p");
+    note.style.marginTop = "10px";
+    note.style.fontSize = "12px";
+    note.style.color = "var(--text-muted)";
+    note.innerText =
+      "Drag dice, variables, and other nodes into the pool batch workspace inside the builder.";
+    box.appendChild(note);
   }
 
   if (node.type === "daggerheart") {

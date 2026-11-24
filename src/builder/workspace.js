@@ -1,6 +1,7 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { nodeToString } from "../shared.js";
 import { OP_LABELS } from "./constants.js";
+import { migratePoolNode } from "../nodes/pool.js";
 
 export function renderWorkspace(builder, parentPath, containerEl) {
   containerEl.innerHTML = "";
@@ -10,6 +11,11 @@ export function renderWorkspace(builder, parentPath, containerEl) {
 
   if (parentNode.type === "check") {
     renderCheckWorkspace(builder, parentPath, containerEl, parentNode);
+    return;
+  }
+
+  if (parentNode.type === "pool") {
+    renderPoolWorkspace(builder, parentPath, containerEl, parentNode);
     return;
   }
 
@@ -37,6 +43,26 @@ export function renderWorkspace(builder, parentPath, containerEl) {
       );
     }
   });
+}
+
+function renderPoolWorkspace(builder, parentPath, containerEl, node) {
+  migratePoolNode(node);
+
+  const header = document.createElement("div");
+  header.className = "builder-check-header";
+  header.innerText = "Pool Batch — drag nodes here";
+  header.addEventListener("click", (e) => {
+    e.stopPropagation();
+    builder.selectedPath = parentPath;
+    builder.render();
+  });
+  containerEl.appendChild(header);
+
+  const nested = document.createElement("div");
+  nested.className = "builder-workspace-nested";
+  containerEl.appendChild(nested);
+
+  renderWorkspace(builder, [...parentPath, 0], nested);
 }
 
 function renderCheckWorkspace(builder, parentPath, containerEl, node) {
@@ -202,6 +228,14 @@ function createChip(builder, node, path) {
     renderWorkspace(builder, path, nested);
   }
 
+  if (node.type === "pool") {
+    const poolContainer = document.createElement("div");
+    poolContainer.style.width = "100%";
+    poolContainer.style.marginTop = "6px";
+    chip.appendChild(poolContainer);
+    renderWorkspace(builder, path, poolContainer);
+  }
+
   return chip;
 }
 
@@ -338,6 +372,14 @@ function removeNodeAtPath(builder, path) {
 
   // Inside a check: replace the side with empty math rather than removing it.
   if (parent.type === "check") {
+    parent.operands[index] = { type: "math", op: "add", operands: [] };
+    builder.selectedPath = null;
+    builder.render();
+    return;
+  }
+
+  // Inside a pool: replace the batch with an empty math workspace.
+  if (parent.type === "pool") {
     parent.operands[index] = { type: "math", op: "add", operands: [] };
     builder.selectedPath = null;
     builder.render();

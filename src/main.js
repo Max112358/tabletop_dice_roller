@@ -8,6 +8,9 @@ import "./rollController.js";
 import "./ui.js";
 import "./editModal.js";
 
-DiceApp.setupVariableDragAndDrop(DiceApp.renderUI);
-DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
-DiceApp.renderUI();
+(async function init() {
+  await DiceApp.loadDatabase();
+  DiceApp.setupVariableDragAndDrop(DiceApp.renderUI);
+  DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
+  DiceApp.renderUI();
+})();

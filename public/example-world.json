@@ -1,0 +1,503 @@
+{
+  "worldName": "Example World",
+  "characters": {
+    "Example Paladin (D&D)": {
+      "buttons": [
+        {
+          "label": "Longsword (Standard) Vs AC",
+          "note": "To Hit",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "dice",
+                      "count": { "type": "number", "value": 1 },
+                      "sides": { "type": "number", "value": 20 },
+                      "modifiers": []
+                    },
+                    { "type": "variable", "name": "STR" },
+                    { "type": "variable", "name": "PROF" },
+                    { "type": "variable", "name": "BLESS" }
+                  ]
+                },
+                { "type": "variable", "name": "ENEMY_AC" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [{ "type": "critRule", "trigger": "max" }],
+            "critFail": [{ "type": "critRule", "trigger": "min" }]
+          }
+        },
+        {
+          "label": "Longsword (Advantage)",
+          "note": "To Hit",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "dice",
+                      "count": { "type": "number", "value": 2 },
+                      "sides": { "type": "number", "value": 20 },
+                      "modifiers": [
+                        {
+                          "type": "keep",
+                          "mode": "highest",
+                          "count": { "type": "number", "value": 1 }
+                        }
+                      ]
+                    },
+                    { "type": "variable", "name": "STR" },
+                    { "type": "variable", "name": "PROF" },
+                    { "type": "variable", "name": "BLESS" }
+                  ]
+                },
+                { "type": "variable", "name": "ENEMY_AC" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [{ "type": "critRule", "trigger": "max" }],
+            "critFail": [{ "type": "critRule", "trigger": "min" }]
+          }
+        },
+        {
+          "label": "Longsword (Disadvantage)",
+          "note": "To Hit",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "dice",
+                      "count": { "type": "number", "value": 2 },
+                      "sides": { "type": "number", "value": 20 },
+                      "modifiers": [
+                        {
+                          "type": "keep",
+                          "mode": "lowest",
+                          "count": { "type": "number", "value": 1 }
+                        }
+                      ]
+                    },
+                    { "type": "variable", "name": "STR" },
+                    { "type": "variable", "name": "PROF" },
+                    { "type": "variable", "name": "BLESS" }
+                  ]
+                },
+                { "type": "variable", "name": "ENEMY_AC" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [{ "type": "critRule", "trigger": "max" }],
+            "critFail": [{ "type": "critRule", "trigger": "min" }]
+          }
+        },
+        {
+          "label": "Longsword Savage Attacker Damage",
+          "note": "Slashing",
+          "ast": {
+            "root": {
+              "type": "pool",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "dice",
+                      "count": {
+                        "type": "variable",
+                        "name": "CRIT_MULTIPLIER"
+                      },
+                      "sides": { "type": "number", "value": 8 },
+                      "modifiers": []
+                    }
+                  ]
+                }
+              ],
+              "iterations": { "type": "number", "value": 2 },
+              "keep": {
+                "mode": "highest",
+                "count": { "type": "number", "value": 1 }
+              }
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Divine Smite",
+          "note": "Radiant Damage",
+          "ast": {
+            "root": {
+              "type": "dice",
+              "count": { "type": "variable", "name": "SMITE_DICE" },
+              "sides": { "type": "number", "value": 8 },
+              "modifiers": []
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Athletics Check",
+          "note": "",
+          "ast": {
+            "root": {
+              "type": "math",
+              "op": "add",
+              "operands": [
+                {
+                  "type": "dice",
+                  "count": { "type": "number", "value": 1 },
+                  "sides": { "type": "number", "value": 20 },
+                  "modifiers": []
+                },
+                { "type": "variable", "name": "STR" },
+                { "type": "variable", "name": "PROF" },
+                { "type": "variable", "name": "GUIDANCE" }
+              ]
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Athletics Check Vs DC",
+          "note": "",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "dice",
+                      "count": { "type": "number", "value": 1 },
+                      "sides": { "type": "number", "value": 20 },
+                      "modifiers": []
+                    },
+                    { "type": "variable", "name": "STR" },
+                    { "type": "variable", "name": "PROF" },
+                    { "type": "variable", "name": "GUIDANCE" }
+                  ]
+                },
+                { "type": "variable", "name": "TARGET_DC" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [{ "type": "critRule", "trigger": "max" }],
+            "critFail": [{ "type": "critRule", "trigger": "min" }]
+          }
+        }
+      ],
+      "variables": {
+        "STR": { "type": "number", "value": 4 },
+        "PROF": { "type": "number", "value": 2 },
+        "HIT_POINTS": { "type": "number", "value": 20 },
+        "AC": { "type": "number", "value": 18 },
+        "CRIT_MULTIPLIER": { "type": "number", "value": 1 },
+        "SMITE_DICE_BASE": { "type": "number", "value": 2 },
+        "SMITE_DICE": {
+          "type": "math",
+          "op": "multiply",
+          "operands": [
+            { "type": "variable", "name": "SMITE_DICE_BASE" },
+            { "type": "variable", "name": "CRIT_MULTIPLIER" }
+          ]
+        },
+        "BLESS_MULTIPLIER": { "type": "number", "value": 0 },
+        "BLESS": {
+          "type": "dice",
+          "count": { "type": "variable", "name": "BLESS_MULTIPLIER" },
+          "sides": { "type": "number", "value": 4 },
+          "modifiers": []
+        },
+        "GUIDANCE_MULTIPLIER": { "type": "number", "value": 0 },
+        "GUIDANCE": {
+          "type": "dice",
+          "count": { "type": "variable", "name": "GUIDANCE_MULTIPLIER" },
+          "sides": { "type": "number", "value": 4 },
+          "modifiers": []
+        },
+        "TARGET_DC": { "type": "number", "value": 16 },
+        "ENEMY_AC": { "type": "number", "value": 14 }
+      },
+      "notes": "11 gold, 2 silver, 3 copper. Longsword +1, Shield +1, Chainmail +1. Potion of Healing x2."
+    },
+    "Example Seraph (Daggerheart)": {
+      "buttons": [
+        {
+          "label": "Daggerheart Action",
+          "note": "",
+          "ast": {
+            "root": {
+              "type": "daggerheart",
+              "sides": { "type": "number", "value": 12 }
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Daggerheart Action Vs DC",
+          "note": "",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "daggerheart",
+                  "sides": { "type": "number", "value": 12 }
+                },
+                { "type": "variable", "name": "TARGET_DC" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Daggerheart Action With Exp Vs DC",
+          "note": "",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "daggerheart",
+                      "sides": { "type": "number", "value": 12 }
+                    },
+                    { "type": "number", "value": 2 }
+                  ]
+                },
+                { "type": "variable", "name": "TARGET_DC" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Greatsword Attack",
+          "note": "To Hit",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "daggerheart",
+                      "sides": { "type": "number", "value": 12 }
+                    },
+                    { "type": "variable", "name": "STR" }
+                  ]
+                },
+                { "type": "variable", "name": "ENEMY_DIFFICULTY" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Greatsword Attack (Advantage)",
+          "note": "To Hit",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "daggerheart",
+                      "sides": { "type": "number", "value": 12 }
+                    },
+                    { "type": "variable", "name": "STR" },
+                    {
+                      "type": "dice",
+                      "count": { "type": "number", "value": 1 },
+                      "sides": { "type": "number", "value": 6 },
+                      "modifiers": []
+                    }
+                  ]
+                },
+                { "type": "variable", "name": "ENEMY_DIFFICULTY" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Greatsword Attack (Disadvantage)",
+          "note": "To Hit",
+          "ast": {
+            "root": {
+              "type": "check",
+              "mode": "binary",
+              "sign": ">=",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "daggerheart",
+                      "sides": { "type": "number", "value": 12 }
+                    },
+                    { "type": "variable", "name": "STR" },
+                    {
+                      "type": "math",
+                      "op": "multiply",
+                      "operands": [
+                        {
+                          "type": "dice",
+                          "count": { "type": "number", "value": 1 },
+                          "sides": { "type": "number", "value": 6 },
+                          "modifiers": []
+                        },
+                        { "type": "number", "value": -1 }
+                      ]
+                    }
+                  ]
+                },
+                { "type": "variable", "name": "ENEMY_DIFFICULTY" }
+              ],
+              "strong": null
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Greatsword Damage",
+          "note": "Physical damage",
+          "ast": {
+            "root": {
+              "type": "math",
+              "op": "add",
+              "operands": [
+                {
+                  "type": "dice",
+                  "count": { "type": "variable", "name": "ATTACK_DICE" },
+                  "sides": { "type": "number", "value": 10 },
+                  "modifiers": [
+                    {
+                      "type": "keep",
+                      "mode": "highest",
+                      "count": { "type": "variable", "name": "PROF" }
+                    }
+                  ]
+                },
+                { "type": "number", "value": 3 }
+              ]
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        },
+        {
+          "label": "Greatsword Damage Crit",
+          "note": "Physical damage critical hit",
+          "ast": {
+            "root": {
+              "type": "math",
+              "op": "add",
+              "operands": [
+                {
+                  "type": "math",
+                  "op": "multiply",
+                  "operands": [
+                    { "type": "variable", "name": "PROF" },
+                    { "type": "number", "value": 10 }
+                  ]
+                },
+                {
+                  "type": "dice",
+                  "count": { "type": "variable", "name": "ATTACK_DICE" },
+                  "sides": { "type": "number", "value": 10 },
+                  "modifiers": [
+                    {
+                      "type": "keep",
+                      "mode": "highest",
+                      "count": { "type": "variable", "name": "PROF" }
+                    }
+                  ]
+                },
+                { "type": "number", "value": 3 }
+              ]
+            },
+            "critSuccess": [],
+            "critFail": []
+          }
+        }
+      ],
+      "variables": {
+        "STR": { "type": "number", "value": 2 },
+        "PROF": { "type": "number", "value": 1 },
+        "HOPE": { "type": "number", "value": 2 },
+        "STRESS": { "type": "number", "value": 6 },
+        "HIT_POINTS": { "type": "number", "value": 6 },
+        "EVASION": { "type": "number", "value": 9 },
+        "DAMAGE_THRESHOLDS": { "type": "label", "value": "7/15" },
+        "ARMOR": { "type": "number", "value": 4 },
+        "ATTACK_DICE": {
+          "type": "math",
+          "op": "add",
+          "operands": [
+            { "type": "variable", "name": "PROF" },
+            { "type": "number", "value": 1 }
+          ]
+        },
+        "TARGET_DC": { "type": "number", "value": 16 },
+        "ENEMY_DIFFICULTY": { "type": "number", "value": 11 }
+      },
+      "notes": "Potion of Healing x2."
+    }
+  }
+}
