@@ -43,7 +43,7 @@ export class FormulaBuilder {
     document.getElementById("builder-note").value = note;
     document.getElementById("builder-preview-output").innerText = "";
 
-    renderPalette("builder-palette");
+    renderPalette(this, "builder-palette");
     this.render();
 
     const page = document.getElementById("formula-builder-page");

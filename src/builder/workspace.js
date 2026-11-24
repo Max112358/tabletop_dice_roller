@@ -35,10 +35,16 @@ function createEmptyDropZone(builder, parentPath) {
   zone.className = "builder-drop-zone";
   zone.innerText = "Drag a node type here";
 
-  zone.addEventListener("dragenter", () => zone.classList.add("drop-active"));
-  zone.addEventListener("dragleave", () =>
-    zone.classList.remove("drop-active"),
-  );
+  zone.addEventListener("dragover", (e) => {
+    if (builder.dragSourceInfo?.kind === "chip") return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    zone.classList.add("drop-active");
+  });
+
+  zone.addEventListener("dragleave", () => {
+    zone.classList.remove("drop-active");
+  });
 
   return zone;
 }
@@ -48,10 +54,16 @@ function createReorderDropZone(builder, parentPath, insertIndex) {
   zone.className = "builder-reorder-zone";
   zone.dataset.insertIndex = insertIndex;
 
-  zone.addEventListener("dragenter", () => zone.classList.add("drop-active"));
-  zone.addEventListener("dragleave", () =>
-    zone.classList.remove("drop-active"),
-  );
+  zone.addEventListener("dragover", (e) => {
+    if (!builder.dragSourceInfo) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    zone.classList.add("drop-active");
+  });
+
+  zone.addEventListener("dragleave", () => {
+    zone.classList.remove("drop-active");
+  });
 
   return zone;
 }
@@ -73,7 +85,7 @@ function createChip(builder, node, path) {
   });
 
   chip.addEventListener("dragstart", (e) => {
-    builder.dragSourceInfo = { path };
+    builder.dragSourceInfo = { kind: "chip", path };
     chip.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
   });
@@ -88,32 +100,33 @@ function createChip(builder, node, path) {
       return;
     }
 
-    const el = chip;
-    el.style.display = "none";
+    chip.style.display = "none";
     const target = document.elementFromPoint(e.clientX, e.clientY);
-    el.style.display = "";
+    chip.style.display = "";
 
     const zone = target?.closest(".builder-reorder-zone, .builder-drop-zone");
-    if (zone) {
-      const workspace = zone.closest(
-        ".builder-workspace, .builder-workspace-nested",
-      );
-      const parentPath = workspace
-        ? JSON.parse(workspace.dataset.workspacePath)
-        : [];
-      const insertIndex = zone.classList.contains("builder-drop-zone")
-        ? 0
-        : parseInt(zone.dataset.insertIndex, 10);
-
-      moveNode(builder, sourcePath, parentPath, insertIndex);
-    } else {
+    if (!zone) {
       builder.render();
+      return;
     }
+
+    const workspace = zone.closest(
+      ".builder-workspace, .builder-workspace-nested",
+    );
+    const parentPath = workspace
+      ? JSON.parse(workspace.dataset.workspacePath)
+      : [];
+    const insertIndex = zone.classList.contains("builder-drop-zone")
+      ? 0
+      : parseInt(zone.dataset.insertIndex, 10);
+
+    moveNode(builder, sourcePath, parentPath, insertIndex);
   });
 
   const removeBtn = document.createElement("button");
   removeBtn.innerText = "×";
   removeBtn.title = "Remove";
+  removeBtn.draggable = false;
   removeBtn.addEventListener("click", (ev) => {
     ev.stopPropagation();
     removeNodeAtPath(builder, path);
@@ -134,6 +147,7 @@ function createOperatorDropdown(builder, parentPath, index) {
   const parentNode = getNodeAtPath(builder.currentAst.root, parentPath);
   const select = document.createElement("select");
   select.className = "builder-operator";
+  select.draggable = false;
 
   Object.keys(OP_LABELS).forEach((op) => {
     const opt = document.createElement("option");
@@ -215,7 +229,7 @@ function reorderWithinWorkspace(
   builder.render();
 }
 
-function addNodeAtPath(builder, parentPath, insertIndex, type) {
+export function addNodeAtPath(builder, parentPath, insertIndex, type) {
   const def = registry.get(type);
   if (!def) {
     builder.render();
@@ -251,7 +265,7 @@ function removeNodeAtPath(builder, path) {
   }
 
   if (parent.operands.length === 0 && parent.type === "math") {
-    // leave empty
+    // leave empty math root
   } else if (parent.operands.length === 1 && parentPath.length === 0) {
     builder.currentAst.root = parent.operands[0];
   }
