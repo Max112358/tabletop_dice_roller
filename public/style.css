@@ -1,0 +1,822 @@
+:root {
+  /* Base */
+  --bg-body: #0f1115;
+  --bg-dark: #07080a;
+
+  /* Surfaces */
+  --bg-panel: #16191f;
+  --bg-card: #1f222a;
+  --bg-guide: #13161b;
+  --bg-input: #11131a;
+
+  /* Text */
+  --text-main: #e8eaed;
+  --text-muted: #9aa0a6;
+  --text-dark: #0f1115;
+
+  /* Amazon-inspired accents */
+  --accent-orange: #ff9900;
+  --accent-orange-soft: #cc7a00;
+  --accent-orange-dim: #8a5400;
+  --accent-orange-hard: #ff6200;
+
+  /* Muted button palette */
+  --button-bg: #2a2118;
+  --button-bg-hover: #3b2e1f;
+  --button-bg-active: #4a3b26;
+  --button-border: #5c401f;
+  --button-text: #ffb84d;
+
+  /* Muted danger palette */
+  --danger-bg: #3a1e22;
+  --danger-bg-hover: #4f282e;
+  --danger-bg-active: #63333a;
+  --danger-border: #7a3a42;
+  --danger-text: #ff8a95;
+
+  /* Muted success palette */
+  --success-bg: #1e3326;
+  --success-bg-hover: #2a4634;
+  --success-bg-active: #365a41;
+  --success-border: #3d6b4b;
+  --success-text: #7ee092;
+
+  /* Aliases so existing rules keep working */
+  --accent-blue: var(--accent-orange);
+  --accent-blue-light: var(--accent-orange-hard);
+
+  --accent-green: #2ecc71;
+  --accent-pink: #ff4d6d;
+  --accent-yellow: #f9e2af;
+
+  /* Shared */
+  --border-color: #2e333b;
+  --shadow-soft: 0 2px 5px rgba(0, 0, 0, 0.4);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+.active-char-badge {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  max-width: 220px;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+}
+
+.active-char-badge select {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 6px;
+  max-width: 180px;
+  cursor: pointer;
+}
+
+.section {
+  background-color: var(--bg-panel);
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+}
+
+h3 {
+  margin-top: 0;
+  color: var(--accent-orange);
+}
+
+select,
+input,
+button {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+button {
+  cursor: pointer;
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: 1px solid var(--button-border);
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background-color: var(--button-bg-hover);
+  border-color: var(--accent-orange-hard);
+  color: var(--accent-orange);
+}
+
+button:active {
+  background-color: var(--button-bg-active);
+  border-color: var(--accent-orange);
+}
+
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 15px;
+}
+
+.dice-btn {
+  position: relative;
+  border-radius: var(--radius-md);
+}
+
+/* Style the roll buttons inside the dice grid */
+.dice-btn button {
+  background-color: var(--bg-input);
+  color: var(--text-main);
+  padding: 2px 2px;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+/* Hover state for roll buttons */
+.dice-btn button:hover {
+  background-color: var(--bg-card);
+  border-color: var(--accent-orange-hard);
+  color: var(--text-main);
+}
+
+.dice-roll-btn.success-flash {
+  background-color: var(--success-text) !important;
+  color: var(--text-dark) !important;
+  transform: scale(0.98);
+}
+
+.delete-corner-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+  box-shadow: var(--shadow-soft);
+  padding: 0;
+  z-index: 5;
+}
+
+.delete-corner-btn:hover {
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+  transform: scale(1.1);
+}
+
+.delete-corner-btn:active {
+  background-color: var(--danger-bg-active);
+}
+
+.dice-btn:hover .delete-corner-btn {
+  opacity: 1;
+}
+
+.danger {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+}
+
+.danger:hover {
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+}
+
+.danger:active {
+  background-color: var(--danger-bg-active);
+}
+
+#status {
+  color: var(--success-text);
+  font-weight: bold;
+  height: 20px;
+  margin-top: 10px;
+}
+
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-family: monospace;
+  resize: vertical;
+}
+
+.result-panel {
+  background-color: var(--bg-dark);
+  border: 2px solid var(--accent-orange-hard);
+  padding: 15px;
+  border-radius: var(--radius-md);
+  min-height: 60px;
+  margin-top: 10px;
+}
+
+.result-title {
+  font-size: 16px;
+  color: var(--accent-yellow);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.result-raw {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 14px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.creator-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.creator-form {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.guide-box {
+  flex: 1;
+  min-width: 280px;
+  background-color: var(--bg-guide);
+  padding: 15px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-color);
+  font-size: 13px;
+}
+
+.guide-box ul {
+  margin: 5px 0 0 0;
+  padding-left: 20px;
+}
+
+.guide-box li {
+  margin-bottom: 6px;
+}
+
+.code-inline {
+  background-color: var(--bg-card);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+  color: var(--accent-yellow);
+}
+
+.timer-badge {
+  font-size: 12px;
+  background-color: var(--bg-card);
+  color: var(--success-text);
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.var-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 15px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.var-badge {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  width: 100%;
+}
+
+.var-name {
+  font-family: monospace;
+  font-weight: bold;
+  color: var(--accent-yellow);
+  flex: 0 0 auto;
+  max-width: 70%;
+  min-width: 0;
+  overflow: visible;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.var-val-input,
+.var-val-input[type="text"],
+.var-val-input[type="number"] {
+  flex: 1 1 0;
+  min-width: 60px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 0px 6px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-weight: bold;
+  line-height: 1.2;
+  height: auto;
+}
+
+.var-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 1;
+}
+
+.var-actions button {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.15s ease;
+}
+
+.var-actions .var-edit-btn {
+  background-color: var(--button-bg);
+  border: 1px solid var(--button-border);
+  color: var(--button-text);
+}
+
+.var-actions .var-edit-btn:hover {
+  background-color: var(--button-bg-hover);
+  border-color: var(--accent-orange-hard);
+  color: var(--accent-orange);
+  transform: scale(1.1);
+}
+
+.var-actions .var-edit-btn:active {
+  background-color: var(--button-bg-active);
+  border-color: var(--accent-orange);
+}
+
+.var-actions .var-copy-btn {
+  background-color: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+}
+
+.var-actions .var-copy-btn:hover {
+  background-color: var(--success-bg-hover);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  transform: scale(1.1);
+}
+
+.var-actions .var-copy-btn:active {
+  background-color: var(--success-bg-active);
+}
+
+.var-actions .var-delete-btn {
+  background-color: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
+}
+
+.var-actions .var-delete-btn:hover {
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+  transform: scale(1.1);
+}
+
+.var-actions .var-delete-btn:active {
+  background-color: var(--danger-bg-active);
+}
+
+.var-creator {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.var-creator input,
+.var-creator button {
+  width: 100%;
+  min-width: 0;
+}
+
+.btn-creator {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.btn-creator input,
+.btn-creator button {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Broken/Missing Variable Button States */
+.dice-btn.broken .dice-roll-btn {
+  background-color: var(--danger-bg) !important;
+  color: var(--danger-text) !important;
+  border-color: var(--danger-border);
+}
+
+.dice-btn.broken .dice-roll-btn:hover {
+  background-color: var(--danger-bg-hover) !important;
+  border-color: var(--accent-pink) !important;
+}
+
+.dice-btn .error-badge {
+  display: none;
+  font-size: 11px;
+  color: var(--accent-yellow);
+  font-weight: bold;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.dice-btn.broken .error-badge {
+  display: block;
+}
+
+/* Modal Overlay Styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(7, 8, 10, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-hidden {
+  display: none !important;
+}
+
+.modal-content {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  padding: 25px;
+  border-radius: var(--radius-lg);
+  width: min(90%, 34rem);
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+  color: var(--text-main);
+  max-height: 85dvh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.modal-close:hover {
+  color: var(--accent-pink);
+}
+
+.result-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clear-feed-btn {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clear-feed-btn:hover {
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+}
+
+.result-actions .clear-feed-btn:active {
+  background-color: var(--danger-bg-active);
+}
+
+.var-badge,
+.dice-btn {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.dragging {
+  opacity: 0.4;
+  cursor: grabbing !important;
+}
+
+.var-badge.drag-target,
+.dice-btn.drag-target {
+  border: 1px dashed var(--accent-orange-hard) !important;
+}
+
+.dice-roll-btn {
+  width: 100%;
+  background-color: var(--bg-input);
+  color: var(--text-main);
+  padding: 6px 72px 6px 12px;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.dice-roll-btn:hover {
+  background-color: var(--bg-card);
+  border-color: var(--accent-orange-hard);
+  color: var(--text-main);
+}
+
+.btn-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 5;
+}
+
+.btn-actions button {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.15s ease;
+}
+
+.btn-actions .edit-btn {
+  background-color: var(--button-bg);
+  border: 1px solid var(--button-border);
+  color: var(--button-text);
+}
+
+.btn-actions .edit-btn:hover {
+  background-color: var(--button-bg-hover);
+  border-color: var(--accent-orange-hard);
+  color: var(--accent-orange);
+  transform: scale(1.1);
+}
+
+.btn-actions .edit-btn:active {
+  background-color: var(--button-bg-active);
+  border-color: var(--accent-orange);
+}
+
+.btn-actions .copy-btn {
+  background-color: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+}
+
+.btn-actions .copy-btn:hover {
+  background-color: var(--success-bg-hover);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  transform: scale(1.1);
+}
+
+.btn-actions .copy-btn:active {
+  background-color: var(--success-bg-active);
+}
+
+.btn-actions .delete-btn {
+  background-color: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
+}
+
+.btn-actions .delete-btn:hover {
+  background-color: var(--danger-bg-hover);
+  border-color: var(--accent-pink);
+  color: var(--accent-pink);
+  transform: scale(1.1);
+}
+
+.btn-actions .delete-btn:active {
+  background-color: var(--danger-bg-active);
+}
+
+.no-drag {
+  /* Marker class used by drag-and-drop to ignore pointer starts */
+}
+
+.io-columns {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.io-column {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.io-column h4 {
+  margin: 0 0 5px 0;
+  color: var(--accent-orange);
+  text-align: center;
+}
+
+.io-column button {
+  width: 100%;
+}
+
+.profile-block {
+  margin-bottom: 15px;
+}
+
+.profile-block:last-of-type {
+  margin-bottom: 0;
+}
+
+.profile-select-row,
+.profile-actions-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-actions-row {
+  margin-top: 8px;
+}
+
+.profile-select-row label {
+  font-weight: bold;
+}
+
+.profile-select-row select {
+  min-width: 160px;
+  flex: 1;
+}
+.builder-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-color);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  margin: 2px 0;
+}
+
+.builder-node select {
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.builder-math,
+.builder-dice,
+.builder-pool,
+.builder-roll-until,
+.builder-check,
+.builder-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.builder-operand-row,
+.builder-mod-row,
+.builder-table-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.builder-dice-mods,
+.builder-table-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 12px;
+}
+
+.crit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 12px;
+  margin-right: 6px;
+}
+
+.crit-chip button {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 10px;
+  line-height: 1;
+}

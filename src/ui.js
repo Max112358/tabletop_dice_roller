@@ -1,0 +1,222 @@
+window.DiceApp = window.DiceApp || {};
+
+DiceApp.renderNotes = function () {
+  const notesArea = document.getElementById("charNotes");
+  if (notesArea) {
+    notesArea.value = DiceApp.getCurrentCharacterData().notes || "";
+  }
+};
+
+DiceApp.renderWorldSelect = function () {
+  const select = document.getElementById("worldSelect");
+  if (!select) return;
+  select.innerHTML = "";
+  Object.keys(DiceApp.database).forEach((world) => {
+    const opt = document.createElement("option");
+    opt.value = world;
+    opt.innerText = world;
+    if (world === DiceApp.currentWorld) opt.selected = true;
+    select.appendChild(opt);
+  });
+};
+
+DiceApp.renderCharacterSelect = function () {
+  const select = document.getElementById("charSelect");
+  const badgeSelect = document.getElementById("activeCharSelect");
+  if (select) populateSelect(select);
+  if (badgeSelect) populateSelect(badgeSelect);
+
+  function populateSelect(el) {
+    el.innerHTML = "";
+    const world = DiceApp.database[DiceApp.currentWorld] || {};
+    Object.keys(world).forEach((char) => {
+      const opt = document.createElement("option");
+      opt.value = char;
+      opt.innerText = char;
+      if (char === DiceApp.currentCharacter) opt.selected = true;
+      el.appendChild(opt);
+    });
+  }
+};
+
+DiceApp.renderVariables = function () {
+  const varContainer = document.getElementById("varContainer");
+  if (!varContainer) return;
+  varContainer.innerHTML = "";
+  const variables = DiceApp.getCurrentCharacterData().variables || {};
+
+  Object.keys(variables).forEach((varName) => {
+    const badge = document.createElement("div");
+    badge.className = "var-badge";
+    badge.dataset.varname = varName;
+    badge.style.cursor = "grab";
+
+    const label = document.createElement("span");
+    label.className = "var-name";
+    label.innerText = varName;
+
+    const val = variables[varName];
+    const isNumberNode = val && val.type === "number";
+    const isLabelNode = val && val.type === "label";
+
+    const input = document.createElement("input");
+    input.type = isNumberNode ? "number" : "text";
+    input.className = "var-val-input";
+    input.value = isNumberNode
+      ? val.value
+      : isLabelNode
+        ? val.value
+        : JSON.stringify(val);
+    input.onchange = function () {
+      DiceApp.updateVariableValue(varName, this.value);
+    };
+
+    const actions = document.createElement("div");
+    actions.className = "var-actions no-drag";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "var-edit-btn no-drag";
+    editBtn.innerHTML = "✎";
+    editBtn.title = `Edit variable ${varName}`;
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.openVariableEditModal(varName);
+    };
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "var-copy-btn no-drag";
+    copyBtn.innerHTML = "⎘";
+    copyBtn.title = `Copy variable ${varName}`;
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.copyVariable(varName);
+    };
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "var-delete-btn no-drag";
+    delBtn.innerHTML = "✕";
+    delBtn.title = `Delete variable ${varName}`;
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.removeVariable(varName);
+    };
+
+    actions.appendChild(editBtn);
+    actions.appendChild(copyBtn);
+    actions.appendChild(delBtn);
+
+    badge.appendChild(label);
+    badge.appendChild(input);
+    badge.appendChild(actions);
+    varContainer.appendChild(badge);
+  });
+};
+
+DiceApp.renderDiceGrid = function () {
+  const grid = document.getElementById("diceGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
+  const buttons = DiceApp.getCurrentCharacterData().buttons || [];
+
+  buttons.forEach((btn, index) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "dice-btn";
+    wrapper.dataset.index = index.toString();
+    wrapper.style.cursor = "grab";
+
+    const displayFormula = btn.ast
+      ? DiceApp.nodeToString(btn.ast.root)
+      : "(legacy)";
+
+    const missingVars = btn.ast ? DiceApp.getMissingVariables(btn.ast) : [];
+    if (missingVars.length > 0) wrapper.classList.add("broken");
+
+    const rollBtn = document.createElement("button");
+    rollBtn.className = "dice-roll-btn";
+    rollBtn.style.whiteSpace = "pre-line";
+    rollBtn.style.cursor = "grab";
+    rollBtn.innerText = btn.label;
+
+    let tooltipText = `Formula: ${displayFormula}`;
+    if (btn.note) tooltipText += `\nNote: ${btn.note}`;
+    rollBtn.title = tooltipText;
+
+    rollBtn.onclick = function () {
+      DiceApp.executeRoll(btn.label, btn.ast, btn.note, this);
+    };
+
+    const errorBadge = document.createElement("div");
+    errorBadge.className = "error-badge";
+    errorBadge.innerText = `⚠️ Missing: ${missingVars.join(", ")}`;
+
+    const actions = document.createElement("div");
+    actions.className = "btn-actions no-drag";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "edit-btn no-drag";
+    editBtn.innerHTML = "✎";
+    editBtn.title = "Edit";
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.openFormulaBuilder(index);
+    };
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "copy-btn no-drag";
+    copyBtn.innerHTML = "⎘";
+    copyBtn.title = "Duplicate";
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.copyButton(index);
+    };
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "delete-btn no-drag";
+    delBtn.innerText = "✕";
+    delBtn.title = `Delete ${btn.label}`;
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      DiceApp.removeButton(index, btn.label);
+    };
+
+    actions.appendChild(editBtn);
+    actions.appendChild(copyBtn);
+    actions.appendChild(delBtn);
+
+    wrapper.appendChild(rollBtn);
+    wrapper.appendChild(actions);
+    wrapper.appendChild(errorBadge);
+    grid.appendChild(wrapper);
+  });
+};
+
+DiceApp.renderActiveCharacterBadge = function () {
+  const badgeSelect = document.getElementById("activeCharSelect");
+  if (!badgeSelect) return;
+
+  badgeSelect.innerHTML = "";
+  const world = DiceApp.database[DiceApp.currentWorld] || {};
+  Object.keys(world).forEach((char) => {
+    const opt = document.createElement("option");
+    opt.value = char;
+    opt.innerText = char;
+    if (char === DiceApp.currentCharacter) opt.selected = true;
+    badgeSelect.appendChild(opt);
+  });
+};
+
+DiceApp.renderUI = function () {
+  const t0 = performance.now();
+  DiceApp.ensureCharacterStructure();
+  DiceApp.renderNotes();
+  DiceApp.renderWorldSelect();
+  DiceApp.renderCharacterSelect();
+  DiceApp.renderVariables();
+  DiceApp.renderDiceGrid();
+  DiceApp.renderActiveCharacterBadge();
+  DiceApp.logElapsed("[renderUI]", t0, 50);
+};
+
+DiceApp.setupVariableDragAndDrop(DiceApp.renderUI);
+DiceApp.setupButtonDragAndDrop(DiceApp.renderUI);
+DiceApp.renderUI();

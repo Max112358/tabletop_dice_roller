@@ -1,0 +1,518 @@
+window.DiceApp = window.DiceApp || {};
+
+// Theme & timing
+DiceApp.success_color = "#0b7002";
+DiceApp.fail_color = "#8b0229";
+DiceApp.success_fail_flash_duration = 1;
+DiceApp.COMBO_TIMEOUT_MS = 10000;
+
+const DEFAULT_DATABASE = {
+  "Example World": {
+    "Example Paladin (D&D)": {
+      buttons: [
+        {
+          label: "Longsword (Standard) Vs AC",
+          note: "To Hit",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  {
+                    type: "dice",
+                    count: { type: "number", value: 1 },
+                    sides: { type: "number", value: 20 },
+                    modifiers: [],
+                  },
+                  { type: "variable", name: "STR" },
+                  { type: "variable", name: "PROF" },
+                  { type: "variable", name: "BLESS" },
+                ],
+              },
+              weak: { type: "variable", name: "ENEMY_AC" },
+              strong: null,
+            },
+            critSuccess: [{ type: "critRule", trigger: "max" }],
+            critFail: [{ type: "critRule", trigger: "min" }],
+          },
+        },
+        {
+          label: "Longsword (Advantage)",
+          note: "To Hit",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  {
+                    type: "dice",
+                    count: { type: "number", value: 2 },
+                    sides: { type: "number", value: 20 },
+                    modifiers: [
+                      {
+                        type: "keep",
+                        mode: "highest",
+                        count: { type: "number", value: 1 },
+                      },
+                    ],
+                  },
+                  { type: "variable", name: "STR" },
+                  { type: "variable", name: "PROF" },
+                  { type: "variable", name: "BLESS" },
+                ],
+              },
+              weak: { type: "variable", name: "ENEMY_AC" },
+              strong: null,
+            },
+            critSuccess: [{ type: "critRule", trigger: "max" }],
+            critFail: [{ type: "critRule", trigger: "min" }],
+          },
+        },
+        {
+          label: "Longsword (Disadvantage)",
+          note: "To Hit",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  {
+                    type: "dice",
+                    count: { type: "number", value: 2 },
+                    sides: { type: "number", value: 20 },
+                    modifiers: [
+                      {
+                        type: "keep",
+                        mode: "lowest",
+                        count: { type: "number", value: 1 },
+                      },
+                    ],
+                  },
+                  { type: "variable", name: "STR" },
+                  { type: "variable", name: "PROF" },
+                  { type: "variable", name: "BLESS" },
+                ],
+              },
+              weak: { type: "variable", name: "ENEMY_AC" },
+              strong: null,
+            },
+            critSuccess: [{ type: "critRule", trigger: "max" }],
+            critFail: [{ type: "critRule", trigger: "min" }],
+          },
+        },
+        {
+          label: "Longsword Savage Attacker Damage",
+          note: "Slashing",
+          ast: {
+            root: {
+              type: "math",
+              op: "add",
+              operands: [
+                {
+                  type: "pool",
+                  batch: {
+                    type: "dice",
+                    count: { type: "variable", name: "CRIT_MULTIPLIER" },
+                    sides: { type: "number", value: 8 },
+                    modifiers: [],
+                  },
+                  iterations: { type: "number", value: 2 },
+                  keep: {
+                    mode: "highest",
+                    count: { type: "number", value: 1 },
+                  },
+                },
+                { type: "variable", name: "STR" },
+              ],
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Divine Smite",
+          note: "Radiant Damage",
+          ast: {
+            root: {
+              type: "dice",
+              count: { type: "variable", name: "SMITE_DICE" },
+              sides: { type: "number", value: 8 },
+              modifiers: [],
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Athletics Check",
+          note: "",
+          ast: {
+            root: {
+              type: "math",
+              op: "add",
+              operands: [
+                {
+                  type: "dice",
+                  count: { type: "number", value: 1 },
+                  sides: { type: "number", value: 20 },
+                  modifiers: [],
+                },
+                { type: "variable", name: "STR" },
+                { type: "variable", name: "PROF" },
+                { type: "variable", name: "GUIDANCE" },
+              ],
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Athletics Check Vs DC",
+          note: "",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  {
+                    type: "dice",
+                    count: { type: "number", value: 1 },
+                    sides: { type: "number", value: 20 },
+                    modifiers: [],
+                  },
+                  { type: "variable", name: "STR" },
+                  { type: "variable", name: "PROF" },
+                  { type: "variable", name: "GUIDANCE" },
+                ],
+              },
+              weak: { type: "variable", name: "TARGET_DC" },
+              strong: null,
+            },
+            critSuccess: [{ type: "critRule", trigger: "max" }],
+            critFail: [{ type: "critRule", trigger: "min" }],
+          },
+        },
+      ],
+      variables: {
+        STR: { type: "number", value: 4 },
+        PROF: { type: "number", value: 2 },
+        HIT_POINTS: { type: "number", value: 20 },
+        AC: { type: "number", value: 18 },
+        CRIT_MULTIPLIER: { type: "number", value: 1 },
+        SMITE_DICE_BASE: { type: "number", value: 2 },
+        SMITE_DICE: {
+          type: "math",
+          op: "multiply",
+          operands: [
+            { type: "variable", name: "SMITE_DICE_BASE" },
+            { type: "variable", name: "CRIT_MULTIPLIER" },
+          ],
+        },
+        BLESS_MULTIPLIER: { type: "number", value: 0 },
+        BLESS: {
+          type: "dice",
+          count: { type: "variable", name: "BLESS_MULTIPLIER" },
+          sides: { type: "number", value: 4 },
+          modifiers: [],
+        },
+        GUIDANCE_MULTIPLIER: { type: "number", value: 0 },
+        GUIDANCE: {
+          type: "dice",
+          count: { type: "variable", name: "GUIDANCE_MULTIPLIER" },
+          sides: { type: "number", value: 4 },
+          modifiers: [],
+        },
+        TARGET_DC: { type: "number", value: 16 },
+        ENEMY_AC: { type: "number", value: 14 },
+      },
+      notes:
+        "11 gold, 2 silver, 3 copper. Longsword +1, Shield +1, Chainmail +1. Potion of Healing x2.",
+    },
+    "Example Seraph (Daggerheart)": {
+      buttons: [
+        {
+          label: "Daggerheart Action",
+          note: "",
+          ast: {
+            root: { type: "daggerheart", sides: { type: "number", value: 12 } },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Daggerheart Action Vs DC",
+          note: "",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "daggerheart",
+                sides: { type: "number", value: 12 },
+              },
+              weak: { type: "variable", name: "TARGET_DC" },
+              strong: null,
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Daggerheart Action With Exp Vs DC",
+          note: "",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  { type: "daggerheart", sides: { type: "number", value: 12 } },
+                  { type: "number", value: 2 },
+                ],
+              },
+              weak: { type: "variable", name: "TARGET_DC" },
+              strong: null,
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Greatsword Attack",
+          note: "To Hit",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  { type: "daggerheart", sides: { type: "number", value: 12 } },
+                  { type: "variable", name: "STR" },
+                ],
+              },
+              weak: { type: "variable", name: "ENEMY_DIFFICULTY" },
+              strong: null,
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Greatsword Attack (Advantage)",
+          note: "To Hit",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  { type: "daggerheart", sides: { type: "number", value: 12 } },
+                  { type: "variable", name: "STR" },
+                  {
+                    type: "dice",
+                    count: { type: "number", value: 1 },
+                    sides: { type: "number", value: 6 },
+                    modifiers: [],
+                  },
+                ],
+              },
+              weak: { type: "variable", name: "ENEMY_DIFFICULTY" },
+              strong: null,
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Greatsword Attack (Disadvantage)",
+          note: "To Hit",
+          ast: {
+            root: {
+              type: "check",
+              mode: "gte",
+              roll: {
+                type: "math",
+                op: "add",
+                operands: [
+                  { type: "daggerheart", sides: { type: "number", value: 12 } },
+                  { type: "variable", name: "STR" },
+                  {
+                    type: "math",
+                    op: "multiply",
+                    operands: [
+                      { type: "dice", count: 1, sides: 6, modifiers: [] },
+                      { type: "number", value: -1 },
+                    ],
+                  },
+                ],
+              },
+              weak: { type: "variable", name: "ENEMY_DIFFICULTY" },
+              strong: null,
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Greatsword Damage",
+          note: "Physical damage",
+          ast: {
+            root: {
+              type: "math",
+              op: "add",
+              operands: [
+                {
+                  type: "dice",
+                  count: { type: "variable", name: "ATTACK_DICE" },
+                  sides: { type: "number", value: 10 },
+                  modifiers: [
+                    {
+                      type: "keep",
+                      mode: "highest",
+                      count: { type: "variable", name: "PROF" },
+                    },
+                  ],
+                },
+                { type: "number", value: 3 },
+              ],
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+        {
+          label: "Greatsword Damage Crit",
+          note: "Physical damage critical hit",
+          ast: {
+            root: {
+              type: "math",
+              op: "add",
+              operands: [
+                {
+                  type: "math",
+                  op: "multiply",
+                  operands: [
+                    { type: "variable", name: "PROF" },
+                    { type: "number", value: 10 },
+                  ],
+                },
+                {
+                  type: "dice",
+                  count: { type: "variable", name: "ATTACK_DICE" },
+                  sides: { type: "number", value: 10 },
+                  modifiers: [
+                    {
+                      type: "keep",
+                      mode: "highest",
+                      count: { type: "variable", name: "PROF" },
+                    },
+                  ],
+                },
+                { type: "number", value: 3 },
+              ],
+            },
+            critSuccess: [],
+            critFail: [],
+          },
+        },
+      ],
+      variables: {
+        STR: { type: "number", value: 2 },
+        PROF: { type: "number", value: 1 },
+        HOPE: { type: "number", value: 2 },
+        STRESS: { type: "number", value: 6 },
+        HIT_POINTS: { type: "number", value: 6 },
+        EVASION: { type: "number", value: 9 },
+        DAMAGE_THRESHOLDS: { type: "label", value: "7/15" },
+        ARMOR: { type: "number", value: 4 },
+        ATTACK_DICE: {
+          type: "math",
+          op: "add",
+          operands: [
+            { type: "variable", name: "PROF" },
+            { type: "number", value: 1 },
+          ],
+        },
+        TARGET_DC: { type: "number", value: 16 },
+        ENEMY_DIFFICULTY: { type: "number", value: 11 },
+      },
+      notes: "Potion of Healing x2.",
+    },
+  },
+};
+
+DiceApp.database =
+  JSON.parse(localStorage.getItem("dice_worlds_v1")) ||
+  JSON.parse(JSON.stringify(DEFAULT_DATABASE));
+
+if (!Object.keys(DiceApp.database).length) {
+  DiceApp.database = JSON.parse(JSON.stringify(DEFAULT_DATABASE));
+}
+
+DiceApp.currentWorld =
+  localStorage.getItem("current_dice_world") ||
+  Object.keys(DiceApp.database)[0];
+
+if (!DiceApp.database[DiceApp.currentWorld]) {
+  DiceApp.currentWorld = Object.keys(DiceApp.database)[0];
+}
+
+DiceApp.currentCharacter =
+  localStorage.getItem("current_dice_char") ||
+  Object.keys(DiceApp.database[DiceApp.currentWorld] || {})[0];
+
+if (
+  !DiceApp.database[DiceApp.currentWorld] ||
+  !DiceApp.database[DiceApp.currentWorld][DiceApp.currentCharacter]
+) {
+  DiceApp.currentCharacter = Object.keys(
+    DiceApp.database[DiceApp.currentWorld],
+  )[0];
+}
+
+DiceApp.rollBuffer = [];
+DiceApp.lastRollTime = 0;
+
+DiceApp.getCurrentCharacterData = function () {
+  DiceApp.ensureCharacterStructure();
+  return DiceApp.database[DiceApp.currentWorld][DiceApp.currentCharacter];
+};
+
+DiceApp.ensureCharacterStructure = function (
+  world = DiceApp.currentWorld,
+  char = DiceApp.currentCharacter,
+) {
+  if (!DiceApp.database[world]) DiceApp.database[world] = {};
+  if (!DiceApp.database[world][char])
+    DiceApp.database[world][char] = { buttons: [], variables: {}, notes: "" };
+  const c = DiceApp.database[world][char];
+  if (!c.buttons) c.buttons = [];
+  if (!c.variables) c.variables = {};
+  if (typeof c.notes === "undefined") c.notes = "";
+};
+
+DiceApp.saveToStorage = function () {
+  localStorage.setItem("dice_worlds_v1", JSON.stringify(DiceApp.database));
+  localStorage.setItem("current_dice_world", DiceApp.currentWorld);
+  localStorage.setItem("current_dice_char", DiceApp.currentCharacter);
+};
+
+DiceApp.ensureCharacterStructure();

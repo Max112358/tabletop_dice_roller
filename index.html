@@ -8,7 +8,7 @@
       rel="icon"
       href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>"
     />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <select
@@ -22,7 +22,6 @@
 
     <div class="section">
       <h3>World & Character Profiles</h3>
-      <!-- World -->
       <div class="profile-block">
         <div class="profile-select-row">
           <label style="font-weight: bold">World</label>
@@ -35,7 +34,6 @@
         </div>
       </div>
 
-      <!-- Character -->
       <div class="profile-block">
         <div class="profile-select-row">
           <label style="font-weight: bold">Character</label>
@@ -118,34 +116,16 @@
             A-Z Sort
           </button>
           <button
-            onclick="openModal('button-guide-modal')"
+            onclick="openFormulaBuilder()"
             style="
               padding: 4px 8px;
               font-size: 12px;
               background-color: var(--button-bg);
             "
           >
-            💡 Button Guide
+            + New Formula
           </button>
         </div>
-      </div>
-      <div class="btn-creator">
-        <input
-          type="text"
-          id="btnLabel"
-          placeholder="Button Label (e.g., Greatsword)"
-        />
-        <input
-          type="text"
-          id="btnFormula"
-          placeholder="Formula (e.g., 2d6+[STR])"
-        />
-        <input
-          type="text"
-          id="btnNote"
-          placeholder="Note/Description (e.g., Slashing)"
-        />
-        <button onclick="addButton()">Add Button</button>
       </div>
       <div class="grid" id="diceGrid"></div>
     </div>
@@ -170,7 +150,7 @@
           </div>
         </div>
         <div id="resRaw" class="result-raw">
-          Click a custom action button above to calculate a formula string.
+          Click a custom action button above to calculate a formula.
         </div>
       </div>
     </div>
@@ -288,7 +268,6 @@
                 like pool keep or roll-until-target.)</em
               >
             </li>
-
             <li>
               <strong>Complex Multiplication:</strong>
               <span class="code-inline">[PROF]*(1d10)</span> or
@@ -327,7 +306,6 @@
               <span class="code-inline">{2d10+4d6}p2kh1</span>
               <em>(Pool group 2 times, Keep Highest 1 total)</em>
             </li>
-
             <li>
               <strong>Nested Batches:</strong>
               <span class="code-inline">{{2d6+1d4}p2kh1+[STR]}p3kh1</span><br />
@@ -337,14 +315,13 @@
                 keep highest.)</em
               >
             </li>
-
             <li>
               <strong>Daggerheart Check:</strong>
               <span class="code-inline">2d12daggerheart+2</span>
             </li>
             <li>
               <strong>Binary Check (Failure/Success):</strong>
-              <span class="code-inline">1d20+[STR]vs[TARGET_DC]</span>
+              <span class="code-inline">1d20+[STR]vs[ENEMY_AC]</span>
             </li>
             <li>
               <strong>Roll Under Check (Success/Fail):</strong>
@@ -404,7 +381,6 @@
                 second value.</em
               >
             </li>
-
             <li>
               <strong>Roll Until Target:</strong>
               <span class="code-inline">1d8rolluntiltarget40</span> or
@@ -420,7 +396,6 @@
                 the target. Breakdown shows how many rolls it took.)</em
               >
             </li>
-
             <li>
               <strong>Roll Until Target With Limit:</strong>
               <span class="code-inline"
@@ -602,15 +577,6 @@
       </div>
     </div>
 
-    <script src="state.js"></script>
-    <script src="utils.js"></script>
-    <script src="diceEngine.js"></script>
-    <script src="visuals.js"></script>
-    <script src="rollController.js"></script>
-    <script src="dragAndDrop.js"></script>
-    <script src="ui.js"></script>
-    <script src="editModal.js"></script>
-    <script src="io.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
