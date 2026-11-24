@@ -2,59 +2,47 @@ import { registry } from "../engine/nodeRegistry.js";
 import { nodeToString } from "../shared.js";
 import { OP_LABELS } from "./constants.js";
 
-export function bindWorkspaceDrop(builder) {
-  const workspace = document.getElementById("builder-workspace");
-  if (!workspace || workspace.dataset.dropBound === "true") return;
+export function renderWorkspace(builder, parentNode, parentPath, containerEl) {
+  containerEl.innerHTML = "";
 
-  workspace.dataset.dropBound = "true";
+  const operands = parentNode.operands;
 
-  workspace.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  });
-
-  workspace.addEventListener("drop", (e) => {
-    e.preventDefault();
-    const type = e.dataTransfer.getData("text/plain");
-    if (type) builder.addNode(type);
-  });
-}
-
-export function renderWorkspace(builder) {
-  const workspace = document.getElementById("builder-workspace");
-  workspace.innerHTML = "";
-
-  const root = builder.currentAst.root;
-
-  if (root.type === "math" && root.operands.length === 0) {
-    workspace.appendChild(createDropZone(builder));
+  if (operands.length === 0) {
+    containerEl.appendChild(
+      createEmptyDropZone(builder, parentNode, parentPath),
+    );
     return;
   }
 
-  const operands = root.type === "math" ? root.operands : [root];
-
-  workspace.appendChild(createReorderDropZone(builder, 0));
+  containerEl.appendChild(
+    createReorderDropZone(builder, parentNode, parentPath, 0),
+  );
 
   operands.forEach((node, idx) => {
-    const chip = createChip(builder, node, idx);
-    workspace.appendChild(chip);
+    const chipPath = [...parentPath, idx];
+    const chip = createChip(builder, node, chipPath);
+    containerEl.appendChild(chip);
 
-    if (idx < operands.length - 1 && root.type === "math") {
-      workspace.appendChild(createOperatorDropdown(builder, root.op, idx));
+    if (idx < operands.length - 1) {
+      containerEl.appendChild(
+        createOperatorDropdown(builder, parentNode, parentPath, idx),
+      );
     }
 
-    workspace.appendChild(createReorderDropZone(builder, idx + 1));
+    containerEl.appendChild(
+      createReorderDropZone(builder, parentNode, parentPath, idx + 1),
+    );
   });
 }
 
-function createDropZone(builder) {
+function createEmptyDropZone(builder, parentNode, parentPath) {
   const zone = document.createElement("div");
   zone.className = "builder-drop-zone";
   zone.innerText = "Drag a node type here";
 
   zone.addEventListener("dragover", (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+    e.dataTransfer.dropEffect = builder.dragSourceInfo ? "move" : "copy";
     zone.classList.add("drop-active");
   });
 
@@ -66,20 +54,20 @@ function createDropZone(builder) {
     e.preventDefault();
     e.stopPropagation();
     zone.classList.remove("drop-active");
-    const type = e.dataTransfer.getData("text/plain");
-    if (type) builder.addNode(type);
+    handleDropOnWorkspace(builder, parentNode, parentPath, e);
   });
 
   return zone;
 }
 
-function createReorderDropZone(builder, insertIndex) {
+function createReorderDropZone(builder, parentNode, parentPath, insertIndex) {
   const zone = document.createElement("div");
   zone.className = "builder-reorder-zone";
-  zone.dataset.index = insertIndex;
+  zone.dataset.parentPath = JSON.stringify(parentPath);
+  zone.dataset.insertIndex = insertIndex;
 
   zone.addEventListener("dragover", (e) => {
-    if (builder.dragSourceIndex === null) return;
+    if (!builder.dragSourceInfo) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     zone.classList.add("drop-active");
@@ -89,48 +77,53 @@ function createReorderDropZone(builder, insertIndex) {
     zone.classList.remove("drop-active");
   });
 
+  zone.addEventListener("drop", (e) => {
+    if (!builder.dragSourceInfo) return;
+    e.preventDefault();
+    e.stopPropagation();
+    zone.classList.remove("drop-active");
+
+    const targetPath = JSON.parse(zone.dataset.parentPath);
+    const targetIndex = parseInt(zone.dataset.insertIndex, 10);
+    handleChipDrop(builder, targetPath, targetIndex);
+  });
+
   return zone;
 }
 
-function createChip(builder, node, index) {
+function createChip(builder, node, path) {
   const chip = document.createElement("div");
   chip.className = "builder-chip";
   chip.draggable = true;
-  chip.dataset.index = index;
+  chip.dataset.path = JSON.stringify(path);
   chip.innerHTML = `<span>${nodeToString(node)}</span>`;
 
-  if (
-    builder.selectedPath &&
-    builder.selectedPath.length === 1 &&
-    builder.selectedPath[0] === index
-  ) {
+  if (builder.selectedPath && pathsEqual(builder.selectedPath, path)) {
     chip.classList.add("selected");
   }
 
   chip.addEventListener("click", () => {
-    builder.selectedPath = [index];
+    builder.selectedPath = path;
     builder.render();
   });
 
   chip.addEventListener("dragstart", (e) => {
-    builder.dragSourceIndex = index;
+    builder.dragSourceInfo = { path };
     e.dataTransfer.effectAllowed = "move";
   });
 
   chip.addEventListener("dragend", (e) => {
-    const sourceIndex = builder.dragSourceIndex;
+    if (!builder.dragSourceInfo) return;
 
-    if (sourceIndex !== null) {
-      const target = document.elementFromPoint(e.clientX, e.clientY);
-      const zone = target?.closest(".builder-reorder-zone");
-
-      if (zone) {
-        const insertIndex = parseInt(zone.dataset.index, 10);
-        builder.reorderChip(sourceIndex, insertIndex);
-      }
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    const zone = target?.closest(".builder-reorder-zone");
+    if (zone && zone.dataset.parentPath) {
+      const targetPath = JSON.parse(zone.dataset.parentPath);
+      const targetIndex = parseInt(zone.dataset.insertIndex, 10);
+      handleChipDrop(builder, targetPath, targetIndex);
     }
 
-    builder.dragSourceIndex = null;
+    builder.dragSourceInfo = null;
     builder.render();
   });
 
@@ -139,86 +132,120 @@ function createChip(builder, node, index) {
   removeBtn.title = "Remove";
   removeBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    builder.removeChip(index);
+    removeNodeAtPath(builder, path);
   });
   chip.appendChild(removeBtn);
 
   return chip;
 }
 
-function createOperatorDropdown(builder, currentOp, index) {
+function createOperatorDropdown(builder, parentNode, parentPath, index) {
   const select = document.createElement("select");
   select.className = "builder-operator";
+  select.dataset.parentPath = JSON.stringify(parentPath);
 
   Object.keys(OP_LABELS).forEach((op) => {
     const opt = document.createElement("option");
     opt.value = op;
     opt.innerText = OP_LABELS[op];
-    if (op === currentOp) opt.selected = true;
+    if (op === parentNode.op) opt.selected = true;
     select.appendChild(opt);
   });
 
   select.addEventListener("change", () => {
-    builder.currentAst.root.op = select.value;
+    const node = getNodeAtPath(builder.currentAst.root, parentPath);
+    node.op = select.value;
     builder.render();
   });
 
   return select;
 }
 
-export function addNode(builder, type) {
-  const def = registry.get(type);
-  if (!def) return;
-
-  const node = def.create();
-
-  if (builder.currentAst.root.type === "math") {
-    builder.currentAst.root.operands.push(node);
+function handleDropOnWorkspace(builder, parentNode, parentPath, e) {
+  if (builder.dragSourceInfo) {
+    handleChipDrop(builder, parentPath, parentNode.operands.length);
   } else {
-    const old = builder.currentAst.root;
-    builder.currentAst.root = {
-      type: "math",
-      op: "add",
-      operands: [old, node],
-    };
+    const type = e.dataTransfer.getData("text/plain");
+    if (type) addNodeAtPath(builder, parentPath, type);
   }
+}
 
-  builder.selectedPath = [
-    builder.currentAst.root.type === "math"
-      ? builder.currentAst.root.operands.length - 1
-      : 0,
-  ];
+function handleChipDrop(builder, targetParentPath, targetInsertIndex) {
+  const sourcePath = builder.dragSourceInfo?.path;
+  if (!sourcePath) return;
+
+  const sourceParentPath = sourcePath.slice(0, -1);
+  const sourceIndex = sourcePath[sourcePath.length - 1];
+
+  const sourceParent = getNodeAtPath(builder.currentAst.root, sourceParentPath);
+  const targetParent = getNodeAtPath(builder.currentAst.root, targetParentPath);
+
+  if (sourceParent !== targetParent) return; // cross-workspace moves not supported yet
+
+  const operands = sourceParent.operands;
+  if (sourceIndex === targetInsertIndex) return;
+  if (sourceIndex === targetInsertIndex - 1) return;
+
+  const [moved] = operands.splice(sourceIndex, 1);
+  const insertIndex =
+    targetInsertIndex > sourceIndex ? targetInsertIndex - 1 : targetInsertIndex;
+  operands.splice(insertIndex, 0, moved);
+
+  builder.selectedPath = [...targetParentPath, insertIndex];
+  builder.dragSourceInfo = null;
   builder.render();
 }
 
-export function removeChip(builder, index) {
-  if (builder.currentAst.root.type === "math") {
-    builder.currentAst.root.operands.splice(index, 1);
-    if (builder.currentAst.root.operands.length === 0) {
-      builder.currentAst.root = { type: "math", op: "add", operands: [] };
-    } else if (builder.currentAst.root.operands.length === 1) {
-      builder.currentAst.root = builder.currentAst.root.operands[0];
+function addNodeAtPath(builder, parentPath, type) {
+  const def = registry.get(type);
+  if (!def) return;
+
+  const parent = getNodeAtPath(builder.currentAst.root, parentPath);
+  if (!parent.operands) return;
+
+  const node = def.create();
+  parent.operands.push(node);
+  builder.selectedPath = [...parentPath, parent.operands.length - 1];
+  builder.render();
+}
+
+function removeNodeAtPath(builder, path) {
+  const parentPath = path.slice(0, -1);
+  const index = path[path.length - 1];
+  const parent = getNodeAtPath(builder.currentAst.root, parentPath);
+
+  if (!parent.operands) return;
+
+  parent.operands.splice(index, 1);
+
+  if (parent.operands.length === 0 && parent.type === "group") {
+    // remove empty group from its parent
+    if (parentPath.length > 0) {
+      removeNodeAtPath(builder, parentPath);
+      return;
     }
-  } else {
-    builder.currentAst.root = { type: "math", op: "add", operands: [] };
+  }
+
+  if (parent.operands.length === 0 && parent.type === "math") {
+    // leave empty math root
+  } else if (parent.operands.length === 1 && parentPath.length === 0) {
+    // top-level math with one operand collapses to that operand
+    builder.currentAst.root = parent.operands[0];
   }
 
   builder.selectedPath = null;
   builder.render();
 }
 
-export function reorderChip(builder, fromIndex, toIndex) {
-  if (fromIndex === toIndex) return;
-
-  if (builder.currentAst.root.type === "math") {
-    const operands = builder.currentAst.root.operands;
-    const [moved] = operands.splice(fromIndex, 1);
-
-    const insertIndex = toIndex > fromIndex ? toIndex - 1 : toIndex;
-    operands.splice(insertIndex, 0, moved);
-
-    builder.selectedPath = [insertIndex];
+export function getNodeAtPath(root, path) {
+  let node = root;
+  for (let i = 0; i < path.length; i++) {
+    node = node.operands[path[i]];
   }
+  return node;
+}
 
-  builder.render();
+function pathsEqual(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
 }

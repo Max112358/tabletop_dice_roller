@@ -1,5 +1,6 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { nodeToString } from "../shared.js";
+import { renderWorkspace, getNodeAtPath } from "./workspace.js";
 
 export function renderProperties(builder) {
   const panel = document.getElementById("builder-properties");
@@ -10,26 +11,27 @@ export function renderProperties(builder) {
     return;
   }
 
-  const node = getNodeAtPath(builder, builder.selectedPath);
+  const node = getNodeAtPath(builder.currentAst.root, builder.selectedPath);
   const def = registry.get(node.type);
 
   const title = document.createElement("h4");
   title.innerText = def ? `Edit ${def.label}` : "Edit Node";
   panel.appendChild(title);
 
-  const editor = createPropertyEditor(builder, node, (next) => {
-    setNodeAtPath(builder, builder.selectedPath, next);
-    builder.render();
-  });
+  // For groups, render their internal workspace as a nested drag zone.
+  if (node.type === "group") {
+    const groupWorkspace = document.createElement("div");
+    groupWorkspace.className = "builder-group-workspace";
+    panel.appendChild(groupWorkspace);
 
-  panel.appendChild(editor);
-}
+    renderWorkspace(builder, node, builder.selectedPath, groupWorkspace);
 
-function getNodeAtPath(builder, path) {
-  if (builder.currentAst.root.type === "math") {
-    return builder.currentAst.root.operands[path[0]];
+    // Add a spacer before the editor UI below
+    panel.appendChild(document.createElement("hr"));
   }
-  return builder.currentAst.root;
+
+  const editor = createPropertyEditor(builder, node);
+  panel.appendChild(editor);
 }
 
 function setNodeAtPath(builder, path, node) {

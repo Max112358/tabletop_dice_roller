@@ -1006,3 +1006,24 @@ textarea {
   background: var(--accent-orange);
   width: 16px;
 }
+
+.builder-group-workspace {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 2.5rem;
+  padding: 6px;
+  margin: 8px 0;
+  border: 2px dashed var(--accent-orange);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.builder-group-workspace .builder-drop-zone {
+  width: 100%;
+  text-align: center;
+  padding: 0.5rem;
+  color: var(--text-muted);
+  font-size: 12px;
+}

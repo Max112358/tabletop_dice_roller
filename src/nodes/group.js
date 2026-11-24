@@ -1,6 +1,6 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { collectVariableRefs } from "../engine/evaluator.js";
-import { nodeToString, renderGenericEditor } from "../shared.js";
+import { nodeToString } from "../shared.js";
 
 export default function register() {
   registry.register({
@@ -11,39 +11,62 @@ export default function register() {
     create() {
       return {
         type: "group",
-        node: { type: "number", value: 0 },
+        op: "add",
+        operands: [],
       };
     },
 
     evaluate(node, ctx) {
-      const inner = ctx.evaluate(node.node);
-      const innerBreakdown = inner.breakdown?.[0] ?? String(inner.value);
+      if (!node.operands?.length) {
+        return { value: 0, breakdown: ["(0)"], rolls: [] };
+      }
+
+      const results = node.operands.map((op) => ctx.evaluate(op));
+      let value = results[0].value;
+
+      for (let i = 1; i < results.length; i++) {
+        const v = results[i].value;
+        if (node.op === "add") value += v;
+        else if (node.op === "subtract") value -= v;
+        else if (node.op === "multiply") value *= v;
+        else if (node.op === "divide") value /= v;
+      }
+
+      const opSymbol =
+        { add: "+", subtract: "-", multiply: "*", divide: "/" }[node.op] ??
+        node.op;
+      const expression = results
+        .map((r) => r.breakdown?.[0] ?? String(r.value))
+        .join(` ${opSymbol} `);
+
+      const rollParts = results.flatMap((r) => r.rolls || []);
+
       return {
-        value: inner.value,
-        breakdown: [`(${innerBreakdown})`],
-        rolls: inner.rolls || [],
+        value,
+        breakdown: [`(${expression})`],
+        rolls: rollParts,
       };
     },
 
     collectVariables(node, out) {
-      collectVariableRefs(node.node, out);
+      for (const op of node.operands || []) {
+        collectVariableRefs(op, out);
+      }
     },
 
     toDisplayString(node) {
-      return `(${nodeToString(node.node)})`;
+      const op =
+        { add: "+", subtract: "-", multiply: "*", divide: "/" }[node.op] ??
+        node.op;
+      const inner = node.operands.map((o) => nodeToString(o)).join(` ${op} `);
+      return `(${inner})`;
     },
 
+    // No custom editor needed because the builder renders nested workspaces.
     renderEditor(node, update) {
-      const root = document.createElement("div");
-      root.className = "builder-group";
-
-      root.appendChild(
-        renderGenericEditor(node.node, (next) =>
-          update({ ...node, node: next }),
-        ),
+      return document.createTextNode(
+        "Use the workspace above to edit this group.",
       );
-
-      return root;
     },
   });
 }

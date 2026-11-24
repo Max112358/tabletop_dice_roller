@@ -2,13 +2,7 @@ import { executeAST } from "../engine/evaluator.js";
 import { nodeToString } from "../shared.js";
 import { MODAL_HTML } from "./modal-template.js";
 import { renderPalette } from "./palette.js";
-import {
-  bindWorkspaceDrop,
-  renderWorkspace,
-  addNode,
-  removeChip,
-  reorderChip,
-} from "./workspace.js";
+import { renderWorkspace } from "./workspace.js";
 import { renderProperties } from "./properties.js";
 
 export class FormulaBuilder {
@@ -16,7 +10,7 @@ export class FormulaBuilder {
     this.onSave = onSave;
     this.currentAst = null;
     this.selectedPath = null;
-    this.dragSourceIndex = null;
+    this.dragSourceInfo = null;
     this.setupDOM();
   }
 
@@ -34,7 +28,7 @@ export class FormulaBuilder {
       .getElementById("builder-preview")
       .addEventListener("click", () => this.preview());
 
-    bindWorkspaceDrop(this);
+    bindGlobalDrop(this);
   }
 
   open({ label = "", note = "", ast = null }) {
@@ -55,7 +49,9 @@ export class FormulaBuilder {
   }
 
   render() {
-    renderWorkspace(this);
+    const workspace = document.getElementById("builder-workspace");
+    renderWorkspace(this, this.currentAst.root, [], workspace);
+
     renderProperties(this);
     this.renderDisplay();
     this.renderCritRules();
@@ -71,18 +67,6 @@ export class FormulaBuilder {
 
   renderCritRules() {
     // Crit rules can be added here later.
-  }
-
-  addNode(type) {
-    addNode(this, type);
-  }
-
-  removeChip(index) {
-    removeChip(this, index);
-  }
-
-  reorderChip(fromIndex, toIndex) {
-    reorderChip(this, fromIndex, toIndex);
   }
 
   preview() {
@@ -107,4 +91,14 @@ export class FormulaBuilder {
     this.onSave({ label, note, ast: this.currentAst });
     closeModal("formula-builder-modal");
   }
+}
+
+function bindGlobalDrop(builder) {
+  // Global fallback so dropping anywhere outside nested zones still acts on main workspace.
+  const workspace = document.getElementById("builder-workspace");
+  if (!workspace) return;
+  workspace.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = builder.dragSourceInfo ? "move" : "copy";
+  });
 }
