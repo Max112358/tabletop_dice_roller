@@ -875,18 +875,73 @@ textarea {
 }
 
 .builder-reorder-zone {
-  width: 12px;
+  width: 16px;
+  min-width: 16px;
   min-height: 32px;
   border-radius: 3px;
   transition:
     background 0.1s,
     width 0.1s;
   align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed transparent;
+}
+
+.builder-reorder-zone::after {
+  content: "";
+  width: 2px;
+  height: 50%;
+  background: var(--border-color);
+  border-radius: 1px;
+  transition:
+    background 0.1s,
+    height 0.1s;
 }
 
 .builder-reorder-zone.drop-active {
+  background: rgba(255, 153, 0, 0.12);
+  border-color: var(--accent-orange);
+  width: 28px;
+}
+
+.builder-reorder-zone.drop-active::after {
   background: var(--accent-orange);
-  width: 24px;
+  height: 80%;
+}
+
+.builder-reorder-zone-last {
+  flex: 1 1 auto;
+  min-width: 80px;
+  border-color: var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.builder-reorder-zone-last::after {
+  display: none;
+}
+
+.builder-reorder-zone-last::before {
+  content: "+ drop here";
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.builder-reorder-zone-last.drop-active {
+  background: rgba(255, 153, 0, 0.12);
+  border-color: var(--accent-orange);
+}
+
+.builder-reorder-zone-last.drop-active::before {
+  color: var(--accent-orange);
+}
+
+.builder-drop-zone.drop-active {
+  background: rgba(255, 153, 0, 0.12);
+  border-radius: var(--radius-md);
 }
 
 .builder-chip {

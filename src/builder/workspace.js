@@ -13,20 +13,24 @@ export function renderWorkspace(builder, parentPath, containerEl) {
     return;
   }
 
-  containerEl.appendChild(createReorderDropZone(builder, parentPath, 0));
+  containerEl.appendChild(createReorderDropZone(builder, parentPath, 0, false));
 
+  const len = parentNode.operands.length;
   parentNode.operands.forEach((node, idx) => {
     const chipPath = [...parentPath, idx];
     const chip = createChip(builder, node, chipPath);
     containerEl.appendChild(chip);
 
-    if (idx < parentNode.operands.length - 1) {
+    if (idx < len - 1) {
       containerEl.appendChild(createOperatorDropdown(builder, parentPath, idx));
+      containerEl.appendChild(
+        createReorderDropZone(builder, parentPath, idx + 1, false),
+      );
+    } else {
+      containerEl.appendChild(
+        createReorderDropZone(builder, parentPath, idx + 1, true),
+      );
     }
-
-    containerEl.appendChild(
-      createReorderDropZone(builder, parentPath, idx + 1),
-    );
   });
 }
 
@@ -36,33 +40,54 @@ function createEmptyDropZone(builder, parentPath) {
   zone.innerText = "Drag a node type here";
 
   zone.addEventListener("dragover", (e) => {
-    if (builder.dragSourceInfo?.kind === "chip") return;
+    if (!builder.dragSourceInfo) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+    e.dataTransfer.dropEffect =
+      builder.dragSourceInfo.kind === "chip" ? "move" : "copy";
     zone.classList.add("drop-active");
   });
 
   zone.addEventListener("dragleave", () => {
     zone.classList.remove("drop-active");
+  });
+
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.classList.remove("drop-active");
+    handleDrop(builder, zone, parentPath, 0);
   });
 
   return zone;
 }
 
-function createReorderDropZone(builder, parentPath, insertIndex) {
+function createReorderDropZone(
+  builder,
+  parentPath,
+  insertIndex,
+  isLast = false,
+) {
   const zone = document.createElement("div");
   zone.className = "builder-reorder-zone";
+  if (isLast) zone.classList.add("builder-reorder-zone-last");
   zone.dataset.insertIndex = insertIndex;
 
   zone.addEventListener("dragover", (e) => {
     if (!builder.dragSourceInfo) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.dataTransfer.dropEffect =
+      builder.dragSourceInfo.kind === "chip" ? "move" : "copy";
     zone.classList.add("drop-active");
   });
 
   zone.addEventListener("dragleave", () => {
     zone.classList.remove("drop-active");
+  });
+
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    zone.classList.remove("drop-active");
+    handleDrop(builder, zone, parentPath, insertIndex);
   });
 
   return zone;
@@ -73,54 +98,33 @@ function createChip(builder, node, path) {
   chip.className = "builder-chip";
   chip.draggable = true;
   chip.dataset.path = JSON.stringify(path);
-  chip.innerHTML = `<span>${nodeToString(node)}</span>`;
+
+  const label = document.createElement("span");
+  label.innerText = nodeToString(node);
+  chip.appendChild(label);
 
   if (builder.selectedPath && pathsEqual(builder.selectedPath, path)) {
     chip.classList.add("selected");
   }
 
-  chip.addEventListener("click", () => {
+  chip.addEventListener("click", (e) => {
+    e.stopPropagation();
     builder.selectedPath = path;
     builder.render();
   });
 
   chip.addEventListener("dragstart", (e) => {
+    e.stopPropagation();
     builder.dragSourceInfo = { kind: "chip", path };
     chip.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
   });
 
   chip.addEventListener("dragend", (e) => {
-    const sourcePath = builder.dragSourceInfo?.path;
+    e.stopPropagation();
     builder.dragSourceInfo = null;
     chip.classList.remove("dragging");
-
-    if (!sourcePath) {
-      builder.render();
-      return;
-    }
-
-    chip.style.display = "none";
-    const target = document.elementFromPoint(e.clientX, e.clientY);
-    chip.style.display = "";
-
-    const zone = target?.closest(".builder-reorder-zone, .builder-drop-zone");
-    if (!zone) {
-      builder.render();
-      return;
-    }
-
-    const workspace = zone.closest(
-      ".builder-workspace, .builder-workspace-nested",
-    );
-    const parentPath = workspace
-      ? JSON.parse(workspace.dataset.workspacePath)
-      : [];
-    const insertIndex = zone.classList.contains("builder-drop-zone")
-      ? 0
-      : parseInt(zone.dataset.insertIndex, 10);
-
-    moveNode(builder, sourcePath, parentPath, insertIndex);
+    builder.render();
   });
 
   const removeBtn = document.createElement("button");
@@ -264,10 +268,9 @@ function removeNodeAtPath(builder, path) {
     }
   }
 
+  // Keep the root as math so the workspace keeps accepting chips.
   if (parent.operands.length === 0 && parent.type === "math") {
     // leave empty math root
-  } else if (parent.operands.length === 1 && parentPath.length === 0) {
-    builder.currentAst.root = parent.operands[0];
   }
 
   builder.selectedPath = null;
@@ -290,4 +293,25 @@ function pathsEqual(a, b) {
 function isAncestorPath(ancestorPath, maybeDescendantPath) {
   if (maybeDescendantPath.length <= ancestorPath.length) return false;
   return ancestorPath.every((v, i) => v === maybeDescendantPath[i]);
+}
+
+function handleDrop(builder, zone, fallbackParentPath, fallbackInsertIndex) {
+  const source = builder.dragSourceInfo;
+  if (!source) return;
+
+  const workspace = zone.closest(
+    ".builder-workspace, .builder-workspace-nested",
+  );
+  const parentPath = workspace
+    ? JSON.parse(workspace.dataset.workspacePath)
+    : fallbackParentPath;
+  const insertIndex = zone.classList.contains("builder-drop-zone")
+    ? 0
+    : fallbackInsertIndex;
+
+  if (source.kind === "palette") {
+    addNodeAtPath(builder, parentPath, insertIndex, source.type);
+  } else if (source.kind === "chip") {
+    moveNode(builder, source.path, parentPath, insertIndex);
+  }
 }

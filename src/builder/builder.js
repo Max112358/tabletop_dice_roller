@@ -37,6 +37,16 @@ export class FormulaBuilder {
       critSuccess: [],
       critFail: [],
     };
+
+    // Ensure the root is a container so drops always work.
+    if (!this.currentAst.root?.operands) {
+      this.currentAst.root = {
+        type: "math",
+        op: "add",
+        operands: this.currentAst.root ? [this.currentAst.root] : [],
+      };
+    }
+
     this.selectedPath = null;
 
     document.getElementById("builder-label").value = label;

@@ -2,6 +2,17 @@ import { registry } from "../engine/nodeRegistry.js";
 import { nodeToString } from "../shared.js";
 import { getNodeAtPath } from "./workspace.js";
 
+function setNodeAtPath(builder, path, node) {
+  if (path.length === 0) {
+    builder.currentAst.root = node;
+    return;
+  }
+  const parent = getNodeAtPath(builder.currentAst.root, path.slice(0, -1));
+  if (parent?.operands) {
+    parent.operands[path[path.length - 1]] = node;
+  }
+}
+
 export function renderProperties(builder) {
   const panel = document.getElementById("builder-properties");
   panel.innerHTML = "";
@@ -18,16 +29,13 @@ export function renderProperties(builder) {
   title.innerText = def ? `Edit ${def.label}` : "Edit Node";
   panel.appendChild(title);
 
-  const editor = createPropertyEditor(builder, node);
-  panel.appendChild(editor);
-}
+  const update = (nextNode) => {
+    setNodeAtPath(builder, builder.selectedPath, nextNode);
+    builder.render();
+  };
 
-function setNodeAtPath(builder, path, node) {
-  if (builder.currentAst.root.type === "math") {
-    builder.currentAst.root.operands[path[0]] = node;
-  } else {
-    builder.currentAst.root = node;
-  }
+  const editor = createPropertyEditor(builder, node, update);
+  panel.appendChild(editor);
 }
 
 function createPropertyEditor(builder, node, update) {
