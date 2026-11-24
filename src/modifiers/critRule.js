@@ -9,7 +9,6 @@ const TRIGGERS = [
   ["range", "Range"],
   ["doubles", "Doubles"],
   ["yahtzee", "Yahtzee"],
-  ["checkRelative", "Check-relative doubles"],
 ];
 
 function createCritRule(trigger) {
@@ -26,8 +25,6 @@ function createCritRule(trigger) {
       };
     case "doubles":
       return { trigger: "doubles" };
-    case "checkRelative":
-      return { trigger: "checkRelative", mode: "successesDoubles" };
     case "yahtzee":
       return { trigger: "yahtzee" };
     case "max":
