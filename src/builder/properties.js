@@ -1,6 +1,6 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { nodeToString } from "../shared.js";
-import { renderWorkspace, getNodeAtPath } from "./workspace.js";
+import { getNodeAtPath } from "./workspace.js";
 
 export function renderProperties(builder) {
   const panel = document.getElementById("builder-properties");
@@ -17,18 +17,6 @@ export function renderProperties(builder) {
   const title = document.createElement("h4");
   title.innerText = def ? `Edit ${def.label}` : "Edit Node";
   panel.appendChild(title);
-
-  // For groups, render their internal workspace as a nested drag zone.
-  if (node.type === "group") {
-    const groupWorkspace = document.createElement("div");
-    groupWorkspace.className = "builder-group-workspace";
-    panel.appendChild(groupWorkspace);
-
-    renderWorkspace(builder, node, builder.selectedPath, groupWorkspace);
-
-    // Add a spacer before the editor UI below
-    panel.appendChild(document.createElement("hr"));
-  }
 
   const editor = createPropertyEditor(builder, node);
   panel.appendChild(editor);

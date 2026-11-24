@@ -2,7 +2,7 @@ import { executeAST } from "../engine/evaluator.js";
 import { nodeToString } from "../shared.js";
 import { MODAL_HTML } from "./modal-template.js";
 import { renderPalette } from "./palette.js";
-import { renderWorkspace } from "./workspace.js";
+import { renderWorkspace, getNodeAtPath } from "./workspace.js";
 import { renderProperties } from "./properties.js";
 
 export class FormulaBuilder {
@@ -27,8 +27,6 @@ export class FormulaBuilder {
     document
       .getElementById("builder-preview")
       .addEventListener("click", () => this.preview());
-
-    bindGlobalDrop(this);
   }
 
   open({ label = "", note = "", ast = null }) {
@@ -50,7 +48,7 @@ export class FormulaBuilder {
 
   render() {
     const workspace = document.getElementById("builder-workspace");
-    renderWorkspace(this, this.currentAst.root, [], workspace);
+    renderWorkspace(this, [], workspace);
 
     renderProperties(this);
     this.renderDisplay();
@@ -91,14 +89,4 @@ export class FormulaBuilder {
     this.onSave({ label, note, ast: this.currentAst });
     closeModal("formula-builder-modal");
   }
-}
-
-function bindGlobalDrop(builder) {
-  // Global fallback so dropping anywhere outside nested zones still acts on main workspace.
-  const workspace = document.getElementById("builder-workspace");
-  if (!workspace) return;
-  workspace.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = builder.dragSourceInfo ? "move" : "copy";
-  });
 }

@@ -62,10 +62,9 @@ export default function register() {
       return `(${inner})`;
     },
 
-    // No custom editor needed because the builder renders nested workspaces.
-    renderEditor(node, update) {
+    renderEditor() {
       return document.createTextNode(
-        "Use the workspace above to edit this group.",
+        "Groups are edited directly in the workspace.",
       );
     },
   });
