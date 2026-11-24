@@ -39,17 +39,15 @@ export default function register() {
         else if (node.op === "divide") value /= v;
       }
 
-      const parts = [DISPLAY_OPS[node.op] ?? node.op];
-      const rollParts = [];
+      const opSymbol = DISPLAY_OPS[node.op] ?? node.op;
+      const parts = results.map((r) => r.breakdown?.[0] ?? String(r.value));
+      const expression = parts.join(` ${opSymbol} `);
 
-      for (const r of results) {
-        parts.push(r.breakdown?.[0] ?? String(r.value));
-        rollParts.push(...(r.rolls || []));
-      }
+      const rollParts = results.flatMap((r) => r.rolls || []);
 
       return {
         value,
-        breakdown: [`(${parts.join(" ")}) = ${value}`],
+        breakdown: [`${expression} = ${value}`],
         rolls: rollParts,
       };
     },

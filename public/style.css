@@ -973,3 +973,13 @@ textarea {
   display: inline-flex;
   align-items: center;
 }
+
+.builder-chip.drop-before {
+  border-left: 3px solid var(--accent-orange);
+  padding-left: 6px;
+}
+
+.builder-chip.drop-after {
+  border-right: 3px solid var(--accent-orange);
+  padding-right: 6px;
+}

@@ -2,6 +2,7 @@ import number from "../nodes/number.js";
 import variable from "../nodes/variable.js";
 import label from "../nodes/label.js";
 import math from "../nodes/math.js";
+import group from "../nodes/group.js";
 import dice from "../nodes/dice.js";
 import pool from "../nodes/pool.js";
 import rollUntilTarget from "../nodes/rollUntilTarget.js";
@@ -19,6 +20,7 @@ export function registerAll() {
   variable();
   label();
   math();
+  group();
   dice();
   pool();
   rollUntilTarget();
