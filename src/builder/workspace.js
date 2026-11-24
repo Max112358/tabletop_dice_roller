@@ -35,22 +35,10 @@ function createEmptyDropZone(builder, parentPath) {
   zone.className = "builder-drop-zone";
   zone.innerText = "Drag a node type here";
 
-  zone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = builder.dragSourceInfo ? "move" : "copy";
-    zone.classList.add("drop-active");
-  });
-
-  zone.addEventListener("dragleave", () => {
-    zone.classList.remove("drop-active");
-  });
-
-  zone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    zone.classList.remove("drop-active");
-    handleDrop(builder, parentPath, 0, e);
-  });
+  zone.addEventListener("dragenter", () => zone.classList.add("drop-active"));
+  zone.addEventListener("dragleave", () =>
+    zone.classList.remove("drop-active"),
+  );
 
   return zone;
 }
@@ -60,25 +48,10 @@ function createReorderDropZone(builder, parentPath, insertIndex) {
   zone.className = "builder-reorder-zone";
   zone.dataset.insertIndex = insertIndex;
 
-  zone.addEventListener("dragover", (e) => {
-    if (!builder.dragSourceInfo && !e.dataTransfer.getData("text/plain")) {
-      return;
-    }
-    e.preventDefault();
-    e.dataTransfer.dropEffect = builder.dragSourceInfo ? "move" : "copy";
-    zone.classList.add("drop-active");
-  });
-
-  zone.addEventListener("dragleave", () => {
-    zone.classList.remove("drop-active");
-  });
-
-  zone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    zone.classList.remove("drop-active");
-    handleDrop(builder, parentPath, insertIndex, e);
-  });
+  zone.addEventListener("dragenter", () => zone.classList.add("drop-active"));
+  zone.addEventListener("dragleave", () =>
+    zone.classList.remove("drop-active"),
+  );
 
   return zone;
 }
@@ -105,22 +78,48 @@ function createChip(builder, node, path) {
     e.dataTransfer.effectAllowed = "move";
   });
 
-  chip.addEventListener("dragend", () => {
+  chip.addEventListener("dragend", (e) => {
+    const sourcePath = builder.dragSourceInfo?.path;
     builder.dragSourceInfo = null;
     chip.classList.remove("dragging");
-    builder.render();
+
+    if (!sourcePath) {
+      builder.render();
+      return;
+    }
+
+    const el = chip;
+    el.style.display = "none";
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    el.style.display = "";
+
+    const zone = target?.closest(".builder-reorder-zone, .builder-drop-zone");
+    if (zone) {
+      const workspace = zone.closest(
+        ".builder-workspace, .builder-workspace-nested",
+      );
+      const parentPath = workspace
+        ? JSON.parse(workspace.dataset.workspacePath)
+        : [];
+      const insertIndex = zone.classList.contains("builder-drop-zone")
+        ? 0
+        : parseInt(zone.dataset.insertIndex, 10);
+
+      moveNode(builder, sourcePath, parentPath, insertIndex);
+    } else {
+      builder.render();
+    }
   });
 
   const removeBtn = document.createElement("button");
   removeBtn.innerText = "×";
   removeBtn.title = "Remove";
-  removeBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
+  removeBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
     removeNodeAtPath(builder, path);
   });
   chip.appendChild(removeBtn);
 
-  // Groups render their own nested workspace inline
   if (node.type === "group") {
     const nested = document.createElement("div");
     nested.className = "builder-workspace-nested";
@@ -152,35 +151,32 @@ function createOperatorDropdown(builder, parentPath, index) {
   return select;
 }
 
-function handleDrop(builder, parentPath, insertIndex, e) {
-  if (builder.dragSourceInfo) {
-    moveNode(builder, builder.dragSourceInfo.path, parentPath, insertIndex);
-  } else {
-    const type = e.dataTransfer.getData("text/plain");
-    if (type) addNodeAtPath(builder, parentPath, insertIndex, type);
-  }
-}
-
 function moveNode(builder, sourcePath, targetParentPath, targetInsertIndex) {
-  if (pathsEqual(sourcePath.slice(0, -1), targetParentPath)) {
+  if (isAncestorPath(sourcePath, targetParentPath)) {
+    builder.render();
+    return;
+  }
+
+  const sourceParentPath = sourcePath.slice(0, -1);
+  const sourceIndex = sourcePath[sourcePath.length - 1];
+
+  if (pathsEqual(sourceParentPath, targetParentPath)) {
     reorderWithinWorkspace(
       builder,
       targetParentPath,
-      sourcePath[sourcePath.length - 1],
+      sourceIndex,
       targetInsertIndex,
     );
     return;
   }
 
-  if (isAncestorPath(sourcePath, targetParentPath)) return;
-
-  const sourceParentPath = sourcePath.slice(0, -1);
-  const sourceIndex = sourcePath[sourcePath.length - 1];
-
   const sourceParent = getNodeAtPath(builder.currentAst.root, sourceParentPath);
   const targetParent = getNodeAtPath(builder.currentAst.root, targetParentPath);
 
-  if (!sourceParent?.operands || !targetParent?.operands) return;
+  if (!sourceParent?.operands || !targetParent?.operands) {
+    builder.render();
+    return;
+  }
 
   const [moved] = sourceParent.operands.splice(sourceIndex, 1);
   targetParent.operands.splice(targetInsertIndex, 0, moved);
@@ -197,9 +193,18 @@ function reorderWithinWorkspace(
   targetInsertIndex,
 ) {
   const parent = getNodeAtPath(builder.currentAst.root, parentPath);
-  if (!parent?.operands) return;
-  if (sourceIndex === targetInsertIndex) return;
-  if (sourceIndex === targetInsertIndex - 1) return;
+  if (!parent?.operands) {
+    builder.render();
+    return;
+  }
+  if (sourceIndex === targetInsertIndex) {
+    builder.render();
+    return;
+  }
+  if (sourceIndex === targetInsertIndex - 1) {
+    builder.render();
+    return;
+  }
 
   const [moved] = parent.operands.splice(sourceIndex, 1);
   const insertIndex =
@@ -212,10 +217,16 @@ function reorderWithinWorkspace(
 
 function addNodeAtPath(builder, parentPath, insertIndex, type) {
   const def = registry.get(type);
-  if (!def) return;
+  if (!def) {
+    builder.render();
+    return;
+  }
 
   const parent = getNodeAtPath(builder.currentAst.root, parentPath);
-  if (!parent?.operands) return;
+  if (!parent?.operands) {
+    builder.render();
+    return;
+  }
 
   const node = def.create();
   parent.operands.splice(insertIndex, 0, node);

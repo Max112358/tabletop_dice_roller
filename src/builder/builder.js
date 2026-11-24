@@ -1,6 +1,6 @@
 import { executeAST } from "../engine/evaluator.js";
 import { nodeToString } from "../shared.js";
-import { MODAL_HTML } from "./modal-template.js";
+import { PAGE_HTML } from "./page-template.js";
 import { renderPalette } from "./palette.js";
 import { renderWorkspace, getNodeAtPath } from "./workspace.js";
 import { renderProperties } from "./properties.js";
@@ -11,14 +11,15 @@ export class FormulaBuilder {
     this.currentAst = null;
     this.selectedPath = null;
     this.dragSourceInfo = null;
+    this._editingIndex = null;
     this.setupDOM();
   }
 
   setupDOM() {
-    if (document.getElementById("formula-builder-modal")) return;
+    if (document.getElementById("formula-builder-page")) return;
 
     const div = document.createElement("div");
-    div.innerHTML = MODAL_HTML;
+    div.innerHTML = PAGE_HTML;
     document.body.appendChild(div.firstElementChild);
 
     document
@@ -29,7 +30,8 @@ export class FormulaBuilder {
       .addEventListener("click", () => this.preview());
   }
 
-  open({ label = "", note = "", ast = null }) {
+  open({ label = "", note = "", ast = null, index = null }) {
+    this._editingIndex = index;
     this.currentAst = ast || {
       root: { type: "math", op: "add", operands: [] },
       critSuccess: [],
@@ -43,7 +45,16 @@ export class FormulaBuilder {
 
     renderPalette("builder-palette");
     this.render();
-    openModal("formula-builder-modal");
+
+    const page = document.getElementById("formula-builder-page");
+    page.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  close() {
+    const page = document.getElementById("formula-builder-page");
+    if (page) page.classList.add("hidden");
+    document.body.style.overflow = "";
   }
 
   render() {
@@ -86,7 +97,12 @@ export class FormulaBuilder {
       return;
     }
     const note = document.getElementById("builder-note").value.trim();
-    this.onSave({ label, note, ast: this.currentAst });
-    closeModal("formula-builder-modal");
+    this.onSave({
+      label,
+      note,
+      ast: this.currentAst,
+      index: this._editingIndex,
+    });
+    this.close();
   }
 }

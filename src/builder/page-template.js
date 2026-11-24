@@ -1,0 +1,36 @@
+export const PAGE_HTML = `
+<div id="formula-builder-page" class="builder-page hidden">
+  <div class="builder-page-header">
+    <h3>Build Formula</h3>
+    <button class="danger" onclick="DiceApp.closeFormulaBuilder()" type="button">Cancel</button>
+  </div>
+
+  <div class="builder-page-form">
+    <label>Label</label>
+    <input type="text" id="builder-label" />
+
+    <label>Note</label>
+    <input type="text" id="builder-note" />
+  </div>
+
+  <div class="builder-page-display">
+    Display: <span id="builder-display"></span>
+  </div>
+
+  <div class="builder-page-body">
+    <div class="builder-palette" id="builder-palette"></div>
+    <div class="builder-workspace" id="builder-workspace"></div>
+  </div>
+
+  <div class="builder-page-properties" id="builder-properties">
+    Drag a node type onto the workspace above.
+  </div>
+
+  <div class="builder-page-footer">
+    <button id="builder-preview" type="button">Preview Roll</button>
+    <button id="builder-save" type="button">Save</button>
+  </div>
+
+  <pre id="builder-preview-output"></pre>
+</div>
+`;

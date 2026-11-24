@@ -417,24 +417,25 @@ DiceApp.factoryResetDatabase = function () {
 // Formula builder
 // ------------------------------------------------------------------
 
+DiceApp.closeFormulaBuilder = function () {
+  DiceApp.builder.close();
+};
+
 DiceApp.openFormulaBuilder = function (index = null) {
   const buttons = DiceApp.getCurrentCharacterData().buttons;
   const existing = index != null ? buttons[index] : null;
-
   DiceApp.builder.open({
     label: existing?.label ?? "",
     note: existing?.note ?? "",
-    ast: existing?.ast,
+    ast: existing?.ast ?? null,
+    index: index,
   });
-
-  DiceApp.builder._editingIndex = index;
 };
 
-DiceApp.builder = new FormulaBuilder(({ label, note, ast }) => {
+DiceApp.builder = new FormulaBuilder(({ label, note, ast, index }) => {
   const buttons = DiceApp.getCurrentCharacterData().buttons;
-  const idx = DiceApp.builder._editingIndex;
-  if (idx != null) {
-    buttons[idx] = { label, note, ast };
+  if (index != null) {
+    buttons[index] = { label, note, ast };
     showStatus(`Updated "${label}"`);
   } else {
     buttons.push({ label, note, ast });
