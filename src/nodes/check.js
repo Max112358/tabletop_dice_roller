@@ -1,6 +1,25 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { collectVariableRefs } from "../engine/evaluator.js";
-import { nodeToString, renderGenericEditor } from "../shared.js";
+import { nodeToString } from "../shared.js";
+
+const SIGNS = [">", ">=", "=", "<", "<="];
+
+function compare(a, sign, b) {
+  switch (sign) {
+    case ">":
+      return a > b;
+    case ">=":
+      return a >= b;
+    case "=":
+      return a === b;
+    case "<=":
+      return a <= b;
+    case "<":
+      return a < b;
+    default:
+      return a >= b;
+  }
+}
 
 export default function register() {
   registry.register({
@@ -11,87 +30,106 @@ export default function register() {
     create() {
       return {
         type: "check",
-        mode: "gte",
-        roll: { type: "dice", count: 1, sides: 20, modifiers: [] },
-        weak: { type: "number", value: 10 },
+        mode: "binary",
+        sign: ">=",
+        operands: [
+          { type: "math", op: "add", operands: [] },
+          { type: "math", op: "add", operands: [{ type: "number", value: 0 }] },
+        ],
         strong: null,
       };
     },
 
     evaluate(node, ctx) {
-      const rollResult = ctx.evaluate(node.roll);
-      const total = rollResult.value;
-      const weak = ctx.evaluate(node.weak).value;
-      const strong = node.strong ? ctx.evaluate(node.strong).value : null;
+      // Auto-fix old saved data that used roll/weak/strong
+      if (!node.operands || node.operands.length < 2) {
+        node.operands = [
+          node.roll ?? node.left ?? { type: "number", value: 0 },
+          node.dc ?? node.weak ?? node.right ?? { type: "number", value: 0 },
+        ];
+      }
+      if (!node.sign) {
+        node.sign = node.mode === "lte" ? "<=" : ">=";
+      }
+      if (!node.mode || (node.mode !== "binary" && node.mode !== "ternary")) {
+        node.mode = node.strong ? "ternary" : "binary";
+      }
+
+      const leftResult = ctx.evaluate(node.operands[0]);
+      const rightResult = ctx.evaluate(node.operands[1]);
+      const left = leftResult.value;
+      const right = rightResult.value;
+
+      const strongNode = node.strong;
+      const strong = strongNode ? ctx.evaluate(strongNode).value : null;
 
       let checkResult;
       let context;
 
-      if (node.mode === "gte") {
-        if (strong != null && total >= strong) {
+      if (node.mode === "ternary") {
+        const passedWeak = compare(left, node.sign, right);
+        const passedStrong = strong != null && compare(left, node.sign, strong);
+
+        if (passedStrong) {
           checkResult = "strong";
-          context = `[vs ${weak}/${strong}] -> STRONG SUCCESS ✨`;
-        } else if (total >= weak) {
-          checkResult = "weak";
-          context = `[vs ${weak}/${strong}] -> WEAK SUCCESS ⚠️`;
+          context = `[${node.sign} ${right}/${strong}] -> STRONG SUCCESS ✨`;
+        } else if (passedWeak) {
+          checkResult = "mixed";
+          context = `[${node.sign} ${right}/${strong}] -> WEAK SUCCESS ⚠️`;
         } else {
           checkResult = "failure";
-          context = `[vs ${weak}/${strong}] -> FAILURE ❌`;
+          context = `[${node.sign} ${right}/${strong}] -> FAILURE ❌`;
         }
       } else {
-        if (strong != null && total <= strong) {
-          checkResult = "strong";
-          context = `[<= ${weak}/${strong}] -> STRONG SUCCESS ✨`;
-        } else if (total <= weak) {
-          checkResult = "weak";
-          context = `[<= ${weak}/${strong}] -> WEAK SUCCESS ⚠️`;
+        if (compare(left, node.sign, right)) {
+          checkResult = "success";
+          context = `[${node.sign} ${right}] -> SUCCESS ✓`;
         } else {
           checkResult = "failure";
-          context = `[<= ${weak}/${strong}] -> FAILURE ❌`;
+          context = `[${node.sign} ${right}] -> FAILURE ✗`;
         }
       }
 
       return {
-        value: total,
-        breakdown: [...(rollResult.breakdown || []), context],
-        rolls: rollResult.rolls || [],
+        value: left,
+        breakdown: [...(leftResult.breakdown || []), context],
+        rolls: leftResult.rolls || [],
         checkResult,
         checkContext: context,
       };
     },
 
     collectVariables(node, out) {
-      collectVariableRefs(node.roll, out);
-      collectVariableRefs(node.weak, out);
+      node.operands.forEach((op) => collectVariableRefs(op, out));
       if (node.strong) collectVariableRefs(node.strong, out);
     },
 
     toDisplayString(node) {
-      const op = node.mode === "gte" ? "vs" : "<=";
-      const strong = node.strong ? `/${nodeToString(node.strong)}` : "";
-      return `${nodeToString(node.roll)} ${op} ${nodeToString(
-        node.weak,
-      )}${strong}`;
+      const left = node.operands?.[0] ??
+        node.roll ??
+        node.left ?? { type: "number", value: 0 };
+      const right = node.operands?.[1] ??
+        node.dc ??
+        node.weak ??
+        node.right ?? { type: "number", value: 0 };
+      const strong =
+        node.mode === "ternary" && node.strong
+          ? `/${nodeToString(node.strong)}`
+          : "";
+      return `${nodeToString(left)} ${node.sign ?? ">="} ${nodeToString(right)}${strong}`;
     },
 
     renderEditor(node, update) {
       const root = document.createElement("div");
       root.className = "builder-check";
 
-      const rollRow = document.createElement("div");
-      rollRow.appendChild(document.createTextNode("Roll: "));
-      rollRow.appendChild(
-        renderGenericEditor(node.count, (next) =>
-          update({ ...node, count: next }),
-        ),
-      );
-      root.appendChild(rollRow);
-
       const modeRow = document.createElement("div");
+      modeRow.className = "builder-operand-row";
+      modeRow.appendChild(document.createTextNode("Mode: "));
       const mode = document.createElement("select");
       [
-        ["gte", "vs (greater/equal)"],
-        ["lte", "<= (less/equal)"],
+        ["binary", "Binary (Success / Failure)"],
+        ["ternary", "Ternary (Failure / Weak / Strong)"],
       ].forEach(([value, label]) => {
         const opt = document.createElement("option");
         opt.value = value;
@@ -102,39 +140,44 @@ export default function register() {
       mode.addEventListener("change", () =>
         update({ ...node, mode: mode.value }),
       );
-      modeRow.appendChild(document.createTextNode("Mode: "));
       modeRow.appendChild(mode);
       root.appendChild(modeRow);
 
-      const weakRow = document.createElement("div");
-      weakRow.appendChild(document.createTextNode("Weak: "));
-      weakRow.appendChild(
-        renderGenericEditor(node.weak, (next) =>
-          update({ ...node, weak: next }),
-        ),
-      );
-      root.appendChild(weakRow);
-
-      const strongRow = document.createElement("div");
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = node.strong != null;
-      cb.addEventListener("change", () => {
-        update({
-          ...node,
-          strong: cb.checked ? { type: "number", value: 10 } : null,
-        });
+      const signRow = document.createElement("div");
+      signRow.className = "builder-operand-row";
+      signRow.style.marginTop = "8px";
+      signRow.appendChild(document.createTextNode("Sign: "));
+      const sign = document.createElement("select");
+      SIGNS.forEach((s) => {
+        const opt = document.createElement("option");
+        opt.value = s;
+        opt.innerText = s;
+        if ((node.sign ?? ">=") === s) opt.selected = true;
+        sign.appendChild(opt);
       });
-      strongRow.appendChild(cb);
-      strongRow.appendChild(document.createTextNode(" Strong threshold "));
-      if (node.strong) {
-        strongRow.appendChild(
-          renderGenericEditor(node.strong, (next) =>
-            update({ ...node, strong: next }),
-          ),
-        );
+      sign.addEventListener("change", () =>
+        update({ ...node, sign: sign.value }),
+      );
+      signRow.appendChild(sign);
+      root.appendChild(signRow);
+
+      if (node.mode === "ternary") {
+        const strongRow = document.createElement("div");
+        strongRow.className = "builder-operand-row";
+        strongRow.style.marginTop = "8px";
+        strongRow.appendChild(document.createTextNode("Strong threshold: "));
+        const input = document.createElement("input");
+        input.type = "number";
+        input.value = node.strong?.value ?? 10;
+        input.addEventListener("change", () => {
+          update({
+            ...node,
+            strong: { type: "number", value: Number(input.value) || 0 },
+          });
+        });
+        strongRow.appendChild(input);
+        root.appendChild(strongRow);
       }
-      root.appendChild(strongRow);
 
       return root;
     },

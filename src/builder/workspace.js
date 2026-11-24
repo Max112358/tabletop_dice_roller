@@ -8,6 +8,11 @@ export function renderWorkspace(builder, parentPath, containerEl) {
 
   const parentNode = getNodeAtPath(builder.currentAst.root, parentPath);
 
+  if (parentNode.type === "check") {
+    renderCheckWorkspace(builder, parentPath, containerEl, parentNode);
+    return;
+  }
+
   if (!parentNode?.operands || parentNode.operands.length === 0) {
     containerEl.appendChild(createEmptyDropZone(builder, parentPath));
     return;
@@ -32,6 +37,59 @@ export function renderWorkspace(builder, parentPath, containerEl) {
       );
     }
   });
+}
+
+function renderCheckWorkspace(builder, parentPath, containerEl, node) {
+  const header = document.createElement("div");
+  header.className = "builder-check-header";
+  header.innerText = "VS Check — click to edit settings";
+  header.addEventListener("click", (e) => {
+    e.stopPropagation();
+    builder.selectedPath = parentPath;
+    builder.render();
+  });
+  containerEl.appendChild(header);
+
+  const row = document.createElement("div");
+  row.style.display = "flex";
+  row.style.alignItems = "center";
+  row.style.gap = "8px";
+  row.style.flexWrap = "wrap";
+  containerEl.appendChild(row);
+
+  const leftWorkspace = document.createElement("div");
+  leftWorkspace.className = "builder-workspace-nested";
+  leftWorkspace.style.flex = "1";
+  leftWorkspace.style.minWidth = "120px";
+  row.appendChild(leftWorkspace);
+  renderWorkspace(builder, [...parentPath, 0], leftWorkspace);
+
+  row.appendChild(createSignDropdown(builder, parentPath));
+
+  const rightWorkspace = document.createElement("div");
+  rightWorkspace.className = "builder-workspace-nested";
+  rightWorkspace.style.flex = "1";
+  rightWorkspace.style.minWidth = "120px";
+  row.appendChild(rightWorkspace);
+  renderWorkspace(builder, [...parentPath, 1], rightWorkspace);
+}
+
+function createSignDropdown(builder, parentPath) {
+  const parentNode = getNodeAtPath(builder.currentAst.root, parentPath);
+  const select = document.createElement("select");
+  select.className = "builder-operator";
+  [">", ">=", "=", "<", "<="].forEach((s) => {
+    const opt = document.createElement("option");
+    opt.value = s;
+    opt.innerText = s;
+    if ((parentNode.sign ?? ">=") === s) opt.selected = true;
+    select.appendChild(opt);
+  });
+  select.addEventListener("change", () => {
+    parentNode.sign = select.value;
+    builder.render();
+  });
+  return select;
 }
 
 function createEmptyDropZone(builder, parentPath) {
@@ -246,10 +304,21 @@ export function addNodeAtPath(builder, parentPath, insertIndex, type) {
     return;
   }
 
+  if (parent.type === "check" && parent.operands.length >= 2) {
+    showStatus("A VS check can only have a left and right side.", true);
+    builder.render();
+    return;
+  }
+
   const node = def.create();
   parent.operands.splice(insertIndex, 0, node);
   builder.selectedPath = [...parentPath, insertIndex];
   builder.render();
+}
+
+function wrapInMathIfNeeded(node) {
+  if (node.type === "math" || node.type === "group") return node;
+  return { type: "math", op: "add", operands: [node] };
 }
 
 function removeNodeAtPath(builder, path) {
@@ -259,6 +328,22 @@ function removeNodeAtPath(builder, path) {
 
   if (!parent?.operands) return;
 
+  // Root-level check: unwrap to left side.
+  if (path.length === 0 && parent.type === "check") {
+    builder.currentAst.root = parent.operands[0];
+    builder.selectedPath = null;
+    builder.render();
+    return;
+  }
+
+  // Inside a check: replace the side with empty math rather than removing it.
+  if (parent.type === "check") {
+    parent.operands[index] = { type: "math", op: "add", operands: [] };
+    builder.selectedPath = null;
+    builder.render();
+    return;
+  }
+
   parent.operands.splice(index, 1);
 
   if (parent.operands.length === 0 && parent.type === "group") {
@@ -266,11 +351,6 @@ function removeNodeAtPath(builder, path) {
       removeNodeAtPath(builder, parentPath);
       return;
     }
-  }
-
-  // Keep the root as math so the workspace keeps accepting chips.
-  if (parent.operands.length === 0 && parent.type === "math") {
-    // leave empty math root
   }
 
   builder.selectedPath = null;
@@ -283,6 +363,15 @@ export function getNodeAtPath(root, path) {
     node = node.operands[path[i]];
   }
   return node;
+}
+
+export function setNodeAtPath(root, path, node) {
+  if (path.length === 0) return node;
+  const parent = getNodeAtPath(root, path.slice(0, -1));
+  if (parent?.operands) {
+    parent.operands[path[path.length - 1]] = node;
+  }
+  return root;
 }
 
 function pathsEqual(a, b) {
@@ -308,6 +397,42 @@ function handleDrop(builder, zone, fallbackParentPath, fallbackInsertIndex) {
   const insertIndex = zone.classList.contains("builder-drop-zone")
     ? 0
     : fallbackInsertIndex;
+
+  if (source.kind === "palette" && source.type === "check") {
+    const targetNode = getNodeAtPath(builder.currentAst.root, parentPath);
+    if (targetNode?.type === "check") {
+      showStatus("This expression already has a VS check.", true);
+      return;
+    }
+    if (targetNode?.type === "table") {
+      showStatus(
+        "Add VS checks inside table entries, not on the table itself.",
+        true,
+      );
+      return;
+    }
+
+    const newCheck = {
+      type: "check",
+      mode: "binary",
+      sign: ">=",
+      operands: [
+        wrapInMathIfNeeded(targetNode),
+        { type: "math", op: "add", operands: [{ type: "number", value: 0 }] },
+      ],
+      strong: null,
+    };
+
+    builder.currentAst.root = setNodeAtPath(
+      builder.currentAst.root,
+      parentPath,
+      newCheck,
+    );
+    builder.selectedPath = parentPath;
+    builder.dragSourceInfo = null;
+    builder.render();
+    return;
+  }
 
   if (source.kind === "palette") {
     addNodeAtPath(builder, parentPath, insertIndex, source.type);

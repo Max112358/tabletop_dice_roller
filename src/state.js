@@ -16,23 +16,26 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  {
-                    type: "dice",
-                    count: { type: "number", value: 1 },
-                    sides: { type: "number", value: 20 },
-                    modifiers: [],
-                  },
-                  { type: "variable", name: "STR" },
-                  { type: "variable", name: "PROF" },
-                  { type: "variable", name: "BLESS" },
-                ],
-              },
-              weak: { type: "variable", name: "ENEMY_AC" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "dice",
+                      count: { type: "number", value: 1 },
+                      sides: { type: "number", value: 20 },
+                      modifiers: [],
+                    },
+                    { type: "variable", name: "STR" },
+                    { type: "variable", name: "PROF" },
+                    { type: "variable", name: "BLESS" },
+                  ],
+                },
+                { type: "variable", name: "ENEMY_AC" },
+              ],
               strong: null,
             },
             critSuccess: [{ type: "critRule", trigger: "max" }],
@@ -45,29 +48,32 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  {
-                    type: "dice",
-                    count: { type: "number", value: 2 },
-                    sides: { type: "number", value: 20 },
-                    modifiers: [
-                      {
-                        type: "keep",
-                        mode: "highest",
-                        count: { type: "number", value: 1 },
-                      },
-                    ],
-                  },
-                  { type: "variable", name: "STR" },
-                  { type: "variable", name: "PROF" },
-                  { type: "variable", name: "BLESS" },
-                ],
-              },
-              weak: { type: "variable", name: "ENEMY_AC" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "dice",
+                      count: { type: "number", value: 2 },
+                      sides: { type: "number", value: 20 },
+                      modifiers: [
+                        {
+                          type: "keep",
+                          mode: "highest",
+                          count: { type: "number", value: 1 },
+                        },
+                      ],
+                    },
+                    { type: "variable", name: "STR" },
+                    { type: "variable", name: "PROF" },
+                    { type: "variable", name: "BLESS" },
+                  ],
+                },
+                { type: "variable", name: "ENEMY_AC" },
+              ],
               strong: null,
             },
             critSuccess: [{ type: "critRule", trigger: "max" }],
@@ -80,29 +86,32 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  {
-                    type: "dice",
-                    count: { type: "number", value: 2 },
-                    sides: { type: "number", value: 20 },
-                    modifiers: [
-                      {
-                        type: "keep",
-                        mode: "lowest",
-                        count: { type: "number", value: 1 },
-                      },
-                    ],
-                  },
-                  { type: "variable", name: "STR" },
-                  { type: "variable", name: "PROF" },
-                  { type: "variable", name: "BLESS" },
-                ],
-              },
-              weak: { type: "variable", name: "ENEMY_AC" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "dice",
+                      count: { type: "number", value: 2 },
+                      sides: { type: "number", value: 20 },
+                      modifiers: [
+                        {
+                          type: "keep",
+                          mode: "lowest",
+                          count: { type: "number", value: 1 },
+                        },
+                      ],
+                    },
+                    { type: "variable", name: "STR" },
+                    { type: "variable", name: "PROF" },
+                    { type: "variable", name: "BLESS" },
+                  ],
+                },
+                { type: "variable", name: "ENEMY_AC" },
+              ],
               strong: null,
             },
             critSuccess: [{ type: "critRule", trigger: "max" }],
@@ -181,23 +190,26 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  {
-                    type: "dice",
-                    count: { type: "number", value: 1 },
-                    sides: { type: "number", value: 20 },
-                    modifiers: [],
-                  },
-                  { type: "variable", name: "STR" },
-                  { type: "variable", name: "PROF" },
-                  { type: "variable", name: "GUIDANCE" },
-                ],
-              },
-              weak: { type: "variable", name: "TARGET_DC" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "dice",
+                      count: { type: "number", value: 1 },
+                      sides: { type: "number", value: 20 },
+                      modifiers: [],
+                    },
+                    { type: "variable", name: "STR" },
+                    { type: "variable", name: "PROF" },
+                    { type: "variable", name: "GUIDANCE" },
+                  ],
+                },
+                { type: "variable", name: "TARGET_DC" },
+              ],
               strong: null,
             },
             critSuccess: [{ type: "critRule", trigger: "max" }],
@@ -257,12 +269,12 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "daggerheart",
-                sides: { type: "number", value: 12 },
-              },
-              weak: { type: "variable", name: "TARGET_DC" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                { type: "daggerheart", sides: { type: "number", value: 12 } },
+                { type: "variable", name: "TARGET_DC" },
+              ],
               strong: null,
             },
             critSuccess: [],
@@ -275,16 +287,22 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  { type: "daggerheart", sides: { type: "number", value: 12 } },
-                  { type: "number", value: 2 },
-                ],
-              },
-              weak: { type: "variable", name: "TARGET_DC" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "daggerheart",
+                      sides: { type: "number", value: 12 },
+                    },
+                    { type: "number", value: 2 },
+                  ],
+                },
+                { type: "variable", name: "TARGET_DC" },
+              ],
               strong: null,
             },
             critSuccess: [],
@@ -297,16 +315,22 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  { type: "daggerheart", sides: { type: "number", value: 12 } },
-                  { type: "variable", name: "STR" },
-                ],
-              },
-              weak: { type: "variable", name: "ENEMY_DIFFICULTY" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "daggerheart",
+                      sides: { type: "number", value: 12 },
+                    },
+                    { type: "variable", name: "STR" },
+                  ],
+                },
+                { type: "variable", name: "ENEMY_DIFFICULTY" },
+              ],
               strong: null,
             },
             critSuccess: [],
@@ -319,22 +343,28 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  { type: "daggerheart", sides: { type: "number", value: 12 } },
-                  { type: "variable", name: "STR" },
-                  {
-                    type: "dice",
-                    count: { type: "number", value: 1 },
-                    sides: { type: "number", value: 6 },
-                    modifiers: [],
-                  },
-                ],
-              },
-              weak: { type: "variable", name: "ENEMY_DIFFICULTY" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "daggerheart",
+                      sides: { type: "number", value: 12 },
+                    },
+                    { type: "variable", name: "STR" },
+                    {
+                      type: "dice",
+                      count: { type: "number", value: 1 },
+                      sides: { type: "number", value: 6 },
+                      modifiers: [],
+                    },
+                  ],
+                },
+                { type: "variable", name: "ENEMY_DIFFICULTY" },
+              ],
               strong: null,
             },
             critSuccess: [],
@@ -347,24 +377,36 @@ const DEFAULT_DATABASE = {
           ast: {
             root: {
               type: "check",
-              mode: "gte",
-              roll: {
-                type: "math",
-                op: "add",
-                operands: [
-                  { type: "daggerheart", sides: { type: "number", value: 12 } },
-                  { type: "variable", name: "STR" },
-                  {
-                    type: "math",
-                    op: "multiply",
-                    operands: [
-                      { type: "dice", count: 1, sides: 6, modifiers: [] },
-                      { type: "number", value: -1 },
-                    ],
-                  },
-                ],
-              },
-              weak: { type: "variable", name: "ENEMY_DIFFICULTY" },
+              mode: "binary",
+              sign: ">=",
+              operands: [
+                {
+                  type: "math",
+                  op: "add",
+                  operands: [
+                    {
+                      type: "daggerheart",
+                      sides: { type: "number", value: 12 },
+                    },
+                    { type: "variable", name: "STR" },
+                    {
+                      type: "math",
+                      op: "multiply",
+                      operands: [
+                        {
+                          type: "dice",
+                          count: { type: "number", value: 1 },
+                          sides: { type: "number", value: 6 },
+                          modifiers: [],
+                        },
+                        { type: "number", value: -1 },
+                      ],
+                    },
+                    ,
+                  ],
+                },
+                { type: "variable", name: "ENEMY_DIFFICULTY" },
+              ],
               strong: null,
             },
             critSuccess: [],

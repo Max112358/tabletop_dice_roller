@@ -1,17 +1,6 @@
 import { registry } from "../engine/nodeRegistry.js";
-import { nodeToString } from "../shared.js";
-import { getNodeAtPath } from "./workspace.js";
-
-function setNodeAtPath(builder, path, node) {
-  if (path.length === 0) {
-    builder.currentAst.root = node;
-    return;
-  }
-  const parent = getNodeAtPath(builder.currentAst.root, path.slice(0, -1));
-  if (parent?.operands) {
-    parent.operands[path[path.length - 1]] = node;
-  }
-}
+import { nodeToString, renderGenericEditor } from "../shared.js";
+import { getNodeAtPath, setNodeAtPath } from "./workspace.js";
 
 export function renderProperties(builder) {
   const panel = document.getElementById("builder-properties");
@@ -30,7 +19,7 @@ export function renderProperties(builder) {
   panel.appendChild(title);
 
   const update = (nextNode) => {
-    setNodeAtPath(builder, builder.selectedPath, nextNode);
+    setNodeAtPath(builder.currentAst.root, builder.selectedPath, nextNode);
     builder.render();
   };
 
@@ -223,11 +212,13 @@ function createPropertyEditor(builder, node, update) {
   }
 
   if (node.type === "check") {
-    box.appendChild(document.createTextNode("Mode: "));
+    const modeRow = document.createElement("div");
+    modeRow.className = "builder-operand-row";
+    modeRow.appendChild(document.createTextNode("Mode: "));
     const mode = document.createElement("select");
     [
-      ["gte", "vs (greater/equal)"],
-      ["lte", "<= (less/equal)"],
+      ["binary", "Binary (Success / Failure)"],
+      ["ternary", "Ternary (Failure / Weak / Strong)"],
     ].forEach(([v, l]) => {
       const opt = document.createElement("option");
       opt.value = v;
@@ -238,37 +229,61 @@ function createPropertyEditor(builder, node, update) {
     mode.addEventListener("change", () =>
       update({ ...node, mode: mode.value }),
     );
-    box.appendChild(mode);
+    modeRow.appendChild(mode);
+    box.appendChild(modeRow);
 
-    const weakRow = document.createElement("div");
-    weakRow.style.marginTop = "8px";
-    weakRow.appendChild(document.createTextNode("Weak DC: "));
-    weakRow.appendChild(
-      createValueEditor(node.weak, (next) => update({ ...node, weak: next })),
-    );
-    box.appendChild(weakRow);
-
-    const strongRow = document.createElement("div");
-    strongRow.style.marginTop = "8px";
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = node.strong != null;
-    cb.addEventListener("change", () => {
-      update({
-        ...node,
-        strong: cb.checked ? { type: "number", value: 10 } : null,
-      });
+    const signRow = document.createElement("div");
+    signRow.className = "builder-operand-row";
+    signRow.style.marginTop = "8px";
+    signRow.appendChild(document.createTextNode("Sign: "));
+    const sign = document.createElement("select");
+    [">", ">=", "=", "<", "<="].forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.innerText = s;
+      if ((node.sign ?? ">=") === s) opt.selected = true;
+      sign.appendChild(opt);
     });
-    strongRow.appendChild(cb);
-    strongRow.appendChild(document.createTextNode(" Strong DC "));
-    if (node.strong) {
-      strongRow.appendChild(
-        createValueEditor(node.strong, (next) =>
-          update({ ...node, strong: next }),
-        ),
-      );
+    sign.addEventListener("change", () =>
+      update({ ...node, sign: sign.value }),
+    );
+    signRow.appendChild(sign);
+    box.appendChild(signRow);
+
+    if (node.mode === "ternary") {
+      const strongRow = document.createElement("div");
+      strongRow.className = "builder-operand-row";
+      strongRow.style.marginTop = "8px";
+      strongRow.appendChild(document.createTextNode("Strong threshold: "));
+      const input = document.createElement("input");
+      input.type = "number";
+      input.value = node.strong?.value ?? 10;
+      input.addEventListener("change", () => {
+        update({
+          ...node,
+          strong: { type: "number", value: Number(input.value) || 0 },
+        });
+      });
+      strongRow.appendChild(input);
+      box.appendChild(strongRow);
     }
-    box.appendChild(strongRow);
+
+    const unwrapBtn = document.createElement("button");
+    unwrapBtn.innerText = "Remove VS Check";
+    unwrapBtn.type = "button";
+    unwrapBtn.className = "danger";
+    unwrapBtn.style.marginTop = "12px";
+    unwrapBtn.addEventListener("click", () => {
+      const left = node.operands?.[0] ?? { type: "number", value: 0 };
+      if (builder.selectedPath.length === 0) {
+        builder.currentAst.root = left;
+      } else {
+        setNodeAtPath(builder.currentAst.root, builder.selectedPath, left);
+      }
+      builder.selectedPath = null;
+      builder.render();
+    });
+    box.appendChild(unwrapBtn);
   }
 
   if (node.type === "pool") {
