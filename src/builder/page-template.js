@@ -35,6 +35,7 @@ export const PAGE_HTML = `
     <div class="builder-json-actions">
       <button id="builder-export" type="button">Export</button>
       <button id="builder-import" type="button">Import</button>
+      <button id="builder-select-all" type="button">Select All</button>
     </div>
   </div>
 </div>

@@ -1205,6 +1205,8 @@ textarea {
   font-family: monospace;
   font-size: 12px;
   resize: vertical;
+  user-select: all;
+  -webkit-user-select: all;
 }
 
 .builder-json-actions {

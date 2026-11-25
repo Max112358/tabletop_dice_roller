@@ -45,6 +45,32 @@ export class FormulaBuilder {
     if (importBtn) {
       importBtn.addEventListener("click", () => this.importJson());
     }
+
+    const selectAllBtn = document.getElementById("builder-select-all");
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener("click", () =>
+        document.getElementById("builder-json-output").select(),
+      );
+    }
+
+    const jsonOutput = document.getElementById("builder-json-output");
+    if (jsonOutput) {
+      let lastClick = 0;
+      let clickCount = 0;
+      jsonOutput.addEventListener("click", (e) => {
+        const now = Date.now();
+        if (now - lastClick < 400) {
+          clickCount++;
+        } else {
+          clickCount = 1;
+        }
+        lastClick = now;
+        if (clickCount === 3) {
+          e.preventDefault();
+          jsonOutput.select();
+        }
+      });
+    }
   }
 
   open({
@@ -202,6 +228,7 @@ export class FormulaBuilder {
 
     try {
       textarea.value = JSON.stringify(payload, null, 2);
+      textarea.focus();
       textarea.select();
       showStatus("Formula JSON exported to text box.");
     } catch (err) {
