@@ -29,6 +29,13 @@ export const PAGE_HTML = `
     Drag a node type onto the workspace above.
   </div>
 
-  <pre id="builder-preview-output"></pre>
+  <div class="builder-json-io">
+    <label>Formula JSON</label>
+    <textarea id="builder-json-output" rows="6" placeholder="Paste JSON here or click Export to copy..."></textarea>
+    <div class="builder-json-actions">
+      <button id="builder-export" type="button">Export</button>
+      <button id="builder-import" type="button">Import</button>
+    </div>
+  </div>
 </div>
 `;

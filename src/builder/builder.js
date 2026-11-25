@@ -1,4 +1,3 @@
-import { executeAST } from "../engine/evaluator.js";
 import { nodeToString } from "../shared.js";
 import { PAGE_HTML } from "./page-template.js";
 import { renderPalette } from "./palette.js";
@@ -36,6 +35,16 @@ export class FormulaBuilder {
     if (cancelBtn) {
       cancelBtn.addEventListener("click", () => this.close());
     }
+
+    const exportBtn = document.getElementById("builder-export");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => this.exportJson());
+    }
+
+    const importBtn = document.getElementById("builder-import");
+    if (importBtn) {
+      importBtn.addEventListener("click", () => this.importJson());
+    }
   }
 
   open({
@@ -48,7 +57,6 @@ export class FormulaBuilder {
     originalName = null,
     onSave = null,
   } = {}) {
-    // Save the current level before diving into a nested formula.
     if (this.currentAst) {
       this._stack.push({
         ast: this.currentAst,
@@ -78,8 +86,6 @@ export class FormulaBuilder {
         };
 
     const root = this.currentAst.root;
-    // Keep tables/checks/pools as roots. Wrap simple leaves into math so the
-    // workspace can edit them, then unwrap on save when it makes sense.
     if (
       root &&
       !root.operands &&
@@ -171,7 +177,6 @@ export class FormulaBuilder {
     renderProperties(this);
     this.renderDisplay();
     this.renderCritRules();
-    this.preview();
   }
 
   renderDisplay() {
@@ -182,26 +187,94 @@ export class FormulaBuilder {
         : nodeToString(root);
   }
 
-  renderCritRules() {
-    // Crit rules can be added here later.
+  renderCritRules() {}
+
+  exportJson() {
+    const textarea = document.getElementById("builder-json-output");
+    if (!textarea) return;
+
+    let payload;
+    if (this.mode === "variable") {
+      payload = this.currentAst.root;
+    } else {
+      payload = this.currentAst;
+    }
+
+    try {
+      textarea.value = JSON.stringify(payload, null, 2);
+      textarea.select();
+      showStatus("Formula JSON exported to text box.");
+    } catch (err) {
+      textarea.value = "Error: " + err.message;
+    }
   }
 
-  preview() {
-    const root = this.currentAst.root;
-    const output = document.getElementById("builder-preview-output");
+  importJson() {
+    const textarea = document.getElementById("builder-json-output");
+    if (!textarea) return;
 
-    if (root.type === "math" && root.operands.length === 0) {
-      output.innerText = "";
+    const raw = textarea.value.trim();
+    if (!raw) {
+      showStatus(
+        "Paste formula JSON into the text box before importing.",
+        true,
+      );
       return;
     }
 
-    const variables = DiceApp.getCurrentCharacterData().variables || {};
+    let parsed;
     try {
-      const result = executeAST(this.currentAst, variables);
-      output.innerText = JSON.stringify(result, null, 2);
+      parsed = JSON.parse(raw);
     } catch (err) {
-      output.innerText = "Error: " + err.message;
+      showStatus("Invalid JSON: " + err.message, true);
+      return;
     }
+
+    if (this.mode === "variable") {
+      this.currentAst = { root: parsed };
+    } else {
+      if (parsed && typeof parsed === "object" && parsed.root) {
+        this.currentAst = {
+          root: parsed.root,
+          critSuccess: Array.isArray(parsed.critSuccess)
+            ? parsed.critSuccess
+            : [],
+          critFail: Array.isArray(parsed.critFail) ? parsed.critFail : [],
+        };
+      } else if (parsed && typeof parsed === "object" && parsed.type) {
+        this.currentAst = {
+          root: parsed,
+          critSuccess: [],
+          critFail: [],
+        };
+      } else {
+        showStatus(
+          "Imported JSON must be a formula object with a root node.",
+          true,
+        );
+        return;
+      }
+    }
+
+    const root = this.currentAst.root;
+    if (
+      root &&
+      !root.operands &&
+      root.type !== "table" &&
+      root.type !== "check" &&
+      root.type !== "pool" &&
+      root.type !== "rollUntilTarget"
+    ) {
+      this.currentAst.root = {
+        type: "math",
+        op: "add",
+        operands: [root],
+      };
+    }
+
+    this.selectedPath = null;
+    this.render();
+    showStatus("Formula JSON imported.");
   }
 
   save() {
@@ -212,7 +285,6 @@ export class FormulaBuilder {
 
     const nestedOnDone = this._currentOnDone;
     if (nestedOnDone) {
-      // Nested formula editor: return the result to the parent level.
       const result = { node: this.currentAst.root, label, note };
       this._restoreParent();
       nestedOnDone(result);
@@ -232,8 +304,6 @@ export class FormulaBuilder {
     }
 
     if (this.mode === "variable") {
-      // Unwrap a math expression that only contains one term so simple numbers
-      // and labels stay as simple nodes and remain inline-editable.
       let node = this.currentAst.root;
       if (node.type === "math" && node.operands && node.operands.length === 1) {
         node = node.operands[0];
@@ -254,19 +324,6 @@ export class FormulaBuilder {
     }
 
     this.close();
-  }
-
-  isTableRoot() {
-    return this.currentAst?.root?.type === "table";
-  }
-
-  rootIsEmpty() {
-    const r = this.currentAst?.root;
-    if (!r) return true;
-    if (r.type === "math" || r.type === "group") {
-      return !r.operands || r.operands.length === 0;
-    }
-    return false;
   }
 
   isTableRoot() {
