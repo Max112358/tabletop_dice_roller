@@ -1,5 +1,20 @@
 window.DiceApp = window.DiceApp || {};
 
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderResultHtml(text) {
+  return escapeHtml(text)
+    .replace(/~~(\d+)~~/g, "<s>$1</s>")
+    .replace(/\n/g, "<br>");
+}
+
 DiceApp.executeRoll = function (label, ast, note, buttonElement) {
   const missing = DiceApp.getMissingVariables(ast);
   if (missing.length > 0) {
@@ -62,7 +77,8 @@ DiceApp.executeRoll = function (label, ast, note, buttonElement) {
 
       document.getElementById("resTitle").innerHTML =
         `Active Stack: <strong>${DiceApp.rollBuffer.length} Roll(s)</strong>`;
-      document.getElementById("resRaw").innerText = combinedOutputText;
+      document.getElementById("resRaw").innerHTML =
+        renderResultHtml(combinedOutputText);
 
       const timerBadge = document.getElementById("bufferTimer");
       timerBadge.style.display = "inline-block";

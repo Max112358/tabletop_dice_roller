@@ -1,7 +1,7 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { collectVariableRefs, checkCritRule } from "../engine/evaluator.js";
 import { nodeToString, renderGenericEditor } from "../shared.js";
-import { rollDie } from "./nodesShared.js";
+import { rollDie, sum } from "./nodesShared.js";
 
 export default function register() {
   registry.register({
@@ -37,17 +37,20 @@ export default function register() {
 
       let rolls = [];
       for (let i = 0; i < count; i++) rolls.push(rollFn());
+      let histories = rolls.map((r) => [r]);
 
       for (const mod of node.modifiers || []) {
         if (mod.type === "reroll") {
-          applyReroll(rolls, mod, rollFn, sides, ctx);
+          histories = applyReroll(histories, rolls, mod, rollFn, sides, ctx);
         }
       }
 
       let activeRolls = [...rolls];
+      let activeHistories = [...histories];
       let keptRolls = activeRolls;
+      let keptHistories = activeHistories;
       let total = keptRolls.reduce((a, b) => a + b, 0);
-      let breakdown = `${count}d${sides} (${activeRolls.join("+")}=${total})`;
+      let breakdown = `${count}d${sides} (${describeRollsWithHistory(activeHistories, activeRolls)}=${total})`;
 
       for (const mod of node.modifiers || []) {
         if (mod.type === "keep") {
@@ -55,11 +58,22 @@ export default function register() {
             1,
             Math.floor(ctx.evaluate(mod.count).value),
           );
-          keptRolls = [...activeRolls]
-            .sort(mod.mode === "highest" ? (a, b) => b - a : (a, b) => a - b)
-            .slice(0, keepCount);
+
+          const pairs = activeRolls.map((roll, idx) => ({
+            roll,
+            history: activeHistories[idx],
+          }));
+          pairs.sort(
+            mod.mode === "highest"
+              ? (a, b) => b.roll - a.roll
+              : (a, b) => a.roll - b.roll,
+          );
+
+          const keptPairs = pairs.slice(0, keepCount);
+          keptRolls = keptPairs.map((p) => p.roll);
+          keptHistories = keptPairs.map((p) => p.history);
           total = keptRolls.reduce((a, b) => a + b, 0);
-          breakdown += ` -> keep ${mod.mode} ${keepCount}: (${keptRolls.join("+")}=${total})`;
+          breakdown += ` -> keep ${mod.mode} ${keepCount}: (${describeRollsWithHistory(keptHistories, keptRolls)}=${total})`;
         }
       }
 
@@ -188,49 +202,82 @@ function normalizeRerollTarget(target) {
   return { kind: "value", value: { type: "number", value: isNaN(n) ? 0 : n } };
 }
 
-function applyReroll(rolls, mod, rollFn, sides, ctx) {
+function describeRollsWithHistory(histories, rolls) {
+  const multiDice = histories.length > 1;
+  return histories
+    .map((history, i) => {
+      const rendered = renderDieHistory(history, rolls[i]);
+      return history.length > 1 && multiDice ? `(${rendered})` : rendered;
+    })
+    .join("+");
+}
+
+function renderDieHistory(history, finalValue) {
+  if (history.length === 1) return String(history[0]);
+
+  // Additive/exploding: every value contributes to the total.
+  if (finalValue === sum(history)) {
+    return history.join("+");
+  }
+
+  // Substitutive reroll: strike through discarded rolls, keep the final one.
+  return history
+    .map((value, index) =>
+      index < history.length - 1 ? `~~${value}~~` : String(value),
+    )
+    .join("→");
+}
+
+function getRerollMatcher(mod, sides, ctx) {
+  const raw = mod.target;
+
+  // Legacy string/number targets
+  if (raw === "max") return (roll) => roll === sides;
+  if (raw === "min") return (roll) => roll === 1;
+
+  // New object target shape (value/range/max/min)
+  if (raw && typeof raw === "object") {
+    if (raw.kind === "max") return (roll) => roll === sides;
+    if (raw.kind === "min") return (roll) => roll === 1;
+    if (raw.kind === "value") {
+      const target = ctx.evaluate(raw.value).value;
+      return (roll) => roll === target;
+    }
+    if (raw.kind === "range") {
+      const min = ctx.evaluate(raw.min).value;
+      const max = ctx.evaluate(raw.max).value;
+      return (roll) => roll >= min && roll <= max;
+    }
+  }
+
+  const n = Number(raw);
+  return (roll) => roll === n;
+}
+
+function applyReroll(histories, rolls, mod, rollFn, sides, ctx) {
+  const matcher = getRerollMatcher(mod, sides, ctx);
   const isAdditive = mod.mode.includes("additively");
   const isRepeating = mod.mode.includes("repeating");
   const maxIter = isRepeating ? 50 : 1;
 
-  const target = normalizeRerollTarget(mod.target);
-
-  const matches = (roll) => {
-    switch (target.kind) {
-      case "max":
-        return roll === sides;
-      case "min":
-        return roll === 1;
-      case "value": {
-        const val = ctx.evaluate(target.value).value;
-        return roll === val;
-      }
-      case "range": {
-        const min = ctx.evaluate(target.min).value;
-        const max = ctx.evaluate(target.max).value;
-        return roll >= min && roll <= max;
-      }
-      default:
-        return false;
-    }
-  };
-
   for (let i = 0; i < rolls.length; i++) {
-    if (!matches(rolls[i]) || sides <= 1) continue;
+    if (!matcher(rolls[i]) || sides <= 1) continue;
 
     let current = rolls[i];
-    let total = current;
     let iterations = 0;
+    const history = histories[i];
 
-    while (matches(current) && iterations < maxIter) {
+    while (matcher(current) && iterations < maxIter) {
       current = rollFn();
       iterations++;
-      if (isAdditive) total += current;
-      else total = current;
-    }
+      history.push(current);
 
-    rolls[i] = total;
+      if (isAdditive) rolls[i] += current;
+      else rolls[i] = current;
+    }
   }
+
+  return histories;
 }
 
 function checkDiceCrits(mods, primaryRoll, ctx) {
