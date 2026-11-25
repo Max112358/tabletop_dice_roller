@@ -9,6 +9,11 @@ export function renderWorkspace(builder, parentPath, containerEl) {
 
   const parentNode = getNodeAtPath(builder.currentAst.root, parentPath);
 
+  if (parentNode.type === "table") {
+    renderTableWorkspace(builder, parentPath, containerEl, parentNode);
+    return;
+  }
+
   if (parentNode.type === "check") {
     renderCheckWorkspace(builder, parentPath, containerEl, parentNode);
     return;
@@ -48,6 +53,56 @@ export function renderWorkspace(builder, parentPath, containerEl) {
       );
     }
   });
+}
+
+function renderTableWorkspace(builder, parentPath, containerEl) {
+  containerEl.innerHTML = "";
+  containerEl.dataset.workspacePath = JSON.stringify(parentPath);
+
+  const wrapper = document.createElement("div");
+  wrapper.style.width = "100%";
+  wrapper.style.display = "flex";
+  wrapper.style.flexDirection = "column";
+  wrapper.style.gap = "6px";
+
+  const chip = document.createElement("div");
+  chip.className = "builder-chip";
+  chip.style.cursor = "grab";
+  chip.dataset.path = JSON.stringify(parentPath);
+
+  const label = document.createElement("span");
+  label.innerText = "📜 Lookup Table";
+  chip.appendChild(label);
+
+  if (builder.selectedPath && pathsEqual(builder.selectedPath, parentPath)) {
+    chip.classList.add("selected");
+  }
+
+  chip.addEventListener("click", (e) => {
+    e.stopPropagation();
+    builder.selectedPath = parentPath;
+    builder.render();
+  });
+
+  const removeBtn = document.createElement("button");
+  removeBtn.innerText = "×";
+  removeBtn.title = "Remove table";
+  removeBtn.draggable = false;
+  removeBtn.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    removeNodeAtPath(builder, parentPath);
+  });
+  chip.appendChild(removeBtn);
+
+  wrapper.appendChild(chip);
+
+  const info = document.createElement("div");
+  info.style.fontSize = "12px";
+  info.style.color = "var(--text-muted)";
+  info.innerText = "Edit entries in the properties panel.";
+  wrapper.appendChild(info);
+
+  containerEl.appendChild(wrapper);
 }
 
 function renderPoolWorkspace(builder, parentPath, containerEl, node) {
@@ -383,6 +438,18 @@ function removeNodeAtPath(builder, path) {
   const index = path[path.length - 1];
   const parent = getNodeAtPath(builder.currentAst.root, parentPath);
 
+  // Root-level table: reset to an empty workspace.
+  if (path.length === 0 && parent?.type === "table") {
+    builder.currentAst.root = {
+      type: "math",
+      op: "add",
+      operands: [],
+    };
+    builder.selectedPath = null;
+    builder.render();
+    return;
+  }
+
   if (!parent?.operands) return;
 
   // Root-level check: unwrap to left side.
@@ -470,6 +537,38 @@ function handleDrop(builder, zone, fallbackParentPath, fallbackInsertIndex) {
   const insertIndex = zone.classList.contains("builder-drop-zone")
     ? 0
     : fallbackInsertIndex;
+
+  // Tables are standalone roots and cannot be combined with other rolls.
+  if (source.kind === "palette" && source.type === "table") {
+    const currentRoot = builder.currentAst.root;
+
+    if (currentRoot?.type === "table") {
+      showStatus("This formula already uses a table.", true);
+      return;
+    }
+
+    if (!builder.rootIsEmpty?.()) {
+      const ok = confirm(
+        "Adding a table will replace all other nodes in this formula. Continue?",
+      );
+      if (!ok) return;
+    }
+
+    const tableDef = registry.get("table");
+    builder.currentAst.root = tableDef.create();
+    builder.selectedPath = null;
+    builder.dragSourceInfo = null;
+    builder.render();
+    return;
+  }
+
+  if (builder.isTableRoot?.()) {
+    showStatus(
+      "Tables cannot be combined with dice, checks, math, or other roll types.",
+      true,
+    );
+    return;
+  }
 
   if (source.kind === "palette" && source.type === "check") {
     const targetNode = getNodeAtPath(builder.currentAst.root, parentPath);

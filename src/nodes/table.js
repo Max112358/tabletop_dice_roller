@@ -1,6 +1,10 @@
 import { registry } from "../engine/nodeRegistry.js";
 import { collectVariableRefs } from "../engine/evaluator.js";
-import { nodeToString, renderGenericEditor } from "../shared.js";
+import { nodeToString } from "../shared.js";
+
+function getEntryFormula(entry) {
+  return entry.formula ?? entry.result;
+}
 
 export default function register() {
   registry.register({
@@ -11,9 +15,20 @@ export default function register() {
     create() {
       return {
         type: "table",
-        roll: { type: "dice", count: 1, sides: 6, modifiers: [] },
+        roll: {
+          type: "dice",
+          count: { type: "number", value: 1 },
+          sides: { type: "number", value: 6 },
+          modifiers: [],
+        },
         entries: [
-          { min: 1, max: 1, result: { type: "label", value: "Result 1" } },
+          {
+            min: 1,
+            max: 1,
+            label: "RESULT 1",
+            note: "",
+            formula: { type: "number", value: 1 },
+          },
         ],
       };
     },
@@ -21,9 +36,12 @@ export default function register() {
     evaluate(node, ctx) {
       const rollResult = ctx.evaluate(node.roll);
       const rollValue = rollResult.value;
-      const entry = (node.entries || []).find(
-        (e) => rollValue >= e.min && rollValue <= e.max,
-      );
+
+      const entry = (node.entries || []).find((e) => {
+        const min = Number(e.min) || 0;
+        const max = e.max != null ? Number(e.max) : min;
+        return rollValue >= min && rollValue <= max;
+      });
 
       if (!entry) {
         return {
@@ -35,12 +53,19 @@ export default function register() {
         };
       }
 
-      const result = ctx.evaluate(entry.result);
+      const formula = getEntryFormula(entry);
+      const result = formula
+        ? ctx.evaluate(formula)
+        : { value: 0, breakdown: [] };
+
+      const labelTag = entry.label ? ` [${entry.label}]` : "";
+      const noteTag = entry.note ? ` (${entry.note})` : "";
+
       return {
         value: result.value,
         breakdown: [
           ...(rollResult.breakdown || []),
-          `Table lookup ${rollValue}: ${result.breakdown?.[0] ?? result.value}`,
+          `Table lookup ${rollValue}${labelTag}${noteTag}: ${result.breakdown?.[0] ?? result.value}`,
         ],
         rolls: rollResult.rolls || [],
         isCritSuccess: rollResult.isCritSuccess,
@@ -51,108 +76,29 @@ export default function register() {
     collectVariables(node, out) {
       collectVariableRefs(node.roll, out);
       (node.entries || []).forEach((e) => {
-        collectVariableRefs(e.result, out);
+        const f = getEntryFormula(e);
+        if (f) collectVariableRefs(f, out);
       });
     },
 
     toDisplayString(node) {
       const entries = (node.entries || [])
-        .map(
-          (e) =>
-            `${e.min}${e.min !== e.max ? `-${e.max}` : ""}:${nodeToString(e.result)}`,
-        )
+        .map((e) => {
+          const f = getEntryFormula(e);
+          const min = e.min ?? 0;
+          const max = e.max ?? min;
+          const range =
+            Number(min) === Number(max) ? String(min) : `${min}-${max}`;
+          return `${range}:${nodeToString(f)}`;
+        })
         .join(";");
       return `table[${nodeToString(node.roll)};${entries}]`;
     },
 
-    renderEditor(node, update) {
-      const root = document.createElement("div");
-      root.className = "builder-table";
-
-      const rollRow = document.createElement("div");
-      rollRow.appendChild(document.createTextNode("Roll: "));
-      rollRow.appendChild(
-        renderGenericEditor(node.roll, (next) =>
-          update({ ...node, roll: next }),
-        ),
-      );
-      root.appendChild(rollRow);
-
-      const entriesDiv = document.createElement("div");
-      entriesDiv.className = "builder-table-entries";
-      (node.entries || []).forEach((entry, idx) => {
-        const row = document.createElement("div");
-        row.className = "builder-table-row";
-
-        const min = document.createElement("input");
-        min.type = "number";
-        min.value = entry.min;
-        min.style.width = "3rem";
-        const max = document.createElement("input");
-        max.type = "number";
-        max.value = entry.max;
-        max.style.width = "3rem";
-
-        const onRangeChange = () => {
-          const entries = [...node.entries];
-          entries[idx] = {
-            ...entry,
-            min: Number(min.value) || 0,
-            max: Number(max.value) || 0,
-          };
-          update({ ...node, entries });
-        };
-        min.addEventListener("change", onRangeChange);
-        max.addEventListener("change", onRangeChange);
-
-        row.appendChild(min);
-        row.appendChild(document.createTextNode("-"));
-        row.appendChild(max);
-        row.appendChild(document.createTextNode(" → "));
-
-        row.appendChild(
-          renderGenericEditor(entry.result, (next) => {
-            const entries = [...node.entries];
-            entries[idx] = { ...entry, result: next };
-            update({ ...node, entries });
-          }),
-        );
-
-        const del = document.createElement("button");
-        del.innerText = "×";
-        del.type = "button";
-        del.addEventListener("click", () => {
-          const entries = [...node.entries];
-          entries.splice(idx, 1);
-          update({ ...node, entries });
-        });
-        row.appendChild(del);
-
-        entriesDiv.appendChild(row);
-      });
-      root.appendChild(entriesDiv);
-
-      const addBtn = document.createElement("button");
-      addBtn.innerText = "+ Add Row";
-      addBtn.type = "button";
-      addBtn.addEventListener("click", () => {
-        const last = node.entries[node.entries.length - 1];
-        const nextMin = last ? last.max + 1 : 1;
-        update({
-          ...node,
-          entries: [
-            ...(node.entries || []),
-            {
-              min: nextMin,
-              max: nextMin,
-              result: { type: "label", value: `Result ${nextMin}` },
-            },
-          ],
-        });
-      });
-      root.appendChild(addBtn);
-
-      return root;
+    renderEditor() {
+      const div = document.createElement("div");
+      div.innerText = "Tables are edited in the properties panel.";
+      return div;
     },
   });
 }

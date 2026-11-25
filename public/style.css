@@ -1153,3 +1153,11 @@ textarea {
   border-color: var(--accent-orange-hard);
   background: rgba(255, 153, 0, 0.08);
 }
+
+.builder-palette-item.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--bg-dark);
+  color: var(--text-muted);
+  border-style: solid;
+}

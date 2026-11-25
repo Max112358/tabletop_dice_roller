@@ -4,7 +4,7 @@ export const PAGE_HTML = `
     <h3>Build Formula</h3>
     <div class="builder-page-actions">
       <button id="builder-save" type="button">Save</button>
-      <button class="danger" onclick="DiceApp.closeFormulaBuilder()" type="button">Cancel</button>
+      <button id="builder-cancel" class="danger" type="button">Cancel</button>
     </div>
   </div>
 

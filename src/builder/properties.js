@@ -3,6 +3,10 @@ import { nodeToString, renderGenericEditor } from "../shared.js";
 import { getNodeAtPath, setNodeAtPath } from "./workspace.js";
 import { migratePoolNode } from "../nodes/pool.js";
 
+function getEntryFormula(entry) {
+  return entry.formula ?? entry.result;
+}
+
 export function renderProperties(builder) {
   const panel = document.getElementById("builder-properties");
   panel.innerHTML = "";
@@ -318,29 +322,42 @@ function createPropertyEditor(builder, node, update) {
 
   if (node.type === "table") {
     const rollRow = document.createElement("div");
-    rollRow.appendChild(document.createTextNode("Roll: "));
+    rollRow.className = "builder-operand-row";
+    rollRow.appendChild(document.createTextNode("Roll "));
     rollRow.appendChild(
-      createInlineNodeSummary(node.roll, (next) =>
-        update({ ...node, roll: next }),
+      createValueEditor(node.roll.count, (next) =>
+        update({ ...node, roll: { ...node.roll, count: next } }),
+      ),
+    );
+    rollRow.appendChild(document.createTextNode(" d "));
+    rollRow.appendChild(
+      createValueEditor(node.roll.sides, (next) =>
+        update({ ...node, roll: { ...node.roll, sides: next } }),
       ),
     );
     box.appendChild(rollRow);
 
-    const entries = document.createElement("div");
-    entries.style.marginTop = "8px";
-    entries.innerHTML = "<strong>Entries:</strong>";
+    const entriesLabel = document.createElement("div");
+    entriesLabel.style.marginTop = "12px";
+    entriesLabel.innerHTML = "<strong>Entries:</strong>";
+    box.appendChild(entriesLabel);
+
+    const entriesBox = document.createElement("div");
+    entriesBox.className = "builder-table-entries";
 
     (node.entries || []).forEach((entry, idx) => {
       const row = document.createElement("div");
       row.className = "builder-table-row";
+      row.style.alignItems = "flex-start";
 
       const min = document.createElement("input");
       min.type = "number";
-      min.value = entry.min;
+      min.value = entry.min ?? 0;
       min.style.width = "3rem";
+
       const max = document.createElement("input");
       max.type = "number";
-      max.value = entry.max;
+      max.value = entry.max ?? entry.min ?? 0;
       max.style.width = "3rem";
 
       const onRange = () => {
@@ -348,45 +365,98 @@ function createPropertyEditor(builder, node, update) {
         nextEntries[idx] = {
           ...entry,
           min: Number(min.value) || 0,
-          max: Number(max.value) || 0,
+          max: Number(max.value) || Number(min.value) || 0,
         };
         update({ ...node, entries: nextEntries });
       };
       min.addEventListener("change", onRange);
       max.addEventListener("change", onRange);
 
-      row.appendChild(min);
-      row.appendChild(document.createTextNode("-"));
-      row.appendChild(max);
-      row.appendChild(document.createTextNode(" → "));
-      row.appendChild(
-        createInlineNodeSummary(entry.result, (next) => {
-          const nextEntries = [...node.entries];
-          nextEntries[idx] = { ...entry, result: next };
-          update({ ...node, entries: nextEntries });
-        }),
-      );
+      const labelInput = document.createElement("input");
+      labelInput.type = "text";
+      labelInput.placeholder = "Label";
+      labelInput.value = entry.label || "";
+      labelInput.style.width = "7rem";
+      labelInput.addEventListener("change", () => {
+        const nextEntries = [...node.entries];
+        nextEntries[idx] = { ...entry, label: labelInput.value };
+        update({ ...node, entries: nextEntries });
+      });
+
+      const noteInput = document.createElement("input");
+      noteInput.type = "text";
+      noteInput.placeholder = "Note";
+      noteInput.value = entry.note || "";
+      noteInput.style.width = "9rem";
+      noteInput.addEventListener("change", () => {
+        const nextEntries = [...node.entries];
+        nextEntries[idx] = { ...entry, note: noteInput.value };
+        update({ ...node, entries: nextEntries });
+      });
+
+      const formulaSummary = document.createElement("span");
+      formulaSummary.className = "builder-inline-summary";
+      formulaSummary.innerText = nodeToString(getEntryFormula(entry));
+      formulaSummary.title = "Click Edit Formula to change this entry";
+
+      const editFormulaBtn = document.createElement("button");
+      editFormulaBtn.innerText = "Edit Formula";
+      editFormulaBtn.type = "button";
+      editFormulaBtn.addEventListener("click", () => {
+        const formula = getEntryFormula(entry) || {
+          type: "number",
+          value: 0,
+        };
+        builder.open({
+          label: entry.label || "",
+          note: entry.note || "",
+          ast: { root: JSON.parse(JSON.stringify(formula)) },
+          onDone: ({ node: newFormula, label: newLabel, note: newNote }) => {
+            const nextEntries = [...node.entries];
+            nextEntries[idx] = {
+              ...entry,
+              label: newLabel,
+              note: newNote,
+              formula: newFormula,
+            };
+            delete nextEntries[idx].result; // drop legacy key
+            update({ ...node, entries: nextEntries });
+          },
+        });
+      });
 
       const del = document.createElement("button");
       del.innerText = "×";
+      del.type = "button";
       del.addEventListener("click", () => {
         const nextEntries = [...node.entries];
         nextEntries.splice(idx, 1);
         update({ ...node, entries: nextEntries });
       });
+
+      row.appendChild(min);
+      row.appendChild(document.createTextNode("-"));
+      row.appendChild(max);
+      row.appendChild(document.createTextNode(" "));
+      row.appendChild(labelInput);
+      row.appendChild(noteInput);
+      row.appendChild(document.createTextNode(" → "));
+      row.appendChild(formulaSummary);
+      row.appendChild(editFormulaBtn);
       row.appendChild(del);
 
-      entries.appendChild(row);
+      entriesBox.appendChild(row);
     });
 
-    box.appendChild(entries);
+    box.appendChild(entriesBox);
 
     const addBtn = document.createElement("button");
     addBtn.innerText = "+ Add Row";
     addBtn.type = "button";
+    addBtn.style.marginTop = "8px";
     addBtn.addEventListener("click", () => {
       const last = (node.entries || [])[node.entries.length - 1];
-      const nextMin = last ? last.max + 1 : 1;
+      const nextMin = last ? (last.max ?? last.min ?? 0) + 1 : 1;
       update({
         ...node,
         entries: [
@@ -394,7 +464,9 @@ function createPropertyEditor(builder, node, update) {
           {
             min: nextMin,
             max: nextMin,
-            result: { type: "label", value: `Result ${nextMin}` },
+            label: `RESULT ${nextMin}`,
+            note: "",
+            formula: { type: "number", value: nextMin },
           },
         ],
       });

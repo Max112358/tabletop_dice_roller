@@ -144,6 +144,7 @@ function migrateCheckNode(node) {
     node.entries.forEach((e) => {
       migrateCheckNode(e.roll);
       migrateCheckNode(e.result);
+      if (e.formula) migrateCheckNode(e.formula);
     });
   }
 }
