@@ -55,7 +55,7 @@ export default function register() {
       let keptRolls = activeRolls;
       let keptHistories = activeHistories;
       let total = keptRolls.reduce((a, b) => a + b, 0);
-      let breakdown = `${count}d${sides} (${describeRollsWithHistory(activeHistories, activeRolls)}=${total})`;
+      let breakdown = `${count}d${sides} (${formatRollList(activeHistories, activeRolls)})`;
 
       for (const mod of node.modifiers || []) {
         if (mod.type === "keep") {
@@ -78,7 +78,12 @@ export default function register() {
           keptRolls = keptPairs.map((p) => p.roll);
           keptHistories = keptPairs.map((p) => p.history);
           total = keptRolls.reduce((a, b) => a + b, 0);
-          breakdown += ` -> keep ${mod.mode} ${keepCount}: (${describeRollsWithHistory(keptHistories, keptRolls)}=${total})`;
+
+          const keptDesc =
+            keptRolls.length === 1
+              ? String(total)
+              : `(${keptRolls.join("+")}=${total})`;
+          breakdown += ` -> keep ${mod.mode} ${keepCount}: ${keptDesc}`;
         }
       }
 
@@ -231,6 +236,12 @@ function renderDieHistory(history, finalValue) {
       index < history.length - 1 ? `~~${value}~~` : String(value),
     )
     .join("→");
+}
+
+function formatRollList(histories, rolls) {
+  return histories
+    .map((history, i) => renderDieHistory(history, rolls[i]))
+    .join(", ");
 }
 
 function getRerollMatcher(mod, sides, ctx) {
