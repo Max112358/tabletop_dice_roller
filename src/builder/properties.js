@@ -348,17 +348,31 @@ function createPropertyEditor(builder, node, update) {
     (node.entries || []).forEach((entry, idx) => {
       const row = document.createElement("div");
       row.className = "builder-table-row";
-      row.style.alignItems = "flex-start";
+      row.style.alignItems = "center";
+      row.style.gap = "16px";
+      row.style.padding = "6px 0";
 
+      // Min
+      const minWrapper = document.createElement("span");
+      minWrapper.className = "builder-value-editor";
       const min = document.createElement("input");
       min.type = "number";
       min.value = entry.min ?? 0;
-      min.style.width = "3rem";
+      min.style.width = "4rem";
+      minWrapper.appendChild(min);
+      row.appendChild(minWrapper);
 
+      row.appendChild(document.createTextNode("—"));
+
+      // Max
+      const maxWrapper = document.createElement("span");
+      maxWrapper.className = "builder-value-editor";
       const max = document.createElement("input");
       max.type = "number";
       max.value = entry.max ?? entry.min ?? 0;
-      max.style.width = "3rem";
+      max.style.width = "4rem";
+      maxWrapper.appendChild(max);
+      row.appendChild(maxWrapper);
 
       const onRange = () => {
         const nextEntries = [...node.entries];
@@ -372,41 +386,51 @@ function createPropertyEditor(builder, node, update) {
       min.addEventListener("change", onRange);
       max.addEventListener("change", onRange);
 
+      // Label
+      const labelWrapper = document.createElement("span");
+      labelWrapper.className = "builder-value-editor";
       const labelInput = document.createElement("input");
       labelInput.type = "text";
       labelInput.placeholder = "Label";
       labelInput.value = entry.label || "";
-      labelInput.style.width = "7rem";
+      labelInput.style.width = "8rem";
       labelInput.addEventListener("change", () => {
         const nextEntries = [...node.entries];
         nextEntries[idx] = { ...entry, label: labelInput.value };
         update({ ...node, entries: nextEntries });
       });
+      labelWrapper.appendChild(labelInput);
+      row.appendChild(labelWrapper);
 
+      // Note
+      const noteWrapper = document.createElement("span");
+      noteWrapper.className = "builder-value-editor";
       const noteInput = document.createElement("input");
       noteInput.type = "text";
       noteInput.placeholder = "Note";
       noteInput.value = entry.note || "";
-      noteInput.style.width = "9rem";
+      noteInput.style.width = "10rem";
       noteInput.addEventListener("change", () => {
         const nextEntries = [...node.entries];
         nextEntries[idx] = { ...entry, note: noteInput.value };
         update({ ...node, entries: nextEntries });
       });
+      noteWrapper.appendChild(noteInput);
+      row.appendChild(noteWrapper);
+
+      row.appendChild(document.createTextNode(" → "));
 
       const formulaSummary = document.createElement("span");
       formulaSummary.className = "builder-inline-summary";
       formulaSummary.innerText = nodeToString(getEntryFormula(entry));
-      formulaSummary.title = "Click Edit Formula to change this entry";
+      row.appendChild(formulaSummary);
 
       const editFormulaBtn = document.createElement("button");
       editFormulaBtn.innerText = "Edit Formula";
       editFormulaBtn.type = "button";
+      editFormulaBtn.style.marginLeft = "8px";
       editFormulaBtn.addEventListener("click", () => {
-        const formula = getEntryFormula(entry) || {
-          type: "number",
-          value: 0,
-        };
+        const formula = getEntryFormula(entry) || { type: "number", value: 0 };
         builder.open({
           label: entry.label || "",
           note: entry.note || "",
@@ -419,11 +443,12 @@ function createPropertyEditor(builder, node, update) {
               note: newNote,
               formula: newFormula,
             };
-            delete nextEntries[idx].result; // drop legacy key
+            delete nextEntries[idx].result;
             update({ ...node, entries: nextEntries });
           },
         });
       });
+      row.appendChild(editFormulaBtn);
 
       const del = document.createElement("button");
       del.innerText = "×";
@@ -433,16 +458,6 @@ function createPropertyEditor(builder, node, update) {
         nextEntries.splice(idx, 1);
         update({ ...node, entries: nextEntries });
       });
-
-      row.appendChild(min);
-      row.appendChild(document.createTextNode("-"));
-      row.appendChild(max);
-      row.appendChild(document.createTextNode(" "));
-      row.appendChild(labelInput);
-      row.appendChild(noteInput);
-      row.appendChild(document.createTextNode(" → "));
-      row.appendChild(formulaSummary);
-      row.appendChild(editFormulaBtn);
       row.appendChild(del);
 
       entriesBox.appendChild(row);

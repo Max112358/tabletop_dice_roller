@@ -1081,8 +1081,18 @@ textarea {
 .builder-table-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.builder-table-row .builder-value-editor {
+  margin-right: 12px;
+  gap: 8px;
+}
+
+.builder-table-row .builder-value-editor:last-of-type {
+  margin-right: 0;
 }
 
 .builder-dice-mods,
