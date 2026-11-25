@@ -22,23 +22,28 @@ export default function register() {
       const count = Math.max(0, Math.floor(ctx.evaluate(node.count).value));
       const sides = Math.max(1, Math.floor(ctx.evaluate(node.sides).value));
 
-      let rollFn = () => rollDie(sides);
-
-      for (const mod of node.modifiers || []) {
-        if (mod.type === "replace") {
-          const oldFn = rollFn;
-          rollFn = () => {
-            const r = oldFn();
-            if (r >= mod.min && r <= mod.max) return mod.with;
-            return r;
-          };
-        }
-      }
+      const rollFn = () => rollDie(sides);
 
       let rolls = [];
       for (let i = 0; i < count; i++) rolls.push(rollFn());
       let histories = rolls.map((r) => [r]);
 
+      for (const mod of node.modifiers || []) {
+        if (mod.type === "replace") {
+          const min = mod.min;
+          const max = mod.max;
+          const withValue = mod.with;
+
+          for (let i = 0; i < rolls.length; i++) {
+            if (rolls[i] >= min && rolls[i] <= max) {
+              histories[i].push(withValue);
+              rolls[i] = withValue;
+            }
+          }
+        }
+      }
+
+      // Then apply reroll / explode.
       for (const mod of node.modifiers || []) {
         if (mod.type === "reroll") {
           histories = applyReroll(histories, rolls, mod, rollFn, sides, ctx);
@@ -220,7 +225,7 @@ function renderDieHistory(history, finalValue) {
     return history.join("+");
   }
 
-  // Substitutive reroll: strike through discarded rolls, keep the final one.
+  // Substitutive (replace or reroll-once): strike through discarded values.
   return history
     .map((value, index) =>
       index < history.length - 1 ? `~~${value}~~` : String(value),
