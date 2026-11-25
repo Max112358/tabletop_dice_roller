@@ -6,6 +6,14 @@ function getEntryFormula(entry) {
   return entry.formula ?? entry.result;
 }
 
+function summarizeEntries(entries) {
+  if (!entries || entries.length === 0) return "";
+  const min = entries[0].min ?? 0;
+  const last = entries[entries.length - 1];
+  const max = last.max ?? last.min ?? min;
+  return `; ${entries.length} entries, ${min}-${max}`;
+}
+
 export default function register() {
   registry.register({
     type: "table",
@@ -50,6 +58,15 @@ export default function register() {
             `${nodeToString(node.roll)}=${rollValue} -> no table entry`,
           ],
           rolls: rollResult.rolls || [],
+          isCritSuccess: rollResult.isCritSuccess,
+          isCritFail: rollResult.isCritFail,
+          tableDetail: {
+            rollValue,
+            entryLabel: "",
+            entryNote: "",
+            entryResult: 0,
+            entryBreakdown: "no table entry",
+          },
         };
       }
 
@@ -58,18 +75,30 @@ export default function register() {
         ? ctx.evaluate(formula)
         : { value: 0, breakdown: [] };
 
-      const labelTag = entry.label ? ` [${entry.label}]` : "";
-      const noteTag = entry.note ? ` (${entry.note})` : "";
+      const entryLabel = entry.label || "";
+      const entryNote = entry.note || "";
+      const entryBreakdown = result.breakdown?.[0] ?? String(result.value);
+
+      const tableDetail = {
+        rollValue,
+        entryLabel,
+        entryNote,
+        entryResult: result.value,
+        entryBreakdown,
+      };
+
+      const parts = [`${nodeToString(node.roll)}=${rollValue}`];
+      if (entryLabel) parts.push(`[${entryLabel}]`);
+      if (entryNote) parts.push(entryNote);
+      parts.push(`Result: ${entryBreakdown}`);
 
       return {
         value: result.value,
-        breakdown: [
-          ...(rollResult.breakdown || []),
-          `Table lookup ${rollValue}${labelTag}${noteTag}: ${result.breakdown?.[0] ?? result.value}`,
-        ],
+        breakdown: parts,
         rolls: rollResult.rolls || [],
         isCritSuccess: rollResult.isCritSuccess,
         isCritFail: rollResult.isCritFail,
+        tableDetail,
       };
     },
 
@@ -82,17 +111,9 @@ export default function register() {
     },
 
     toDisplayString(node) {
-      const entries = (node.entries || [])
-        .map((e) => {
-          const f = getEntryFormula(e);
-          const min = e.min ?? 0;
-          const max = e.max ?? min;
-          const range =
-            Number(min) === Number(max) ? String(min) : `${min}-${max}`;
-          return `${range}:${nodeToString(f)}`;
-        })
-        .join(";");
-      return `table[${nodeToString(node.roll)};${entries}]`;
+      return `table[${nodeToString(node.roll)}${summarizeEntries(
+        node.entries,
+      )}]`;
     },
 
     renderEditor() {

@@ -118,6 +118,7 @@ export function executeAST(ast, variables = {}) {
           ? false
           : null,
     checkResult: rollResult.checkResult || null,
+    tableDetail: rollResult.tableDetail || null,
   };
 }
 

@@ -49,13 +49,36 @@ DiceApp.executeRoll = function (label, ast, note, buttonElement) {
     );
   }
 
-  const displayFormula = DiceApp.nodeToString(ast.root ?? ast);
+  const rootNode = ast?.root ?? ast ?? {};
+  const isTableRoot = rootNode.type === "table";
 
-  let singleLineOutput = `*${DiceApp.currentCharacter} rolls ${label} (${displayFormula}):* **${rollData.total}**`;
-  if (rollData.dhContext) singleLineOutput += ` ${rollData.dhContext}`;
-  if (rollData.breakdown)
-    singleLineOutput += ` [Details: ${rollData.breakdown}]`;
-  if (note) singleLineOutput += ` *(${note})*`;
+  let singleLineOutput;
+
+  if (isTableRoot && rollData.tableDetail) {
+    const td = rollData.tableDetail;
+    const rollDisplay = DiceApp.nodeToString(rootNode.roll);
+    const tableNote = note ? ` (${note})` : "";
+    const entryLabel = td.entryLabel ? `[${td.entryLabel}]` : "";
+    const entryNote = td.entryNote ? ` ${td.entryNote}` : "";
+    const entryFormula = td.entryBreakdown ? ` = ${td.entryBreakdown}` : "";
+
+    singleLineOutput =
+      `*${DiceApp.currentCharacter} rolls ${label}${tableNote}:* ` +
+      `**${rollData.total}** ` +
+      `[${td.rollValue} on ${rollDisplay}${entryLabel}${entryNote}${entryFormula}]`;
+
+    if (rollData.dhContext) singleLineOutput += ` ${rollData.dhContext}`;
+  } else {
+    const displayFormula = DiceApp.nodeToString(ast.root ?? ast);
+
+    singleLineOutput =
+      `*${DiceApp.currentCharacter} rolls ${label}` +
+      ` (${displayFormula}):* **${rollData.total}**`;
+    if (rollData.dhContext) singleLineOutput += ` ${rollData.dhContext}`;
+    if (rollData.breakdown)
+      singleLineOutput += ` [Details: ${rollData.breakdown}]`;
+    if (note) singleLineOutput += ` *(${note})*`;
+  }
 
   if (currentTime - DiceApp.lastRollTime > DiceApp.COMBO_TIMEOUT_MS) {
     DiceApp.rollBuffer = [];
