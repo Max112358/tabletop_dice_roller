@@ -40,7 +40,7 @@ export default function register() {
 
       for (const mod of node.modifiers || []) {
         if (mod.type === "reroll") {
-          applyReroll(rolls, mod, rollFn, sides);
+          applyReroll(rolls, mod, rollFn, sides, ctx);
         }
       }
 
@@ -180,23 +180,49 @@ export default function register() {
   });
 }
 
-function applyReroll(rolls, mod, rollFn, sides) {
-  const targetRaw = mod.target;
-  const target =
-    targetRaw === "max" ? sides : targetRaw === "min" ? 1 : Number(targetRaw);
+function normalizeRerollTarget(target) {
+  if (target && typeof target === "object" && target.kind) return target;
+  if (target === "max") return { kind: "max" };
+  if (target === "min") return { kind: "min" };
+  const n = Number(target);
+  return { kind: "value", value: { type: "number", value: isNaN(n) ? 0 : n } };
+}
 
+function applyReroll(rolls, mod, rollFn, sides, ctx) {
   const isAdditive = mod.mode.includes("additively");
   const isRepeating = mod.mode.includes("repeating");
   const maxIter = isRepeating ? 50 : 1;
 
+  const target = normalizeRerollTarget(mod.target);
+
+  const matches = (roll) => {
+    switch (target.kind) {
+      case "max":
+        return roll === sides;
+      case "min":
+        return roll === 1;
+      case "value": {
+        const val = ctx.evaluate(target.value).value;
+        return roll === val;
+      }
+      case "range": {
+        const min = ctx.evaluate(target.min).value;
+        const max = ctx.evaluate(target.max).value;
+        return roll >= min && roll <= max;
+      }
+      default:
+        return false;
+    }
+  };
+
   for (let i = 0; i < rolls.length; i++) {
-    if (rolls[i] !== target || sides <= 1) continue;
+    if (!matches(rolls[i]) || sides <= 1) continue;
 
     let current = rolls[i];
     let total = current;
     let iterations = 0;
 
-    while (current === target && iterations < maxIter) {
+    while (matches(current) && iterations < maxIter) {
       current = rollFn();
       iterations++;
       if (isAdditive) total += current;
