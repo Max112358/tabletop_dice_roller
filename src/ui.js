@@ -55,21 +55,26 @@ DiceApp.renderVariables = function () {
     label.className = "var-name";
     label.innerText = varName;
 
-    const val = variables[varName];
-    const isNumberNode = val && val.type === "number";
-    const isLabelNode = val && val.type === "label";
+    const node = variables[varName];
+    const isNumberNode = node && node.type === "number";
 
-    const input = document.createElement("input");
-    input.type = isNumberNode ? "number" : "text";
-    input.className = "var-val-input";
-    input.value = isNumberNode
-      ? val.value
-      : isLabelNode
-        ? val.value
-        : JSON.stringify(val);
-    input.onchange = function () {
-      DiceApp.updateVariableValue(varName, this.value);
-    };
+    let valueEl;
+    if (isNumberNode) {
+      const input = document.createElement("input");
+      input.type = "number";
+      input.className = "var-val-input";
+      input.value = node.value;
+      input.onchange = function () {
+        DiceApp.updateVariableValue(varName, this.value);
+      };
+      valueEl = input;
+    } else {
+      const display = document.createElement("span");
+      display.className = "var-val-display";
+      display.innerText = DiceApp.nodeToString(node);
+      display.title = "Click the pencil to edit this formula";
+      valueEl = display;
+    }
 
     const actions = document.createElement("div");
     actions.className = "var-actions no-drag";
@@ -80,7 +85,7 @@ DiceApp.renderVariables = function () {
     editBtn.title = `Edit variable ${varName}`;
     editBtn.onclick = (e) => {
       e.stopPropagation();
-      DiceApp.openVariableEditModal(varName);
+      DiceApp.openVariableBuilder(varName);
     };
 
     const copyBtn = document.createElement("button");
@@ -106,7 +111,7 @@ DiceApp.renderVariables = function () {
     actions.appendChild(delBtn);
 
     badge.appendChild(label);
-    badge.appendChild(input);
+    badge.appendChild(valueEl);
     badge.appendChild(actions);
     varContainer.appendChild(badge);
   });

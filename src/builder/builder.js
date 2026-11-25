@@ -8,11 +8,15 @@ import { renderProperties } from "./properties.js";
 export class FormulaBuilder {
   constructor(onSave) {
     this.onSave = onSave;
+    this.onSaveDefault = onSave;
+    this.onSaveCallback = onSave;
+    this.mode = "formula";
     this._stack = [];
     this.currentAst = null;
     this.selectedPath = null;
     this.dragSourceInfo = null;
     this._editingIndex = null;
+    this._editingOriginalName = null;
     this._currentOnDone = null;
     this.setupDOM();
   }
@@ -40,6 +44,9 @@ export class FormulaBuilder {
     ast = null,
     index = null,
     onDone = null,
+    mode = "formula",
+    originalName = null,
+    onSave = null,
   } = {}) {
     // Save the current level before diving into a nested formula.
     if (this.currentAst) {
@@ -47,14 +54,20 @@ export class FormulaBuilder {
         ast: this.currentAst,
         selectedPath: this.selectedPath,
         editingIndex: this._editingIndex,
+        originalName: this._editingOriginalName,
         onDone: this._currentOnDone,
+        mode: this.mode,
+        onSave: this.onSaveCallback,
         label: document.getElementById("builder-label").value,
         note: document.getElementById("builder-note").value,
       });
     }
 
     this._currentOnDone = onDone;
-    this._editingIndex = index;
+    this._editingIndex = mode === "formula" ? index : null;
+    this._editingOriginalName = originalName;
+    this.mode = mode;
+    this.onSaveCallback = onSave || this.onSaveDefault;
 
     this.currentAst = ast
       ? JSON.parse(JSON.stringify(ast))
@@ -65,8 +78,8 @@ export class FormulaBuilder {
         };
 
     const root = this.currentAst.root;
-    // Keep tables (and other composite roots) as the root node. Wrap simple
-    // leaves into a math workspace so they can be combined with other terms.
+    // Keep tables/checks/pools as roots. Wrap simple leaves into math so the
+    // workspace can edit them, then unwrap on save when it makes sense.
     if (
       root &&
       !root.operands &&
@@ -86,7 +99,10 @@ export class FormulaBuilder {
 
     document.getElementById("builder-label").value = label;
     document.getElementById("builder-note").value = note;
-    document.getElementById("builder-preview-output").innerText = "";
+
+    document.querySelectorAll(".builder-form-note").forEach((el) => {
+      el.style.display = mode === "variable" ? "none" : "";
+    });
 
     this._updateHeader();
     this.render();
@@ -99,9 +115,14 @@ export class FormulaBuilder {
   _updateHeader() {
     const header = document.querySelector(".builder-page-header h3");
     if (!header) return;
-    header.innerText = this._stack.length
-      ? `Edit Nested Formula (${this._stack.length} level${this._stack.length > 1 ? "s" : ""} deep)`
-      : "Build Formula";
+
+    if (this.mode === "variable") {
+      header.innerText = "Build Variable";
+    } else if (this._stack.length) {
+      header.innerText = `Edit Nested Formula (${this._stack.length} level${this._stack.length > 1 ? "s" : ""} deep)`;
+    } else {
+      header.innerText = "Build Formula";
+    }
   }
 
   close() {
@@ -118,8 +139,11 @@ export class FormulaBuilder {
     this.selectedPath = null;
     this.dragSourceInfo = null;
     this._editingIndex = null;
+    this._editingOriginalName = null;
     this._currentOnDone = null;
     this._stack = [];
+    this.mode = "formula";
+    this.onSaveCallback = this.onSaveDefault;
   }
 
   _restoreParent() {
@@ -127,8 +151,10 @@ export class FormulaBuilder {
     this.currentAst = frame.ast;
     this.selectedPath = frame.selectedPath;
     this._editingIndex = frame.editingIndex;
+    this._editingOriginalName = frame.originalName;
     this._currentOnDone = frame.onDone;
-
+    this.mode = frame.mode;
+    this.onSaveCallback = frame.onSave;
     document.getElementById("builder-label").value = frame.label;
     document.getElementById("builder-note").value = frame.note;
 
@@ -188,7 +214,6 @@ export class FormulaBuilder {
     if (nestedOnDone) {
       // Nested formula editor: return the result to the parent level.
       const result = { node: this.currentAst.root, label, note };
-      // Restore parent FIRST so the onDone closure sees the parent's ast/path.
       this._restoreParent();
       nestedOnDone(result);
       return;
@@ -197,17 +222,51 @@ export class FormulaBuilder {
     if (!label) {
       labelInput.classList.add("builder-label-error");
       setTimeout(() => labelInput.classList.remove("builder-label-error"), 800);
-      showStatus("Button label is required.", true);
+      showStatus(
+        this.mode === "variable"
+          ? "Variable name is required."
+          : "Button label is required.",
+        true,
+      );
       return;
     }
 
-    this.onSave({
-      label,
-      note,
-      ast: this.currentAst,
-      index: this._editingIndex,
-    });
+    if (this.mode === "variable") {
+      // Unwrap a math expression that only contains one term so simple numbers
+      // and labels stay as simple nodes and remain inline-editable.
+      let node = this.currentAst.root;
+      if (node.type === "math" && node.operands && node.operands.length === 1) {
+        node = node.operands[0];
+      }
+
+      this.onSaveCallback({
+        label,
+        node,
+        originalName: this._editingOriginalName,
+      });
+    } else {
+      this.onSaveCallback({
+        label,
+        note,
+        ast: this.currentAst,
+        index: this._editingIndex,
+      });
+    }
+
     this.close();
+  }
+
+  isTableRoot() {
+    return this.currentAst?.root?.type === "table";
+  }
+
+  rootIsEmpty() {
+    const r = this.currentAst?.root;
+    if (!r) return true;
+    if (r.type === "math" || r.type === "group") {
+      return !r.operands || r.operands.length === 0;
+    }
+    return false;
   }
 
   isTableRoot() {

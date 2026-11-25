@@ -449,34 +449,6 @@
       </div>
     </div>
 
-    <div id="variable-edit-modal" class="modal-overlay modal-hidden">
-      <div class="modal-content" onclick="event.stopPropagation()">
-        <span class="modal-close" onclick="closeModal('variable-edit-modal')"
-          >&times;</span
-        >
-        <h3>Edit Variable</h3>
-        <input type="hidden" id="varEditOriginalName" />
-        <div class="creator-form" style="margin-top: 10px">
-          <input
-            type="text"
-            id="varEditName"
-            placeholder="Variable Name (e.g., STR)"
-          />
-          <input type="text" id="varEditValue" placeholder="Value (e.g., 3)" />
-          <div style="display: flex; gap: 10px; margin-top: 10px">
-            <button onclick="saveVariableEdit()" style="flex: 1">Save</button>
-            <button
-              onclick="closeModal('variable-edit-modal')"
-              class="danger"
-              style="flex: 1"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div id="create-world-modal" class="modal-overlay modal-hidden">
       <div class="modal-content" onclick="event.stopPropagation()">
         <span class="modal-close" onclick="closeModal('create-world-modal')"

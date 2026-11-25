@@ -380,6 +380,17 @@ textarea {
   height: auto;
 }
 
+.var-val-display {
+  flex: 1 1 0;
+  min-width: 60px;
+  color: var(--text-main);
+  font-weight: bold;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .var-actions {
   flex: 0 0 auto;
   display: flex;

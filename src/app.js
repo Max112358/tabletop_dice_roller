@@ -91,9 +91,16 @@ DiceApp.updateVariableValue = function (name, val) {
   const cleanVal = parseFloat(valueStr);
   const isNumber = !isNaN(cleanVal) && cleanVal.toString() === valueStr;
 
-  DiceApp.getCurrentCharacterData().variables[name] = isNumber
-    ? { type: "number", value: cleanVal }
-    : { type: "label", value: valueStr };
+  if (!isNumber) {
+    showStatus("Only simple number variables can be edited here.", true);
+    DiceApp.renderUI();
+    return;
+  }
+
+  DiceApp.getCurrentCharacterData().variables[name] = {
+    type: "number",
+    value: cleanVal,
+  };
 
   DiceApp.saveToStorage();
   DiceApp.renderUI();
@@ -108,6 +115,100 @@ DiceApp.removeVariable = function (name) {
     showStatus(`Deleted variable "${name}".`);
   }
 };
+
+DiceApp.openVariableBuilder = function (name) {
+  const variables = DiceApp.getCurrentCharacterData().variables;
+  if (!variables.hasOwnProperty(name)) return;
+
+  const node = variables[name];
+  DiceApp.builder.open({
+    label: name,
+    ast: { root: JSON.parse(JSON.stringify(node)) },
+    mode: "variable",
+    originalName: name,
+    onSave: ({ label, node, originalName }) =>
+      DiceApp.saveVariableFromBuilder(label, node, originalName),
+  });
+};
+
+DiceApp.saveVariableFromBuilder = function (label, valueNode, originalName) {
+  const rawName = label
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]/g, "");
+  if (!rawName) {
+    showStatus(
+      "Variable name must contain uppercase letters or numbers.",
+      true,
+    );
+    return;
+  }
+  if (["D", "KH", "KL"].includes(rawName)) {
+    showStatus(`"${rawName}" is a reserved syntax key word.`, true);
+    return;
+  }
+
+  const charData = DiceApp.getCurrentCharacterData();
+  const variables = charData.variables;
+
+  const duplicate = Object.keys(variables).some(
+    (k) => k !== originalName && k.toUpperCase() === rawName,
+  );
+  if (duplicate) {
+    showStatus(`Variable "${rawName}" already exists.`, true);
+    return;
+  }
+
+  if (originalName && rawName !== originalName) {
+    const newVars = {};
+    Object.keys(variables).forEach((k) => {
+      if (k === originalName) {
+        newVars[rawName] = valueNode;
+      } else {
+        newVars[k] = variables[k];
+      }
+    });
+    charData.variables = newVars;
+  } else {
+    variables[rawName] = valueNode;
+  }
+
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+  showStatus(`Variable "${rawName}" saved.`);
+};
+
+// ------------------------------------------------------------------
+// Formula builder
+// ------------------------------------------------------------------
+
+DiceApp.closeFormulaBuilder = function () {
+  DiceApp.builder.close();
+};
+
+DiceApp.openFormulaBuilder = function (index = null) {
+  const buttons = DiceApp.getCurrentCharacterData().buttons;
+  const existing = index != null ? buttons[index] : null;
+  DiceApp.builder.open({
+    label: existing?.label ?? "",
+    note: existing?.note ?? "",
+    ast: existing?.ast ?? null,
+    index: index,
+  });
+};
+
+DiceApp.builder = new FormulaBuilder(({ label, note, ast, index }) => {
+  const buttons = DiceApp.getCurrentCharacterData().buttons;
+  if (index != null) {
+    buttons[index] = { label, note, ast };
+    showStatus(`Updated "${label}"`);
+  } else {
+    buttons.push({ label, note, ast });
+    showStatus(`Added "${label}"`);
+  }
+  DiceApp.saveToStorage();
+  DiceApp.renderUI();
+});
 
 // ------------------------------------------------------------------
 // World management
@@ -412,38 +513,6 @@ DiceApp.factoryResetDatabase = function () {
     }
   }
 };
-
-// ------------------------------------------------------------------
-// Formula builder
-// ------------------------------------------------------------------
-
-DiceApp.closeFormulaBuilder = function () {
-  DiceApp.builder.close();
-};
-
-DiceApp.openFormulaBuilder = function (index = null) {
-  const buttons = DiceApp.getCurrentCharacterData().buttons;
-  const existing = index != null ? buttons[index] : null;
-  DiceApp.builder.open({
-    label: existing?.label ?? "",
-    note: existing?.note ?? "",
-    ast: existing?.ast ?? null,
-    index: index,
-  });
-};
-
-DiceApp.builder = new FormulaBuilder(({ label, note, ast, index }) => {
-  const buttons = DiceApp.getCurrentCharacterData().buttons;
-  if (index != null) {
-    buttons[index] = { label, note, ast };
-    showStatus(`Updated "${label}"`);
-  } else {
-    buttons.push({ label, note, ast });
-    showStatus(`Added "${label}"`);
-  }
-  DiceApp.saveToStorage();
-  DiceApp.renderUI();
-});
 
 // ------------------------------------------------------------------
 // Expose handlers for inline HTML onclick attributes

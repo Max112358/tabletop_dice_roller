@@ -12,8 +12,8 @@ export const PAGE_HTML = `
     <label>Label</label>
     <input type="text" id="builder-label" />
 
-    <label>Note</label>
-    <input type="text" id="builder-note" />
+    <label class="builder-form-note">Note</label>
+    <input type="text" id="builder-note" class="builder-form-note" />
   </div>
 
   <div class="builder-page-display">

@@ -3,58 +3,6 @@ window.DiceApp = window.DiceApp || {};
 (function () {
   "use strict";
 
-  function parseVariableValue(valueStr, originalValue) {
-    const cleanVal = parseFloat(valueStr);
-    const isNumber = !isNaN(cleanVal) && cleanVal.toString() === valueStr;
-    if (isNumber) return { type: "number", value: cleanVal };
-
-    // try JSON for complex AST values
-    if (
-      originalValue &&
-      originalValue.type &&
-      originalValue.type !== "number" &&
-      originalValue.type !== "label"
-    ) {
-      try {
-        const parsed = JSON.parse(valueStr);
-        if (parsed && parsed.type) return parsed;
-      } catch (e) {
-        // fall through to label
-      }
-    }
-
-    return { type: "label", value: valueStr };
-  }
-
-  function validateVarName(rawName, originalName) {
-    const cleanName = rawName
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9_-]/g, "");
-    if (!cleanName) {
-      showStatus(
-        "Variable label must contain uppercase alphabetic characters!",
-        true,
-      );
-      return null;
-    }
-    if (["D", "KH", "KL"].includes(cleanName)) {
-      showStatus(`"${cleanName}" is a reserved syntax key word.`, true);
-      return null;
-    }
-
-    const variables = DiceApp.getCurrentCharacterData().variables;
-    const duplicate = Object.keys(variables).some(
-      (k) => k !== originalName && k.toUpperCase() === cleanName,
-    );
-    if (duplicate) {
-      showStatus(`Variable "${cleanName}" already exists.`, true);
-      return null;
-    }
-
-    return cleanName;
-  }
-
   function makeUniqueCopyName(baseName) {
     const variables = DiceApp.getCurrentCharacterData().variables;
     let candidate = baseName + "_COPY";
@@ -98,50 +46,11 @@ window.DiceApp = window.DiceApp || {};
   // ------------------------------------------------------------------
 
   DiceApp.openVariableEditModal = function (name) {
-    const variables = DiceApp.getCurrentCharacterData().variables;
-    if (!variables.hasOwnProperty(name)) return;
-
-    const val = variables[name];
-    const isSimple = val && (val.type === "number" || val.type === "label");
-
-    document.getElementById("varEditOriginalName").value = name;
-    document.getElementById("varEditName").value = name;
-    document.getElementById("varEditValue").value = isSimple
-      ? val.value
-      : JSON.stringify(val);
-    openModal("variable-edit-modal");
+    DiceApp.openVariableBuilder(name);
   };
 
   DiceApp.saveVariableEdit = function () {
-    const originalName = document.getElementById("varEditOriginalName").value;
-    const rawName = document.getElementById("varEditName").value;
-    const valueStr = document.getElementById("varEditValue").value.trim();
-
-    const cleanName = validateVarName(rawName, originalName);
-    if (!cleanName) return;
-
-    const variables = DiceApp.getCurrentCharacterData().variables;
-    const originalValue = variables[originalName];
-    const finalValue = parseVariableValue(valueStr, originalValue);
-
-    if (cleanName !== originalName) {
-      const newVars = {};
-      Object.keys(variables).forEach((key) => {
-        if (key === originalName) {
-          newVars[cleanName] = finalValue;
-        } else {
-          newVars[key] = variables[key];
-        }
-      });
-      DiceApp.getCurrentCharacterData().variables = newVars;
-    } else {
-      variables[originalName] = finalValue;
-    }
-
-    DiceApp.saveToStorage();
-    DiceApp.renderUI();
-    closeModal("variable-edit-modal");
-    showStatus(`Updated variable "${cleanName}"`);
+    // No-op; the builder handles variable saves now.
   };
 
   DiceApp.copyVariable = function (name) {
